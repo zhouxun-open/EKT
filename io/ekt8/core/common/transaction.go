@@ -10,8 +10,8 @@ import (
 type Transactions []*Transaction
 
 type Transaction struct {
-	From      Address
-	To        Address
+	From      NormalAddress
+	To        NormalAddress
 	TimeStamp Time // UnixTimeStamp
 	Amount    int64
 	Type      CoinType

@@ -3,34 +3,52 @@ package common
 import (
 	"encoding/hex"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"bytes"
+	"encoding/binary"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 const AddressLength = 20
 
-type Address [AddressLength]byte
+const BigAddressLength = 32
 
-func BytesToAddress(b []byte) Address {
-	var a Address
+type CommonAddress struct {
+	Type int
+	AddressLength int
+	Address []byte
+}
+
+//func (commonAddress *CommonAddress) Hex() string {
+//	prefix:=commonAddress.Type<16&commonAddress.AddressLength
+//	buffer:=bytes.NewBuffer([]byte{})
+//	binary.Write(buffer, binary.BigEndian, &prefix)
+//	buffer.Write(commonAddress.Address)
+//}
+
+type NormalAddress [AddressLength]byte
+
+func BytesToAddress(b []byte) NormalAddress {
+	var a NormalAddress
 	a.SetBytes(b)
 	return a
 }
 
-func (a *Address) SetBytes(b []byte) {
+func (a *NormalAddress) SetBytes(b []byte) {
 	if len(b) > len(a) {
 		b = b[len(b)-AddressLength:]
 	}
 	copy(a[AddressLength-len(b):], b)
 }
 
-func (a *Address) SetString(s string) {
+func (a *NormalAddress) SetString(s string) {
 	a.SetBytes([]byte(s))
 }
 
-func (a Address) String() string {
+func (a NormalAddress) String() string {
 	return a.Hex()
 }
 
-func (a Address) Hex() string {
+func (a NormalAddress) Hex() string {
 	unchecksummed := hex.EncodeToString(a[:])
 	sha := sha3.NewKeccak256()
 	sha.Write([]byte(unchecksummed))

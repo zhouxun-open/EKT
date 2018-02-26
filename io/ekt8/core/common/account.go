@@ -7,6 +7,6 @@ import (
 )
 
 type Account struct {
-	Address    Address
+	Address    NormalAddress
 	PublickKey []byte
 }

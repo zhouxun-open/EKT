@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	_ "github.com/EducationEKT/EKT/io/ekt8/api"
 	_ "github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/xserver/x_http"
 	"net/http"
+	"fmt"
 )
 
 func init() {
@@ -13,5 +13,5 @@ func init() {
 }
 
 func main() {
-	fmt.Println("main")
+	fmt.Println("main ")
 }
