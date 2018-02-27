@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -21,12 +22,16 @@ func init() {
 	theCurve.BitSize = 256
 }
 
-func Crypt(data []byte, secKey []byte) ([]byte, error) {
+func Crypto(data []byte, secKey []byte) ([]byte, error) {
 	return secp256k1.Sign(data, secKey)
 }
 
 func Verify(sign, pubKey, msg []byte) bool {
-	return secp256k1.VerifySignature(pubKey, msg, sign)
+	pub2, err:=secp256k1.RecoverPubkey(msg, sign)
+	if err!=nil || !bytes.Equal(pubKey, pub2){
+		return false
+	}
+	return true
 }
 
 func GenerateKeyPair() (pubkey, privkey []byte) {

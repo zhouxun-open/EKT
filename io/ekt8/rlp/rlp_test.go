@@ -11,7 +11,7 @@ import (
 func TestEncodeStruct(t *testing.T) {
 	s1 := MPTPlus.TrieSonInfo{[]byte("A"), "A"}
 	s2 := MPTPlus.TrieSonInfo{[]byte("World"), "World"}
-	node := &MPTPlus.TrieNode{Sons: []MPTPlus.TrieSonInfo{s1, s2}, Leaf: false, Str: "Hello"}
+	node := &MPTPlus.TrieNode{Sons: []MPTPlus.TrieSonInfo{s1, s2}, Leaf: false, PathValue: "Hello"}
 	bts, err := Encode(node)
 	if err != nil {
 		fmt.Println(err)
