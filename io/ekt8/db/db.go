@@ -1,16 +1,10 @@
 package db
 
-import (
-	"fmt"
-	"github.com/syndtr/goleveldb/leveldb"
-)
-
 type EKTDB interface {
-	Set(key, value []byte)
-	Get(Key, value []byte)
-	Delete(Key []byte)
+	Set(key, value []byte) error
+	Get(Key, value []byte) error
+	Delete(Key []byte) error
 }
 
 func init() {
-	
 }

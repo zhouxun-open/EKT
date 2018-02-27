@@ -75,12 +75,6 @@
 			"revisionTime": "2018-01-16T16:23:41Z"
 		},
 		{
-			"checksumSHA1": "W0XLNKJu61SBJW5LfVR3tG+U7ro=",
-			"path": "github.com/ethereum/go-ethereum/crypto/randentropy",
-			"revision": "02aeb3d76652a4c0451e5c3734e6881aefe46249",
-			"revisionTime": "2018-01-16T16:23:41Z"
-		},
-		{
 			"checksumSHA1": "LS/Qn4CAVXw3zDAiURIS9LIvKxg=",
 			"path": "github.com/ethereum/go-ethereum/crypto/secp256k1",
 			"revision": "02aeb3d76652a4c0451e5c3734e6881aefe46249",
@@ -89,6 +83,12 @@
 		{
 			"checksumSHA1": "pQzUVRi0z/3Z4FpRyExSg1ROLSA=",
 			"path": "github.com/ethereum/go-ethereum/crypto/sha3",
+			"revision": "02aeb3d76652a4c0451e5c3734e6881aefe46249",
+			"revisionTime": "2018-01-16T16:23:41Z"
+		},
+		{
+			"checksumSHA1": "f2Asra5yXCMDxwx/TF6m4h3ZqOw=",
+			"path": "github.com/ethereum/go-ethereum/rlp",
 			"revision": "02aeb3d76652a4c0451e5c3734e6881aefe46249",
 			"revisionTime": "2018-01-16T16:23:41Z"
 		},
