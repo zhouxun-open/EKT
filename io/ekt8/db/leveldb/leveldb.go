@@ -18,12 +18,13 @@ func NewLevelDB(filePath string) (db LevelDB, err error) {
 }
 
 func (levelDB LevelDB) Set(key, value []byte) error {
-	return levelDB.DB.Put(key, value, nil)
+	db := levelDB.DB
+	return db.Put(key, value, nil)
 }
 
-func (levelDB LevelDB) Get(key, value []byte) error {
-	value, err := levelDB.DB.Get(key, nil)
-	return err
+func (levelDB LevelDB) Get(key []byte) ([]byte, error) {
+	db := levelDB.DB
+	return db.Get(key, nil)
 }
 
 func (levelDB LevelDB) Delete(key []byte) error {
