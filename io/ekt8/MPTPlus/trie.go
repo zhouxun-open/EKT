@@ -2,10 +2,8 @@ package MPTPlus
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
@@ -69,6 +67,8 @@ func (this *MTP) Insert(key, value []byte) (err error) {
 func (this *MTP) GetValue(key []byte) (value []byte, err error) {
 	hash := this.Root
 	left := key
+	var vHash []byte
+	find := false
 	for {
 		node, _ := this.GetNode(hash)
 		if !node.Root {
@@ -77,6 +77,11 @@ func (this *MTP) GetValue(key []byte) (value []byte, err error) {
 			} else {
 				return nil, errors.New("Not Exist")
 			}
+		}
+		if len(left) == 0 {
+			find = true
+			vHash = node.Sons[0].Hash
+			break
 		}
 		exist := false
 		for _, son := range node.Sons {
@@ -90,7 +95,60 @@ func (this *MTP) GetValue(key []byte) (value []byte, err error) {
 			return nil, errors.New("Not Exist")
 		}
 	}
+	if find {
+		return this.DB.Get(vHash)
+	}
 	return nil, nil
+}
+
+func (this *MTP) ContainsKey(key []byte) bool {
+	_, prefixs, err := this.FindParents(key)
+	if err != nil {
+		return false
+	}
+	prefix := bytes.Join(prefixs, nil)
+	if bytes.Equal(prefix, key) {
+		return true
+	}
+	return false
+}
+
+func (this *MTP) Update(key, value []byte) error {
+	if !this.ContainsKey(key) {
+		return errors.New("Not Exist")
+	}
+	parentHashes, _, err := this.FindParents(key)
+	if err != nil {
+		return nil
+	}
+	leafNode, err := this.GetNode(parentHashes[len(parentHashes)-1])
+	valueHash, err := this.SaveValue(value)
+	if err != nil {
+		return err
+	}
+	leafNode.DeleteSon([]byte(""))
+	leafNode.AddSon(valueHash, []byte(""))
+	newHash, err := this.SaveNode(*leafNode)
+	pathValue := leafNode.PathValue
+	for i := len(parentHashes) - 2; i >= 0; i-- {
+		node, _ := this.GetNode(parentHashes[i])
+		node.DeleteSon(pathValue)
+		node.AddSon(newHash, pathValue)
+		newHash, _ = this.SaveNode(*node)
+		pathValue = node.PathValue
+	}
+	rootNode, _ := this.GetNode(this.Root)
+	rootNode.DeleteSon(pathValue)
+	rootNode.AddSon(newHash, pathValue)
+	this.Root, err = this.SaveNode(*rootNode)
+	return err
+}
+
+func (this *MTP) MustInsert(key, value []byte) error {
+	if this.ContainsKey(key) {
+		return this.Update(key, value)
+	}
+	return this.TryInsert(key, value)
 }
 
 func (this *MTP) TryInsert(key, value []byte) error {
@@ -114,60 +172,105 @@ func (this *MTP) TryInsert(key, value []byte) error {
 		return err
 	}
 
-	if nil == parentHashes || 0 == len(parentHashes) {
-		rootNode, err := this.GetNode(this.Root)
-		rootNode.AddSon(leafNodeHash, key)
-		root, err := this.SaveNode(*rootNode)
-		fmt.Println(hex.EncodeToString(root))
-		if err == nil {
-			this.Root = root
+	oldPrefix_, newPrefix_, newHash_ := leafNode.PathValue, leafNode.PathValue, leafNodeHash
+	for i := len(parentHashes) - 1; i >= 0; i-- {
+		currentHash := parentHashes[i]
+		currentNode, _ := this.GetNode(currentHash)
+		if len(currentNode.PathValue) > len(prefixs[i]) {
+			oldPrefix_ = currentNode.PathValue
+			newNode := TrieNode{Root: false, Leaf: false, PathValue: prefixs[i]}
+			currentNode.PathValue = currentNode.PathValue[len(prefixs[i]):]
+			newCHash, _ := this.SaveNode(*currentNode)
+			newNode.AddSon(newCHash, currentNode.PathValue)
+			newNode.AddSon(newHash_, newPrefix_)
+			newHash_, _ = this.SaveNode(newNode)
+			newPrefix_ = newNode.PathValue
+		} else {
+			currentNode.DeleteSon(oldPrefix_)
+			currentNode.AddSon(newHash_, newPrefix_)
+			newHash_, _ = this.SaveNode(*currentNode)
+			oldPrefix_, newPrefix_ = currentNode.PathValue, currentNode.PathValue
 		}
-		return err
 	}
 
-	parentIndex := len(parentHashes) - 1
-	parentHash := parentHashes[parentIndex]
-	parentNode, err := this.GetNode(parentHash)
-	if err != nil {
-		return nil
-	}
+	rootNode, _ := this.GetNode(this.Root)
+	rootNode.DeleteSon(oldPrefix_)
+	rootNode.AddSon(newHash_, newPrefix_)
+	this.Root, _ = this.SaveNode(*rootNode)
 
-	var newNodeHash, oldPrefix, newPrefix []byte
-	if len(parentNode.PathValue) > len(prefixs[parentIndex]) {
-		var newNode TrieNode
-		newNode.Root = false
-		newNode.Leaf = false
-		parentNode.PathValue = parentNode.PathValue[len(prefixs[parentIndex]):]
-		nodeValue, err := rlp.Encode(parentNode)
-		if err != nil {
-			return err
-		}
-		oldHash, err := this.SaveValue(nodeValue)
-		if err != nil {
-			return err
-		}
-		newNode.PathValue = prefixs[parentIndex]
-
-		newNode.AddSon(leafNodeHash, key[len(prefix):])
-		newNode.AddSon(oldHash, parentNode.PathValue)
-		newNodeHash, _ = this.SaveNode(newNode)
-		oldPrefix = parentNode.PathValue
-		newPrefix = newNode.PathValue
-	} else {
-		parentNode.AddSon(leafNodeHash, key[len(prefix):])
-		newNodeHash, _ = this.SaveNode(*parentNode)
-		oldPrefix = parentNode.PathValue
-		newPrefix = parentNode.PathValue
-	}
-	for i := len(parentHashes) - 2; i >= 0; i++ {
-		node, _ := this.GetNode(parentHashes[i])
-		node.DeleteSon(oldPrefix)
-		node.AddSon(newNodeHash, newPrefix)
-		oldPrefix = node.PathValue
-		newPrefix = node.PathValue
-		newNodeHash, _ = this.SaveNode(*node)
-	}
-	this.Root = newNodeHash
+	//if nil == parentHashes || 0 == len(parentHashes) {
+	//	rootNode, err := this.GetNode(this.Root)
+	//	rootNode.AddSon(leafNodeHash, key)
+	//	root, err := this.SaveNode(*rootNode)
+	//	fmt.Println(hex.EncodeToString(root))
+	//	if err == nil {
+	//		this.Root = root
+	//	}
+	//	return err
+	//}
+	//
+	//parentIndex := len(parentHashes) - 1
+	//parentHash := parentHashes[parentIndex]
+	//parentNode, err := this.GetNode(parentHash)
+	//if err != nil {
+	//	return nil
+	//}
+	//
+	//var newNodeHash, oldPrefix, newPrefix []byte
+	//if len(parentNode.PathValue) > len(prefixs[parentIndex]) {
+	//	var newNode TrieNode
+	//	newNode.Root = false
+	//	newNode.Leaf = false
+	//	parentNode.PathValue = parentNode.PathValue[len(prefixs[parentIndex]):]
+	//	if err != nil {
+	//		return err
+	//	}
+	//	oldHash, err := this.SaveNode(*parentNode)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	newNode.PathValue = prefixs[parentIndex]
+	//	newNode.AddSon(leafNodeHash, key[len(prefix):])
+	//	newNode.AddSon(oldHash, parentNode.PathValue)
+	//	newNodeHash, _ = this.SaveNode(newNode)
+	//	oldPrefix = parentNode.PathValue
+	//	newPrefix = newNode.PathValue
+	//} else {
+	//	parentNode.AddSon(leafNodeHash, key[len(prefix):])
+	//	newNodeHash, _ = this.SaveNode(*parentNode)
+	//	oldPrefix = parentNode.PathValue
+	//	newPrefix = parentNode.PathValue
+	//}
+	////var newNodeHash, oldPrefix, newPrefix []byte
+	//for i := len(parentHashes) - 2; i >= 0; i++ {
+	//	//nodeHash = parentHashes[i]
+	//	node, _ := this.GetNode(parentHashes[i])
+	//	if len(node.PathValue) > len(prefixs[i]) {
+	//		var newNode TrieNode
+	//		newNode.Leaf = false
+	//		newNode.Root = false
+	//		newNode.PathValue = node.PathValue[:len(prefixs[i])]
+	//		node.PathValue = node.PathValue[len(prefixs[i]):]
+	//		node.Leaf = false
+	//		currentNodeHash, _ := this.SaveNode(*node)
+	//		newNode.Sons = nil
+	//		newNode.AddSon(currentNodeHash, node.PathValue)
+	//		newNode.AddSon(leafNodeHash, key[len(prefix):])
+	//		newNodeHash, _ = this.SaveNode(newNode)
+	//	} else {
+	//
+	//	}
+	//	node.DeleteSon(oldPrefix)
+	//	node.AddSon(newNodeHash, newPrefix)
+	//	oldPrefix = node.PathValue
+	//	newPrefix = node.PathValue
+	//	newNodeHash, _ = this.SaveNode(*node)
+	//}
+	//rootNode, _ := this.GetNode(this.Root)
+	//rootNode.DeleteSon(oldPrefix)
+	//rootNode.AddSon(newNodeHash, newPrefix)
+	//newRootHash, _ := this.SaveNode(*rootNode)
+	//this.Root = newRootHash
 	return nil
 }
 
@@ -179,17 +282,22 @@ func (this *MTP) FindParents(key []byte) (parentHashes [][]byte, prefixs [][]byt
 		if nil != err || nil == node.Sons {
 			return
 		}
+		exist := false
 		for _, son := range node.Sons {
 			if length := PrefixLength(left, son.PathValue); length > 0 {
 				parentHashes = append(parentHashes, son.Hash)
 				prefixs = append(prefixs, left[:length])
 				left = left[length:]
 				currentHash = son.Hash
+				exist = true
 				if length < len(son.PathValue) {
 					return
 				}
 				break
 			}
+		}
+		if !exist {
+			return
 		}
 	}
 
@@ -276,10 +384,11 @@ func PrefixLength(a, b []byte) int {
 	if len(b) < length {
 		length = len(b)
 	}
-	for i := 0; i < length; i++ {
+	i := 0
+	for ; i < length; i++ {
 		if a[i] != b[i] {
 			return i
 		}
 	}
-	return 0
+	return i
 }

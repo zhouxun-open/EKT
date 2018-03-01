@@ -48,10 +48,10 @@ func (sonInfo SortedSon) Less(i, j int) bool {
 	if len(sonInfo[j].PathValue) < length {
 		length = len(sonInfo[j].PathValue)
 	}
-	for i := 0; i < length; i++ {
-		if sonInfo[i].PathValue[i] < sonInfo[j].PathValue[i] {
+	for m := 0; m < length; m++ {
+		if sonInfo[i].PathValue[m] < sonInfo[j].PathValue[m] {
 			return true
-		} else if sonInfo[i].PathValue[i] > sonInfo[j].PathValue[i] {
+		} else if sonInfo[i].PathValue[m] > sonInfo[j].PathValue[m] {
 			return false
 		}
 	}
@@ -72,9 +72,12 @@ func (node *TrieNode) AddSon(hash, pathValue []byte) {
 }
 
 func (node *TrieNode) DeleteSon(pathValue []byte) {
+	if nil == node.Sons {
+		return
+	}
 	for i, son := range node.Sons {
 		if bytes.Equal(son.PathValue, pathValue) {
-			node.Sons = append(node.Sons[:i-1], node.Sons[i:]...)
+			node.Sons = append(node.Sons[:i], node.Sons[i+1:]...)
 		}
 	}
 }
