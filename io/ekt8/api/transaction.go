@@ -16,11 +16,11 @@ var pubKey, secKey []byte
 
 func init() {
 	pubKey, secKey = crypto.GenerateKeyPair()
-	fmt.Println(hex.EncodeToString(pubKey))
 	msg := make(map[string]interface{})
 	msg["Hello"] = "World"
 	msg["zhou"] = "xun"
 	data, _ := json.Marshal(msg)
+	data = crypto.Sha3_256(data)
 	sign, _ := crypto.Crypto(data, secKey)
 	fmt.Println(hex.EncodeToString(sign))
 	x_router.Post("/transaction/api/newTransaction", ValidateSign, newTransaction)
@@ -30,7 +30,9 @@ func ValidateSign(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	sign := req.Param["sign"]
 	msg := req.Param["msg"]
 	data, _ := json.Marshal(msg)
-	if crypto.Verify([]byte(sign.(string)), pubKey, data) {
+	data = crypto.Sha3_256(data)
+	signByte, _ := hex.DecodeString(sign.(string))
+	if crypto.Verify(signByte, pubKey, data) {
 		return nil, nil
 	}
 	return nil, x_err.New(-1, "Invalid Signature")
