@@ -16,54 +16,6 @@ var DB db.EKTDB
 // 儿子节点存储的是Value的Hash值,根据Hash可以在levelDB上获取自己的Value
 // key=strings.Join(pathValues, "") value=db.Get(leafNode.Sons[0].Hash)
 
-func init() {
-}
-
-/**
-*把Key和Value插入到root对应的树上
-*
-*首先搜索到要插入的节点,插入之后向上回溯寻找自己的Parent节点更新,直至root节点
- */
-func (this *MTP) Insert(key, value []byte) (err error) {
-	var left, prefix, searchRoot []byte
-	finish := false
-	var parents [][]byte
-	searchRoot = this.Root
-	parents = append(parents, searchRoot)
-	for !finish && err == nil {
-		finish, prefix, searchRoot, err = Find(searchRoot, prefix, left, this.DB)
-		parents = append(parents, searchRoot)
-	}
-	if err != nil {
-		return
-	}
-	hash, err := this.SaveValue(value)
-	if err != nil {
-		return
-	}
-	leafNode := TrieNode{
-		Sons:      []TrieSonInfo{TrieSonInfo{Hash: hash}},
-		Leaf:      true,
-		Root:      false,
-		PathValue: key[len(prefix):],
-	}
-	leafNodeData, err := rlp.Encode(leafNode)
-	if err != nil {
-		return
-	}
-	leafNodeHash, err := this.SaveValue(leafNodeData)
-	if len(parents) > 0 {
-		lastHash := parents[len(parents)-1]
-		lastNode, err1 := this.GetNode(lastHash)
-		if err1 != nil {
-			return err1
-		}
-		lastNode.AddSon(leafNodeHash, key)
-	}
-	//TODO
-	return
-}
-
 func (this *MTP) GetValue(key []byte) (value []byte, err error) {
 	hash := this.Root
 	left := key
@@ -144,6 +96,11 @@ func (this *MTP) Update(key, value []byte) error {
 	return err
 }
 
+/**
+*把Key和Value插入到root对应的树上
+*
+*首先搜索到要插入的节点,插入之后向上回溯寻找自己的Parent节点更新,直至root节点
+ */
 func (this *MTP) MustInsert(key, value []byte) error {
 	if this.ContainsKey(key) {
 		return this.Update(key, value)
@@ -198,79 +155,6 @@ func (this *MTP) TryInsert(key, value []byte) error {
 	rootNode.AddSon(newHash_, newPrefix_)
 	this.Root, _ = this.SaveNode(*rootNode)
 
-	//if nil == parentHashes || 0 == len(parentHashes) {
-	//	rootNode, err := this.GetNode(this.Root)
-	//	rootNode.AddSon(leafNodeHash, key)
-	//	root, err := this.SaveNode(*rootNode)
-	//	fmt.Println(hex.EncodeToString(root))
-	//	if err == nil {
-	//		this.Root = root
-	//	}
-	//	return err
-	//}
-	//
-	//parentIndex := len(parentHashes) - 1
-	//parentHash := parentHashes[parentIndex]
-	//parentNode, err := this.GetNode(parentHash)
-	//if err != nil {
-	//	return nil
-	//}
-	//
-	//var newNodeHash, oldPrefix, newPrefix []byte
-	//if len(parentNode.PathValue) > len(prefixs[parentIndex]) {
-	//	var newNode TrieNode
-	//	newNode.Root = false
-	//	newNode.Leaf = false
-	//	parentNode.PathValue = parentNode.PathValue[len(prefixs[parentIndex]):]
-	//	if err != nil {
-	//		return err
-	//	}
-	//	oldHash, err := this.SaveNode(*parentNode)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	newNode.PathValue = prefixs[parentIndex]
-	//	newNode.AddSon(leafNodeHash, key[len(prefix):])
-	//	newNode.AddSon(oldHash, parentNode.PathValue)
-	//	newNodeHash, _ = this.SaveNode(newNode)
-	//	oldPrefix = parentNode.PathValue
-	//	newPrefix = newNode.PathValue
-	//} else {
-	//	parentNode.AddSon(leafNodeHash, key[len(prefix):])
-	//	newNodeHash, _ = this.SaveNode(*parentNode)
-	//	oldPrefix = parentNode.PathValue
-	//	newPrefix = parentNode.PathValue
-	//}
-	////var newNodeHash, oldPrefix, newPrefix []byte
-	//for i := len(parentHashes) - 2; i >= 0; i++ {
-	//	//nodeHash = parentHashes[i]
-	//	node, _ := this.GetNode(parentHashes[i])
-	//	if len(node.PathValue) > len(prefixs[i]) {
-	//		var newNode TrieNode
-	//		newNode.Leaf = false
-	//		newNode.Root = false
-	//		newNode.PathValue = node.PathValue[:len(prefixs[i])]
-	//		node.PathValue = node.PathValue[len(prefixs[i]):]
-	//		node.Leaf = false
-	//		currentNodeHash, _ := this.SaveNode(*node)
-	//		newNode.Sons = nil
-	//		newNode.AddSon(currentNodeHash, node.PathValue)
-	//		newNode.AddSon(leafNodeHash, key[len(prefix):])
-	//		newNodeHash, _ = this.SaveNode(newNode)
-	//	} else {
-	//
-	//	}
-	//	node.DeleteSon(oldPrefix)
-	//	node.AddSon(newNodeHash, newPrefix)
-	//	oldPrefix = node.PathValue
-	//	newPrefix = node.PathValue
-	//	newNodeHash, _ = this.SaveNode(*node)
-	//}
-	//rootNode, _ := this.GetNode(this.Root)
-	//rootNode.DeleteSon(oldPrefix)
-	//rootNode.AddSon(newNodeHash, newPrefix)
-	//newRootHash, _ := this.SaveNode(*rootNode)
-	//this.Root = newRootHash
 	return nil
 }
 
@@ -325,57 +209,6 @@ func (this *MTP) SaveNode(node TrieNode) (nodeHash []byte, err error) {
 func (this *MTP) SaveValue(value []byte) ([]byte, error) {
 	hash := crypto.Sha3_256(value)
 	return hash, this.DB.Set(hash, value)
-}
-
-func Find(root, prefix, left []byte, db db.EKTDB) (finish bool, newPrefix []byte, nextRoot []byte, err error) {
-	value, err := db.Get(root)
-	if err != nil || len(value) == 0 {
-		return
-	}
-	var node TrieNode
-	err = rlp.Decode(value, &node)
-	if err != nil {
-		return
-	}
-	if node.Root {
-		if len(node.Sons) > 0 {
-			for _, sonNode := range node.Sons {
-				if PrefixLength(sonNode.PathValue, left) > 0 {
-					nextRoot = sonNode.Hash
-					break
-				}
-			}
-		}
-		return
-	}
-	prefixLength := PrefixLength(node.PathValue, left)
-	buffer := bytes.Buffer{}
-	buffer.Write(prefix)
-	buffer.Write(node.PathValue[:prefixLength])
-	if prefixLength < len(node.PathValue) {
-		finish = true
-		nextRoot = []byte("")
-	} else {
-		if len(node.Sons) > 0 {
-			for _, sonNode := range node.Sons {
-				if PrefixLength(sonNode.PathValue, left[prefixLength:]) > 0 {
-					nextRoot = sonNode.Hash
-					break
-				}
-			}
-		}
-	}
-	newPrefix = buffer.Bytes()
-	return
-}
-
-func Get(root []byte, key string) (value []byte, exist bool) {
-	return nil, false
-}
-
-func Delete(root, hash string) bool {
-	//TODO
-	return true
 }
 
 //返回公共前缀的长度
