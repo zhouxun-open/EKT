@@ -7,7 +7,6 @@ import (
 
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
-	"github.com/EducationEKT/EKT/io/ekt8/rlp"
 )
 
 var DB db.EKTDB
@@ -15,6 +14,10 @@ var DB db.EKTDB
 // Merkle Trie Plus树是一个安全的自校验的字典树的升级,每个节点都带有自己的路径值,叶子节点的
 // 儿子节点存储的是Value的Hash值,根据Hash可以在levelDB上获取自己的Value
 // key=strings.Join(pathValues, "") value=db.Get(leafNode.Sons[0].Hash)
+
+// !importent if strings.Contains(string(key1), string(key2)) {
+// 		panic("invalid key")
+// }
 
 func (this *MTP) GetValue(key []byte) (value []byte, err error) {
 	hash := this.Root

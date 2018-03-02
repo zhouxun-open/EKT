@@ -33,6 +33,18 @@ type MTP struct {
 	DB   db.EKTDB
 }
 
+func NewMTP(db db.EKTDB) *MTP {
+	node := TrieNode{
+		Root:      true,
+		Leaf:      false,
+		PathValue: nil,
+		Sons:      *new(SortedSon),
+	}
+	mtp := &MTP{DB: db, Root: nil}
+	mtp.Root, _ = mtp.SaveNode(node)
+	return mtp
+}
+
 type SortedSon []TrieSonInfo
 
 func (sonInfo SortedSon) Len() int {
