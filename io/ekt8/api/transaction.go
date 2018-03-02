@@ -26,18 +26,6 @@ func init() {
 	x_router.Post("/transaction/api/newTransaction", ValidateSign, newTransaction)
 }
 
-func ValidateSign(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	sign := req.Param["sign"]
-	msg := req.Param["msg"]
-	data, _ := json.Marshal(msg)
-	data = crypto.Sha3_256(data)
-	signByte, _ := hex.DecodeString(sign.(string))
-	if crypto.Verify(signByte, pubKey, data) {
-		return nil, nil
-	}
-	return nil, x_err.New(-1, "Invalid Signature")
-}
-
 func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	return x_resp.Success(make(map[string]interface{})), nil
 }
