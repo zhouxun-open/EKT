@@ -2,20 +2,18 @@ package common
 
 import (
 	"encoding/hex"
+
 	"github.com/ethereum/go-ethereum/crypto/sha3"
-	"bytes"
-	"encoding/binary"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-const AddressLength = 20
+const AddressLength = 32
 
-const BigAddressLength = 32
+const BigAddressLength = 64
 
 type CommonAddress struct {
-	Type int
+	Type          int
 	AddressLength int
-	Address []byte
+	Address       []byte
 }
 
 //func (commonAddress *CommonAddress) Hex() string {

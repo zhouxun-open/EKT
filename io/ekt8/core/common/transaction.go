@@ -1,8 +1,10 @@
 package common
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"sort"
 	"strings"
 )
@@ -14,8 +16,8 @@ type Transaction struct {
 	To        NormalAddress
 	TimeStamp Time // UnixTimeStamp
 	Amount    int64
-	Type      CoinType
 	Nonce     int64
+	R, S, V   *big.Int
 	Sign      string
 }
 
@@ -36,4 +38,20 @@ func (transactions Transactions) Hash() string {
 	bytes, _ := json.Marshal(transactions)
 	fmt.Println(string(bytes))
 	return ""
+}
+
+func (tx *Transaction) Bytes() []byte {
+	return []byte(tx.String())
+}
+
+func (tx *Transaction) String() string {
+	return fmt.Sprintf(`{"from": "%s", "to": "%s": "%s", "time": %d, "amount": %d, "nonce": %d}`,
+		hex.EncodeToString(tx.From[:]),
+		hex.EncodeToString(tx.To[:]),
+		tx.TimeStamp, tx.Amount, tx.Nonce)
+}
+
+func (tx *Transaction) ValidateSignature() error {
+	// TODO
+	return nil
 }
