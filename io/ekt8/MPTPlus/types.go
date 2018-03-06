@@ -33,6 +33,10 @@ type MTP struct {
 	DB   db.EKTDB
 }
 
+func MTP_Tree(db db.EKTDB, root []byte) *MTP {
+	return &MTP{DB: db, Root: root}
+}
+
 func NewMTP(db db.EKTDB) *MTP {
 	node := TrieNode{
 		Root:      true,

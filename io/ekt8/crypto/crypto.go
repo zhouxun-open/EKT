@@ -27,8 +27,8 @@ func Crypto(data []byte, secKey []byte) ([]byte, error) {
 }
 
 func Verify(sign, pubKey, msg []byte) bool {
-	pub2, err:=secp256k1.RecoverPubkey(msg, sign)
-	if err!=nil || !bytes.Equal(pubKey, pub2){
+	pub2, err := secp256k1.RecoverPubkey(msg, sign)
+	if err != nil || !bytes.Equal(pubKey, pub2) {
 		return false
 	}
 	return true
