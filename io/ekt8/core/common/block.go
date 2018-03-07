@@ -1,10 +1,8 @@
 package common
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
-	"sort"
 
 	"golang.org/x/crypto/sha3"
 )
