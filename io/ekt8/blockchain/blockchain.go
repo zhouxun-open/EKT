@@ -27,7 +27,7 @@ func (blockChain *BlockChain) NewBlock(block Block) error {
 	if lastBlock.Height > block.Height {
 		return errors.New("heigth exist")
 	}
-	err = db.DB.Set(block.CurrentHash, block.Hash())
+	err = db.GetDBInst().Set(block.CurrentHash, block.Hash())
 	if err != nil {
 		return err
 	}
@@ -35,11 +35,11 @@ func (blockChain *BlockChain) NewBlock(block Block) error {
 	if err != nil {
 		return err
 	}
-	return db.DB.Set(blockChain.CurrentBlockKey(), value)
+	return db.GetDBInst().Set(blockChain.CurrentBlockKey(), value)
 }
 
 func (blockChain BlockChain) CurrentBlock() (*Block, error) {
-	blockValue, err := db.DB.Get(blockChain.CurrentBlockKey())
+	blockValue, err := db.GetDBInst().Get(blockChain.CurrentBlockKey())
 	if err != nil {
 		return nil, err
 	}

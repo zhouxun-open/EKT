@@ -8,13 +8,17 @@ type EKTDB interface {
 	Delete(Key []byte) error
 }
 
-var DB EKTDB
+var ektDB EKTDB
 
 func InitEKTDB(filePath string) error {
 	db, err := leveldb.NewLevelDB(filePath)
 	if err != nil {
 		return err
 	}
-	DB = db
+	ektDB = db
 	return nil
+}
+
+func GetDBInst() EKTDB {
+	return ektDB
 }

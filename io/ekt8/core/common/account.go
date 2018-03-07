@@ -7,7 +7,8 @@ import (
 )
 
 type Account struct {
-	Address    []byte
-	PublickKey []byte
-	Amount     int64
+	Address    []byte `json:"address"`
+	PublickKey []byte `json:"publicKey"`
+	Amount     int64  `json:"amount"`
+	Nonce      int64  `json:"nonce"`
 }

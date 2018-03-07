@@ -16,7 +16,7 @@ func GetAccount(address []byte) (*common.Account, error) {
 		return nil, err
 	}
 	statRoot := block.StatRoot
-	statTree := MPTPlus.MTP_Tree(db.DB, statRoot)
+	statTree := MPTPlus.MTP_Tree(db.GetDBInst(), statRoot)
 	value, err := statTree.GetValue(address)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func ExistAddress(address []byte) bool {
 		return false
 	}
 	statRoot := block.StatRoot
-	statTree := MPTPlus.MTP_Tree(db.DB, statRoot)
+	statTree := MPTPlus.MTP_Tree(db.GetDBInst(), statRoot)
 	return statTree.ContainsKey(address)
 }
 
@@ -45,11 +45,12 @@ func NewAccount(address []byte, pubKey []byte) error {
 		return err
 	}
 	statRoot := block.StatRoot
-	trie := MPTPlus.MTP_Tree(db.DB, statRoot)
+	trie := MPTPlus.MTP_Tree(db.GetDBInst(), statRoot)
 	account := &common.Account{
 		Address:    address,
 		PublickKey: pubKey,
 		Amount:     0,
+		Nonce:      0,
 	}
 	value, err := json.Marshal(account)
 	if err != nil {
