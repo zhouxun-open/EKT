@@ -2,22 +2,24 @@ package engine
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 )
 
-var mainBlockChain blockchain.BlockChain
+var mainBlockChain *blockchain.BlockChain
 
 func init() {
-	mainBlockChain = blockchain.BlockChain{[]byte{(byte)(1 & 0xFF)}}
+	mainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{}, blockchain.BackboneConsensus}
+	mainBlockChain.SyncBlockChain()
 }
 
 type Engine struct {
 	blockChain  *blockchain.BlockChain
 	Pack        chan bool
 	Transaction chan *common.Transaction
-	Status      int // 100 正在计算MTProot, 150停止计算root,开始计算blockHash
+	Status      int
 }
 
 func (engine *Engine) NewTransaction(transaction *common.Transaction) error {

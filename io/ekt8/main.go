@@ -8,6 +8,7 @@ import (
 	_ "github.com/EducationEKT/EKT/io/ekt8/api"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
+	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/xserver/x_http"
 )
 
@@ -36,6 +37,10 @@ func InitService() error {
 	if err != nil {
 		return err
 	}
+	err = initLog()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -54,4 +59,8 @@ func initConfig() error {
 
 func initDB() error {
 	return db.InitEKTDB(conf.EKTConfig.DBPath)
+}
+
+func initLog() error {
+	return log.InitLog()
 }
