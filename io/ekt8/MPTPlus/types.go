@@ -3,6 +3,7 @@ package MPTPlus
 import (
 	"bytes"
 	"sort"
+	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 )
@@ -29,12 +30,13 @@ type TrieNode struct {
 }
 
 type MTP struct {
+	Lock sync.RWMutex
 	Root []byte
 	DB   db.EKTDB
 }
 
 func MTP_Tree(db db.EKTDB, root []byte) *MTP {
-	return &MTP{DB: db, Root: root}
+	return &MTP{DB: db, Root: root, Lock: sync.RWMutex{}}
 }
 
 func NewMTP(db db.EKTDB) *MTP {
@@ -44,7 +46,7 @@ func NewMTP(db db.EKTDB) *MTP {
 		PathValue: nil,
 		Sons:      *new(SortedSon),
 	}
-	mtp := &MTP{DB: db, Root: nil}
+	mtp := MTP_Tree(db, nil)
 	mtp.Root, _ = mtp.SaveNode(node)
 	return mtp
 }

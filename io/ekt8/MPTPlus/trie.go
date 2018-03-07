@@ -105,6 +105,8 @@ func (this *MTP) Update(key, value []byte) error {
 *首先搜索到要插入的节点,插入之后向上回溯寻找自己的Parent节点更新,直至root节点
  */
 func (this *MTP) MustInsert(key, value []byte) error {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
 	if this.ContainsKey(key) {
 		return this.Update(key, value)
 	}
