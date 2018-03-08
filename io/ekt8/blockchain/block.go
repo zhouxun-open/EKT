@@ -10,8 +10,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
-	"github.com/EducationEKT/EKT/io/ekt8/db"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 var currentBlock *Block = nil
