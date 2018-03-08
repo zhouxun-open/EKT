@@ -19,6 +19,14 @@ var DB db.EKTDB
 // 		panic("invalid key")
 // }
 
+func (this *MTP) GetInterfaceValue(key []byte, v interface{}) error {
+	value, err := this.GetValue(key)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(value, v)
+}
+
 func (this *MTP) GetValue(key []byte) (value []byte, err error) {
 	this.Lock.RLock()
 	defer this.Lock.RUnlock()

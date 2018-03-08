@@ -13,7 +13,7 @@ import (
 var BackboneChainId []byte = [32]byte{31: byte(1 & 0xFF)}[:]
 
 const (
-	CurrentBlock       = "CurrentBlock"
+	CurrentBlockKey    = "CurrentBlock"
 	BackboneConsensus  = consensus.DPOS
 	InitStatus         = 0
 	OpenStatus         = 100
@@ -72,7 +72,7 @@ func (this BlockChain) CurrentBlock() (*Block, error) {
 
 func (this BlockChain) CurrentBlockKey() []byte {
 	buffer := bytes.Buffer{}
-	buffer.WriteString(CurrentBlock)
+	buffer.WriteString(CurrentBlockKey)
 	buffer.Write(this.ChainId)
 	return buffer.Bytes()
 }

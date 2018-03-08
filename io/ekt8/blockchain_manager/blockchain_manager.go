@@ -1,4 +1,4 @@
-package engine
+package blockchain_manager
 
 import (
 	"errors"
@@ -8,11 +8,11 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 )
 
-var mainBlockChain *blockchain.BlockChain
+var MainBlockChain *blockchain.BlockChain
 
 func init() {
-	mainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{}, blockchain.BackboneConsensus}
-	mainBlockChain.SyncBlockChain()
+	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{}, blockchain.BackboneConsensus}
+	MainBlockChain.SyncBlockChain()
 }
 
 type Engine struct {
@@ -24,11 +24,11 @@ type Engine struct {
 
 func (engine *Engine) NewTransaction(transaction *common.Transaction) error {
 	if engine.Status == 100 {
-		block, err := engine.blockChain.CurrentBlock()
-		if err != nil {
-			return err
-		}
-		Transaction(block, transaction)
+		//block, err := engine.blockChain.CurrentBlock()
+		//if err != nil {
+		//	return err
+		//}
+		//Transaction(block, transaction)
 	}
 	return errors.New("Wait next block")
 }
