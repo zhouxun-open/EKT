@@ -35,6 +35,8 @@ func (this *BlockChain) SyncBlockChain() error {
 }
 
 func (this *BlockChain) NewBlock(block Block) error {
+	this.Locker.Lock()
+	defer this.Locker.Unlock()
 	if err := block.Validate(); err != nil {
 		return err
 	}
@@ -57,13 +59,15 @@ func (this *BlockChain) NewBlock(block Block) error {
 }
 
 func (this BlockChain) CurrentBlock() (*Block, error) {
-	blockValue, err := db.GetDBInst().Get(this.CurrentBlockKey())
-	if err != nil {
-		return nil, err
+	var err error = nil
+	if currentBlock == nil {
+		blockValue, err := db.GetDBInst().Get(this.CurrentBlockKey())
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(blockValue, &currentBlock)
 	}
-	var block Block
-	err = json.Unmarshal(blockValue, &block)
-	return &block, err
+	return currentBlock, err
 }
 
 func (this BlockChain) CurrentBlockKey() []byte {

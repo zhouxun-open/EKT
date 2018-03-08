@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
+var TestPubKey = []byte("0419e18e6ba7feb6e76fbd933030a20dfe59a24e04ec51133ef5b6825d0457524f1044f00826cc01bbfa981f50e6cbe16446a0760b3d872d716a51e409d8a5deb7")
+var TestSecKey = []byte("ebd71b84d374f881e5280b708c502b2e69de22578d2b1c0fd4dcccd29ad7f4f3")
 var theCurve = new(secp256k1.BitCurve)
 
 func init() {

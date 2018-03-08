@@ -5,25 +5,31 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
+
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
+var currentBlock *Block = nil
+
 type Block struct {
-	Height       int64  `json:"height"`
-	StatRoot     []byte `json:"statRoot"`
-	TxRoot       []byte `json:"txRoot"`
-	EventRoot    []byte `json:"eventRoot"`
-	Nonce        int64  `json:"nonce"`
-	PreviousHash []byte `json:"previousHash"`
-	CurrentHash  []byte `json:"currentHash"`
+	Height       int64        `json:"height"`
+	Nonce        int64        `json:"nonce"`
+	PreviousHash []byte       `json:"previousHash"`
+	CurrentHash  []byte       `json:"currentHash"`
+	Locker       sync.RWMutex `json:"-"`
+	StatTree     *MPTPlus.MTP `json:"-"`
+	TxTree       *MPTPlus.MTP `json:"-"`
+	EventTree    *MPTPlus.MTP `json:"-"`
 }
 
 func (block *Block) String() string {
 	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "nonce": %d, "previousHash": "%s"}`,
-		block.Height, block.StatRoot, block.TxRoot, block.Nonce, block.PreviousHash)
+		block.Height, block.StatTree.Root, block.TxTree.Root, block.EventTree.Root, block.Nonce, block.PreviousHash)
 }
 
 func (block *Block) Bytes() []byte {
@@ -46,9 +52,7 @@ func (block Block) Validate() error {
 }
 
 func (block *Block) GetAccount(address []byte) (*common.Account, error) {
-	statRoot := block.StatRoot
-	statTree := MPTPlus.MTP_Tree(db.GetDBInst(), statRoot)
-	value, err := statTree.GetValue(address)
+	value, err := block.StatTree.GetValue(address)
 	if err != nil {
 		return nil, err
 	}
@@ -61,14 +65,10 @@ func (block *Block) GetAccount(address []byte) (*common.Account, error) {
 }
 
 func (block *Block) ExistAddress(address []byte) bool {
-	statRoot := block.StatRoot
-	statTree := MPTPlus.MTP_Tree(db.GetDBInst(), statRoot)
-	return statTree.ContainsKey(address)
+	return block.StatTree.ContainsKey(address)
 }
 
 func (block *Block) NewAccount(address []byte, pubKey []byte) error {
-	statRoot := block.StatRoot
-	trie := MPTPlus.MTP_Tree(db.GetDBInst(), statRoot)
 	account := &common.Account{
 		Address:    address,
 		PublickKey: pubKey,
@@ -79,7 +79,6 @@ func (block *Block) NewAccount(address []byte, pubKey []byte) error {
 	if err != nil {
 		return err
 	}
-	err = trie.MustInsert(address, value)
-	block.StatRoot = trie.Root
+	err = block.StatTree.MustInsert(address, value)
 	return err
 }

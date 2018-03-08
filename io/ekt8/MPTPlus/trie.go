@@ -20,6 +20,8 @@ var DB db.EKTDB
 // }
 
 func (this *MTP) GetValue(key []byte) (value []byte, err error) {
+	this.Lock.RLock()
+	defer this.Lock.RUnlock()
 	hash := this.Root
 	left := key
 	var vHash []byte
