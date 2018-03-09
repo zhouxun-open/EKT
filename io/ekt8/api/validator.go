@@ -17,15 +17,16 @@ func init() {
 }
 
 func ValidateSign(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	sign := req.Param["sign"]
-	msg := req.Param["msg"]
-	data, _ := json.Marshal(msg)
-	data = crypto.Sha3_256(data)
-	signByte, _ := hex.DecodeString(sign.(string))
-	if crypto.Verify(signByte, pubKey, data) {
-		return nil, nil
-	}
-	return nil, x_err.New(-1, "Invalid Signature")
+	//sign := req.Param["sign"]
+	//msg := req.Param["msg"]
+	//data, _ := json.Marshal(msg)
+	//data = crypto.Sha3_256(data)
+	//signByte, _ := hex.DecodeString(sign.(string))
+	//if crypto.Verify(signByte, pubKey, data) {
+	//	return nil, nil
+	//}
+	//return nil, x_err.New(-1, "Invalid Signature")
+	return nil, nil
 }
 
 func world(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

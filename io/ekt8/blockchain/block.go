@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,17 +67,31 @@ func (block *Block) ExistAddress(address []byte) bool {
 	return block.StatTree.ContainsKey(address)
 }
 
-func (block *Block) NewAccount(address []byte, pubKey []byte) error {
-	account := &common.Account{
-		Address:    address,
-		PublickKey: pubKey,
-		Amount:     0,
-		Nonce:      0,
+func (block *Block) CreateAccount(address, pubKey []byte) {
+	if !block.ExistAddress(address) {
+		block.NewAccount(address, pubKey)
 	}
-	value, err := json.Marshal(account)
-	if err != nil {
-		return err
-	}
-	err = block.StatTree.MustInsert(address, value)
-	return err
+}
+
+func (block *Block) NewAccount(address []byte, pubKey []byte) {
+	account := &common.Account{hex.EncodeToString(address), hex.EncodeToString(pubKey), 0, 0}
+	value, _ := json.Marshal(account)
+	block.StatTree.MustInsert(address, value)
+}
+
+func (block *Block) NewTransaction(tx *common.Transaction) {
+	block.Locker.Lock()
+	defer block.Locker.Unlock()
+	fromAddress, _ := hex.DecodeString(tx.From)
+	toAddress, _ := hex.DecodeString(tx.To)
+	account, _ := block.GetAccount(fromAddress)
+	recieverAccount, _ := block.GetAccount(toAddress)
+	//if account.Amount() < tx.Amount +
+	account.ReduceAmount(tx.Amount)
+	recieverAccount.AddAmount(tx.Amount)
+	txResult := common.NewTransactionResult(tx, true, "")
+	block.StatTree.MustInsert(fromAddress, account.ToBytes())
+	block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+	txId, _ := hex.DecodeString(tx.TransactionId)
+	block.TxTree.MustInsert(txId, txResult.ToBytes())
 }

@@ -11,7 +11,11 @@ import (
 var MainBlockChain *blockchain.BlockChain
 
 func init() {
-	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{}, blockchain.BackboneConsensus}
+	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId,
+		blockchain.InitStatus,
+		sync.RWMutex{},
+		blockchain.BackboneConsensus,
+		1e6}
 	MainBlockChain.SyncBlockChain()
 }
 

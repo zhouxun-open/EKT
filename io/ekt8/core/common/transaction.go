@@ -25,6 +25,55 @@ type Transaction struct {
 	Sign          string
 }
 
+type TxResult struct {
+	TxId      string `json:"txId"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Amount    int64  `json:"amount"`
+	TimeStamp Time   `json:"timestamp"`
+	Nonce     int64  `json:"nonce"`
+	Fee       int64  `json:"fee"`
+	Sign      string `json:"sign"`
+	Success   bool   `json:"success"`
+	FailMsg   string `json:"failMsg"`
+}
+
+func NewTransactionResult(tx *Transaction, success bool, failMessage string) *TxResult {
+	return &TxResult{
+		TxId:      tx.TransactionId,
+		From:      tx.From,
+		To:        tx.To,
+		TimeStamp: tx.TimeStamp,
+		Amount:    tx.Amount,
+		Nonce:     tx.Nonce,
+		Sign:      tx.Sign,
+		Fee:       1e6,
+		Success:   success,
+		FailMsg:   failMessage,
+	}
+}
+
+func (txResult *TxResult) ToTransaction() *Transaction {
+	return &Transaction{
+		TransactionId: txResult.TxId,
+		From:          txResult.From,
+		To:            txResult.To,
+		TimeStamp:     txResult.TimeStamp,
+		Amount:        txResult.Amount,
+		Nonce:         txResult.Nonce,
+		Sign:          txResult.Sign,
+	}
+}
+
+func (txResult *TxResult) ToBytes() []byte {
+	data, _ := json.Marshal(txResult)
+	return data
+}
+
+func (txResult *TxResult) TxResult() (bool, string) {
+	return txResult.Success, txResult.FailMsg
+}
+
 func (transactions Transactions) Len() int {
 	return len(transactions)
 }

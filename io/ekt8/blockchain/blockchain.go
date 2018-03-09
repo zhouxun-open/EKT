@@ -24,14 +24,21 @@ type BlockChain struct {
 	ChainId   []byte
 	Consensus consensus.ConsensusType
 	Locker    sync.RWMutex
-	Status    int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
+	status    int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
+	Fee       int64
 }
 
 func (this *BlockChain) SyncBlockChain() error {
 	this.Locker.Lock()
 	defer this.Locker.Unlock()
-	this.Status = OpenStatus
+	this.status = OpenStatus
 	return nil
+}
+
+func (this *BlockChain) GetStatus() int {
+	this.Locker.RLock()
+	defer this.Locker.RUnlock()
+	return this.status
 }
 
 func (this *BlockChain) NewBlock(block Block) error {
