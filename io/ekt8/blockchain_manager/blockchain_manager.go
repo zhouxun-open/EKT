@@ -5,17 +5,15 @@ import (
 	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
+	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 )
 
 var MainBlockChain *blockchain.BlockChain
 
 func init() {
-	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId,
-		blockchain.InitStatus,
-		sync.RWMutex{},
-		blockchain.BackboneConsensus,
-		1e6}
+	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{},
+		blockchain.BackboneConsensus, 1e6, []byte("FFFFFF"), consensus.DPOSConsensus{}}
 	MainBlockChain.SyncBlockChain()
 }
 

@@ -18,6 +18,7 @@ var currentBlock *Block = nil
 type Block struct {
 	Height       int64        `json:"height"`
 	Nonce        int64        `json:"nonce"`
+	Fee          int64        `json:"fee"`
 	PreviousHash []byte       `json:"previousHash"`
 	CurrentHash  []byte       `json:"currentHash"`
 	Locker       sync.RWMutex `json:"-"`
@@ -86,12 +87,16 @@ func (block *Block) NewTransaction(tx *common.Transaction) {
 	toAddress, _ := hex.DecodeString(tx.To)
 	account, _ := block.GetAccount(fromAddress)
 	recieverAccount, _ := block.GetAccount(toAddress)
-	//if account.Amount() < tx.Amount +
-	account.ReduceAmount(tx.Amount)
-	recieverAccount.AddAmount(tx.Amount)
-	txResult := common.NewTransactionResult(tx, true, "")
-	block.StatTree.MustInsert(fromAddress, account.ToBytes())
-	block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+	var txResult *common.TxResult
+	if account.Amount() < tx.Amount+block.Fee {
+		txResult = common.NewTransactionResult(tx, false, "no enough amount")
+	} else {
+		txResult = common.NewTransactionResult(tx, true, "")
+		account.ReduceAmount(tx.Amount)
+		recieverAccount.AddAmount(tx.Amount)
+		block.StatTree.MustInsert(fromAddress, account.ToBytes())
+		block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+	}
 	txId, _ := hex.DecodeString(tx.TransactionId)
 	block.TxTree.MustInsert(txId, txResult.ToBytes())
 }
