@@ -1,5 +1,12 @@
 package event
 
+import (
+	"bytes"
+	"encoding/hex"
+	"fmt"
+	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+)
+
 const (
 	NewAccountEvent      = "NewAccount"
 	UpdatePublicKeyEvent = "UpdatePublicKey"
@@ -7,6 +14,7 @@ const (
 
 type EventParam interface {
 	EventType() string
+	Validate() bool
 }
 
 type Event struct {
@@ -15,22 +23,57 @@ type Event struct {
 }
 
 type NewAccountParam struct {
-	Address []byte
-	PubKey  []byte
+	Address string
+	PubKey  string
 	Nonce   int
-	EventId []byte
+	EventId string
 }
 
 type UpdatePublicKeyParam struct {
-	Address   []byte
-	NewPubKey []byte
-	msg       []byte
+	Address   string
+	NewPubKey string
 	Nonce     int
-	Sign      []byte
+	EventId   string
 }
 
 func (newAccountParam NewAccountParam) EventType() string {
 	return NewAccountEvent
+}
+
+func (newAccountParam NewAccountParam) Validate() bool {
+	msg := []byte(fmt.Sprintf(`{"address": "%s", "pubKey": "%s", "nonce": %d}`, newAccountParam.Address, newAccountParam.PubKey, newAccountParam.Nonce))
+	msg = crypto.Sha3_256(msg)
+	value, err := hex.DecodeString(newAccountParam.EventId)
+	if err != nil {
+		return false
+	}
+	pubKey2, err := crypto.RecoverPubKey(msg, value)
+	pubKey, err := hex.DecodeString(newAccountParam.PubKey)
+	if err != nil {
+		return false
+	}
+	if !bytes.Equal(pubKey, pubKey2) {
+		return false
+	}
+	return true
+}
+
+func (updatePublicKeyParam UpdatePublicKeyParam) Validate() bool {
+	msg := []byte(fmt.Sprintf(`{"address": "%s", "pubKey": "%s", "nonce": %d}`, updatePublicKeyParam.Address, updatePublicKeyParam.NewPubKey, updatePublicKeyParam.Nonce))
+	msg = crypto.Sha3_256(msg)
+	value, err := hex.DecodeString(updatePublicKeyParam.EventId)
+	if err != nil {
+		return false
+	}
+	pubKey2, err := crypto.RecoverPubKey(msg, value)
+	pubKey, err := hex.DecodeString(updatePublicKeyParam.NewPubKey)
+	if err != nil {
+		return false
+	}
+	if !bytes.Equal(pubKey, pubKey2) {
+		return false
+	}
+	return true
 }
 
 func (updatePublicKeyParam UpdatePublicKeyParam) EventType() string {
@@ -41,5 +84,5 @@ func (event Event) ValidateEvent() bool {
 	if event.EventParam.EventType() != event.EventType {
 		return false
 	}
-	return true
+	return event.EventParam.Validate()
 }

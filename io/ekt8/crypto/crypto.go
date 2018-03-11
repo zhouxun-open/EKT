@@ -36,6 +36,10 @@ func Verify(sign, pubKey, msg []byte) bool {
 	return true
 }
 
+func RecoverPubKey(msg, sign []byte) ([]byte, error) {
+	return secp256k1.RecoverPubkey(msg, sign)
+}
+
 func GenerateKeyPair() (pubkey, privkey []byte) {
 	key, err := ecdsa.GenerateKey(S256(), rand.Reader)
 	if err != nil {

@@ -6,8 +6,9 @@ import (
 )
 
 type EKTConf struct {
-	DBPath  string `json:"dbPath"`
-	LogPath string `json:"logPath"`
+	DBPath     string `json:"dbPath"`
+	LogPath    string `json:"logPath"`
+	SelfNodeId string `json:"nodeId"`
 }
 
 var EKTConfig EKTConf

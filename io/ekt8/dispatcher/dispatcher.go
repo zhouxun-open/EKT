@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
+	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/tx_pool"
@@ -63,5 +64,20 @@ func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transacti
 	}
 }
 
-func (dispatcher DefaultDispatcher) NewEvent(event *event.Event) {
+func (dispatcher DefaultDispatcher) NewEvent(evt *event.Event) {
+	if !evt.ValidateEvent() {
+		return
+	}
+	if evt.EventType == event.NewAccountEvent {
+		accountParam := (evt.EventParam).(event.NewAccountParam)
+		block, _ := blockchain_manager.MainBlockChain.CurrentBlock()
+		address, err := hex.DecodeString(accountParam.Address)
+		if err != nil && !block.ExistAddress(address) {
+			pubKey, err := hex.DecodeString(accountParam.PubKey)
+			if err != nil {
+				return
+			}
+			block.CreateAccount(address, pubKey)
+		}
+	}
 }

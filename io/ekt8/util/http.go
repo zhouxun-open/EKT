@@ -1,0 +1,34 @@
+package util
+
+import (
+	"bytes"
+	"io/ioutil"
+	"net/http"
+)
+
+func HttpGet(url string) ([]byte, error) {
+	client := &http.Client{}
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(resp.Body)
+}
+
+func HttpPost(url string, body []byte) ([]byte, error) {
+	client := &http.Client{}
+	request, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	request.Header["Content-Type"] = []string{"application/json"}
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(resp.Body)
+}

@@ -101,7 +101,7 @@ func (this BlockChain) CurrentBlockKey() []byte {
 	return buffer.Bytes()
 }
 
-func (this BlockChain) pack() {
+func (this BlockChain) Pack() {
 	block, _ := this.CurrentBlock()
 	block.Locker.Lock()
 	start := time.Now().Nanosecond()
