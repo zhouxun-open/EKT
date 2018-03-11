@@ -26,6 +26,7 @@ type XReq struct {
 	Param        map[string]interface{}
 	Cookies      map[string]string
 	HandlerParam map[string]interface{}
+	Body         []byte
 }
 
 func (req *XReq) SendResponse(resp *x_resp.XRespContainer) {
@@ -81,6 +82,7 @@ func (req *XReq) parseQuery() {
 
 func (req *XReq) parseBody() *x_err.XErr {
 	body, err := ioutil.ReadAll(req.R.Body)
+	req.Body = body
 	if err != nil {
 		return x_err.New(-1, "read body error")
 	}

@@ -70,11 +70,11 @@ func (block *Block) ExistAddress(address []byte) bool {
 
 func (block *Block) CreateAccount(address, pubKey []byte) {
 	if !block.ExistAddress(address) {
-		block.NewAccount(address, pubKey)
+		block.newAccount(address, pubKey)
 	}
 }
 
-func (block *Block) NewAccount(address []byte, pubKey []byte) {
+func (block *Block) newAccount(address []byte, pubKey []byte) {
 	account := &common.Account{hex.EncodeToString(address), hex.EncodeToString(pubKey), 0, 0}
 	value, _ := json.Marshal(account)
 	block.StatTree.MustInsert(address, value)

@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	x_router.Post("/transaction/api/newTransaction", ValidateSign, newTransaction)
+	x_router.Post("/transaction/api/newTransaction", newTransaction)
 }
 
 func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

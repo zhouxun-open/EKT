@@ -3,64 +3,70 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "d6baAZDyaJm6Lxe0a8L0l2BeWgw=",
+			"path": "github.com/EducationEKT/xserver",
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
+		},
+		{
 			"checksumSHA1": "IwUqu7LFoKEaPNHm/7hdDZ4yL3o=",
 			"path": "github.com/EducationEKT/xserver/x_err",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
 			"checksumSHA1": "TXrgx3kUhNXeH1kwmu/kOJYSLMY=",
 			"path": "github.com/EducationEKT/xserver/x_http",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
 			"checksumSHA1": "8L2ZiGCt71t3Glfi2uVzYGREK38=",
 			"path": "github.com/EducationEKT/xserver/x_http/x_context",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
 			"checksumSHA1": "vmkgWaRSSttCNsgBJy1WnT4nCqA=",
 			"path": "github.com/EducationEKT/xserver/x_http/x_parser",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
 			"checksumSHA1": "tEoblwdBLk9BMfsS6pzDvYyfKnU=",
 			"path": "github.com/EducationEKT/xserver/x_http/x_processer",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
-			"checksumSHA1": "AS8fPc7YXHd9D7G6lo6rrWkuVss=",
+			"checksumSHA1": "b1TkBcYFqwM/JOdjzZTLNFMUqu8=",
 			"path": "github.com/EducationEKT/xserver/x_http/x_req",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
 			"checksumSHA1": "uR4J6Bbv4MJ+twlAdG3Gci3aEgA=",
 			"path": "github.com/EducationEKT/xserver/x_http/x_resp",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
 			"checksumSHA1": "9G8GWMi6KC8adA665wiK/eTcsTY=",
 			"path": "github.com/EducationEKT/xserver/x_http/x_router",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
 			"checksumSHA1": "3weN8aP+ylGevSvwdm8ozNWN8+s=",
 			"path": "github.com/EducationEKT/xserver/x_utils/x_time",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
 			"checksumSHA1": "/VotqDh6FDJ8QqgEYuQidrMb8Do=",
 			"path": "github.com/EducationEKT/xserver/x_utils/x_type",
-			"revision": "fe382dd2b99088c5747a0668b64d1ac6ba123eed",
-			"revisionTime": "2018-03-02T09:52:52Z"
+			"revision": "59454112ffbc5a4135f124639af1bac43de09efc",
+			"revisionTime": "2018-03-11T08:50:25Z"
 		},
 		{
 			"checksumSHA1": "tMtGtURWx29lWZYsLtLOQaPvGqs=",
