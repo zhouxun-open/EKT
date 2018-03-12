@@ -1,19 +1,4 @@
 # <center>EKT白皮书</center>
-<style type="css">
-body,h1, h2, h3, h4, h5, h6,p {
-	font-family:SimSun;
-}
-ul, ol {
-    list-style-type:none;
-    padding: 0;
-    padding-left: 24px;
-    margin: 0;
-}
-li {
-    list-style-type:none;
-    line-height: 24px;
-}
-</style>
 
 ### 目录
 <a href="#cp1">1、EKT公链简介</a><br/>
