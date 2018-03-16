@@ -58,7 +58,7 @@ func (this *BlockChain) NewBlock(block Block) error {
 		Fee:          this.Fee,
 		PreviousHash: block.Hash(),
 		Locker:       sync.RWMutex{},
-		StatTree:     MPTPlus.NewMTP(db.GetDBInst()),
+		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), block.StatTree.Root),
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 	}
