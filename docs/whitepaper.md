@@ -9,7 +9,7 @@
 <a href="#cp3">3、跨公链</a><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#cp31">3.1 EKT公链中的跨链资产转移</a><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#cp32">3.2 跨公链交易</a><br/>
-<a href="#cp4">4、DAPP</a><br/>
+<a href="#cp4">4、DAPP(无区块的DAPP设计)</a><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#cp41">4.1 Paxos</a><br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#cp42">4.2 智能合约语言</a><br/>
 <a href="#cp5">5、EKT适合哪些开发者</a><br/>
@@ -57,7 +57,7 @@ EKT在定义报文协议的时候为了兼容大多数公链，使用了HTTP协�
     详见 [跨链报文协议](./crosschain.md)
 <h4 id="cp3243">3.2.4.3跨链确认报文</h4>
     详见 [跨链报文协议](./crosschain.md)
-<h1 id="cp4">4、DAPP-无区块</h1>
+<h1 id="cp4">4、DAPP(无区块的DAPP设计)</h1>
 EKT的DAPP分为DAPP服务端和DAPP客户端，DAPP服务端就是智能合约，DAPP客户端是基于JavaScript的一个框架，用户可以根据这个框架实现自己的客户端功能。<br/>
 EKT的DAPP有啥优势呢？<br/>
 1、上手简单，因为EKT在设计智能合约的时候考虑过现有智能合约的缺陷，上手难度大，与业务无关操作比较多，而且目前大部分的智能合约都是基于KV进行存储的，没有对上层智能合约提供可靠易用的SDK，门槛很高。
