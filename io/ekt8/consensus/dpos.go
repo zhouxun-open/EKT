@@ -8,6 +8,9 @@ import (
 type DPOSConsensus struct {
 }
 
+type Round struct {
+}
+
 func (this DPOSConsensus) NewBlock(block blockchain.Block, cb ConsensusCallBack) {
 	cb(*blockchain_manager.MainBlockChain, block, true)
 }
