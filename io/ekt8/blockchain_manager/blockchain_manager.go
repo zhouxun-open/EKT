@@ -13,8 +13,13 @@ var MainBlockChain *blockchain.BlockChain
 
 func init() {
 	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{},
-		blockchain.BackboneConsensus, 1e6, []byte("FFFFFF"), consensus.DPOSConsensus{}}
-	MainBlockChain.SyncBlockChain()
+		blockchain.BackboneConsensus, 1e6, []byte("FFFFFF")}
+	switch MainBlockChain.Consensus {
+	case consensus.DPOS:
+		dpos := consensus.DPOSConsensus{}
+		dpos.ManageBlockChain(MainBlockChain)
+		go dpos.Run()
+	}
 }
 
 type Engine struct {

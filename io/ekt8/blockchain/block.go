@@ -11,6 +11,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 )
 
 var currentBlock *Block = nil
@@ -19,8 +20,10 @@ type Block struct {
 	Height       int64        `json:"height"`
 	Nonce        int64        `json:"nonce"`
 	Fee          int64        `json:"fee"`
+	TotalFee     int64        `json:"totalFee"`
 	PreviousHash []byte       `json:"previousHash"`
 	CurrentHash  []byte       `json:"currentHash"`
+	Peers        p2p.Peers    `json:"peers"`
 	Locker       sync.RWMutex `json:"-"`
 	StatTree     *MPTPlus.MTP `json:"-"`
 	TxTree       *MPTPlus.MTP `json:"-"`
@@ -28,8 +31,8 @@ type Block struct {
 }
 
 func (block *Block) String() string {
-	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "nonce": %d, "previousHash": "%s"}`,
-		block.Height, block.StatTree.Root, block.TxTree.Root, block.EventTree.Root, block.Nonce, block.PreviousHash)
+	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "nonce": %d, "previousHash": "%s", "peers": %s}`,
+		block.Height, block.StatTree.Root, block.TxTree.Root, block.EventTree.Root, block.Nonce, block.PreviousHash, string(block.Peers.Bytes()))
 }
 
 func (block *Block) Bytes() []byte {
@@ -92,7 +95,8 @@ func (block *Block) NewTransaction(tx *common.Transaction) {
 		txResult = common.NewTransactionResult(tx, false, "no enough amount")
 	} else {
 		txResult = common.NewTransactionResult(tx, true, "")
-		account.ReduceAmount(tx.Amount)
+		account.ReduceAmount(tx.Amount + block.Fee)
+		block.TotalFee += block.Fee
 		recieverAccount.AddAmount(tx.Amount)
 		block.StatTree.MustInsert(fromAddress, account.ToBytes())
 		block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())

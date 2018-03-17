@@ -15,5 +15,6 @@ type ConsensusType int
 type ConsensusCallBack func(blockChain blockchain.BlockChain, block blockchain.Block, result bool)
 
 type Consensus interface {
-	NewBlock(blockchain.Block, ConsensusCallBack)
+	ManageBlockChain(chain *blockchain.BlockChain)
+	Run()
 }

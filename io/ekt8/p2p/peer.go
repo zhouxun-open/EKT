@@ -1,12 +1,11 @@
 package p2p
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/EducationEKT/EKT/io/ekt8/core/common"
+	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 )
 
@@ -14,13 +13,12 @@ const (
 	PingInterval = 1 * time.Second
 )
 
-var DPosPeers []Peer
+var DPosPeers Peers
+var DPOSPeersKey = []byte("DPOSPeersKey")
 
-type Peer struct {
-	PeerId         []byte
-	Address        []byte
-	Port           int32
-	AddressVersion int
+func init() {
+	DPosPeers = BootNodes
+	db.GetDBInst().Set(DPOSPeersKey, DPosPeers.Bytes())
 }
 
 func IsDPosPeer(address string) bool {

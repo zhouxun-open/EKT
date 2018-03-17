@@ -12,6 +12,8 @@ import (
 	"github.com/EducationEKT/xserver/x_http"
 )
 
+var inited = []byte("inited")
+
 func init() {
 	err := InitService()
 	if err != nil {
@@ -40,6 +42,10 @@ func InitService() error {
 	err = initLog()
 	if err != nil {
 		return err
+	}
+	if data, err := db.GetDBInst().Get(inited); err != nil || data == nil {
+		//blockchain_manager.MainBlockChain.C
+		db.GetDBInst().Set(inited, []byte{byte(1)})
 	}
 
 	return nil

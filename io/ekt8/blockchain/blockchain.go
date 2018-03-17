@@ -10,6 +10,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
+	"github.com/hyperledger/fabric-sdk-go/pkg/fabric-client/peer"
 )
 
 var BackboneChainId []byte = [32]byte{31: byte(1 & 0xFF)}[:]
@@ -29,25 +30,26 @@ type BlockChain struct {
 	status     int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
 	Fee        int64
 	Difficulty []byte
-	consensus  consensus.Consensus
 }
 
-func (this *BlockChain) SyncBlockChain() error {
-	this.Locker.Lock()
-	defer this.Locker.Unlock()
-	this.status = OpenStatus
+func (blockchain *BlockChain) GenesisBlock(peers peer.Peer) {}
+
+func (blockchain *BlockChain) SyncBlockChain() error {
+	blockchain.Locker.Lock()
+	defer blockchain.Locker.Unlock()
+	blockchain.status = OpenStatus
 	return nil
 }
 
-func (this *BlockChain) GetStatus() int {
-	this.Locker.RLock()
-	defer this.Locker.RUnlock()
-	return this.status
+func (blockchain *BlockChain) GetStatus() int {
+	blockchain.Locker.RLock()
+	defer blockchain.Locker.RUnlock()
+	return blockchain.status
 }
 
-func (this *BlockChain) NewBlock(block Block) error {
-	this.Locker.Lock()
-	defer this.Locker.Unlock()
+func (blockchain *BlockChain) NewBlock(block Block) error {
+	blockchain.Locker.Lock()
+	defer blockchain.Locker.Unlock()
 	if err := block.Validate(); err != nil {
 		return err
 	}
@@ -55,7 +57,8 @@ func (this *BlockChain) NewBlock(block Block) error {
 	newBlock := &Block{
 		Height:       block.Height + 1,
 		Nonce:        0,
-		Fee:          this.Fee,
+		Fee:          blockchain.Fee,
+		TotalFee:     0,
 		PreviousHash: block.Hash(),
 		Locker:       sync.RWMutex{},
 		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), block.StatTree.Root),
@@ -63,7 +66,7 @@ func (this *BlockChain) NewBlock(block Block) error {
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 	}
 	value, _ := json.Marshal(newBlock)
-	return db.GetDBInst().Set(this.CurrentBlockKey(), value)
+	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), value)
 	//lastBlock, err := this.CurrentBlock()
 	//if err != nil {
 	//	return err
@@ -82,10 +85,10 @@ func (this *BlockChain) NewBlock(block Block) error {
 	//return db.GetDBInst().Set(this.CurrentBlockKey(), value)
 }
 
-func (this BlockChain) CurrentBlock() (*Block, error) {
+func (blockchain *BlockChain) CurrentBlock() (*Block, error) {
 	var err error = nil
 	if currentBlock == nil {
-		blockValue, err := db.GetDBInst().Get(this.CurrentBlockKey())
+		blockValue, err := db.GetDBInst().Get(blockchain.CurrentBlockKey())
 		if err != nil {
 			return nil, err
 		}
@@ -94,15 +97,16 @@ func (this BlockChain) CurrentBlock() (*Block, error) {
 	return currentBlock, err
 }
 
-func (this BlockChain) CurrentBlockKey() []byte {
+func (blockchain *BlockChain) CurrentBlockKey() []byte {
 	buffer := bytes.Buffer{}
 	buffer.WriteString(CurrentBlockKey)
-	buffer.Write(this.ChainId)
+	buffer.Write(blockchain.ChainId)
 	return buffer.Bytes()
 }
 
-func (this BlockChain) Pack() {
-	block, _ := this.CurrentBlock()
+func (blockchain *BlockChain) Pack() {
+	//TODO
+	block, _ := blockchain.CurrentBlock()
 	block.Locker.Lock()
 	start := time.Now().Nanosecond()
 	for ; !bytes.HasPrefix(block.Hash(), []byte("FFFFFF")); block.NewNonce() {
@@ -110,7 +114,7 @@ func (this BlockChain) Pack() {
 	end := time.Now().Nanosecond()
 	fmt.Printf(`difficulty="FFFFFF", cost=%d`, (end-start)/1e6)
 	//db.GetDBInst().Set(block.Hash(), block.Bytes())
-	this.consensus.NewBlock(*block, ConsensusCb)
+	//blockchain.consensus.NewBlock(*block, ConsensusCb)
 }
 
 func ConsensusCb(blockChain BlockChain, block Block, result bool) {
