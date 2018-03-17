@@ -27,3 +27,10 @@ func New(level int, msg string) *XErr {
 func NewParamErr() *LogicalErr {
 	return &LogicalErr{-7, "param is missing"}
 }
+
+func NewXErr(err error) *XErr {
+	if err == nil {
+		return nil
+	}
+	return &XErr{-1, err.Error(), false}
+}

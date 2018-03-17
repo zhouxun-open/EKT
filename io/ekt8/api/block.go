@@ -16,7 +16,8 @@ func init() {
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	return x_resp.Success(make(map[string]interface{})), nil
+	block, err := blockchain_manager.MainBlockChain.CurrentBlock()
+	return x_resp.Success(block), x_err.NewXErr(err)
 }
 
 func voteNext(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

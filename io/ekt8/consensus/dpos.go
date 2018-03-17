@@ -35,7 +35,41 @@ func (dpos DPOSConsensus) ManageBlockChain(blockchain *blockchain.BlockChain) {
 }
 
 func (dpos DPOSConsensus) Run() {
-	// TODO
+	if dpos.blockchain == nil {
+		return
+	}
+	peers := dpos.GetCurrentDPOSPeers()
+	dpos.Round = Round{CurrentIndex: -1, Peers: peers, Random: -1}
+	var currentHeight int64 = 0
+	block, err := dpos.blockchain.CurrentBlock()
+	if err == nil && block != nil {
+		currentHeight = block.Height
+	}
+	heights := make(map[int64]int)
+	for _, peer := range dpos.Round.Peers {
+		peerHeight, _ := peer.CurrentHeight()
+		num, exist := heights[peerHeight]
+		if exist && num+1 >= len(dpos.Round.Peers)/2 {
+			currentHeight = peerHeight
+			break
+		} else {
+			if exist {
+				heights[peerHeight] = num + 1
+			} else {
+				heights[peerHeight] = 1
+			}
+		}
+	}
+	dpos.SyncHeightStatTree(currentHeight)
+	//TODO tasks
+}
+
+func (dpos DPOSConsensus) SyncHeightStatTree(heigth int64) {
+	//TODO
+}
+
+func (dpos DPOSConsensus) GetCurrentDPOSPeers() p2p.Peers {
+	return p2p.MainChainDPosNode
 }
 
 func (round Round) Len() int {

@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/dispatcher"
