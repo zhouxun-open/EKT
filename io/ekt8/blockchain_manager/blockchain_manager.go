@@ -10,6 +10,7 @@ import (
 )
 
 var MainBlockChain *blockchain.BlockChain
+var MainBlockChainConsensus consensus.DPOSConsensus
 
 func init() {
 	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{},
@@ -18,6 +19,7 @@ func init() {
 	case consensus.DPOS:
 		dpos := consensus.DPOSConsensus{}
 		dpos.ManageBlockChain(MainBlockChain)
+		MainBlockChainConsensus = dpos
 		go dpos.Run()
 	}
 }

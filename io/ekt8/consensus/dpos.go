@@ -58,6 +58,10 @@ func (dpos DPOSConsensus) Run() {
 		panic(err)
 	}
 	dpos.SyncBlock(block)
+	for {
+		//TODO
+		fmt.Println("")
+	}
 }
 
 func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {

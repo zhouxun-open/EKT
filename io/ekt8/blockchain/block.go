@@ -12,7 +12,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
-	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 )
 
 var currentBlock *Block = nil

@@ -6,13 +6,12 @@ import (
 	"os"
 
 	_ "github.com/EducationEKT/EKT/io/ekt8/api"
+	_ "github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/xserver/x_http"
 )
-
-var inited = []byte("inited")
 
 func init() {
 	err := InitService()
@@ -42,10 +41,6 @@ func InitService() error {
 	err = initLog()
 	if err != nil {
 		return err
-	}
-	if data, err := db.GetDBInst().Get(inited); err != nil || data == nil {
-		//blockchain_manager.MainBlockChain.C
-		db.GetDBInst().Set(inited, []byte{byte(1)})
 	}
 
 	return nil
