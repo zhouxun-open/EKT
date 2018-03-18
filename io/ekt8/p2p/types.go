@@ -32,3 +32,14 @@ func (peer Peer) CurrentHeight() (int64, error) {
 	err = json.Unmarshal(body, &block)
 	return block.Height, err
 }
+
+func (peer Peer) CurrentBlock() (*blockchain.Block, error) {
+	url := fmt.Sprintf(`http://%s:%d/blocks/api/last`, peer.Address, peer.Port)
+	body, err := util.HttpGet(url)
+	if err != nil {
+		return nil, err
+	}
+	var block blockchain.Block
+	err = json.Unmarshal(body, &block)
+	return &block, err
+}

@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
+	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
@@ -17,22 +18,22 @@ import (
 var currentBlock *Block = nil
 
 type Block struct {
-	Height       int64        `json:"height"`
-	Nonce        int64        `json:"nonce"`
-	Fee          int64        `json:"fee"`
-	TotalFee     int64        `json:"totalFee"`
-	PreviousHash []byte       `json:"previousHash"`
-	CurrentHash  []byte       `json:"currentHash"`
-	Peers        p2p.Peers    `json:"peers"`
-	Locker       sync.RWMutex `json:"-"`
-	StatTree     *MPTPlus.MTP `json:"-"`
-	TxTree       *MPTPlus.MTP `json:"-"`
-	EventTree    *MPTPlus.MTP `json:"-"`
+	Height       int64            `json:"height"`
+	Nonce        int64            `json:"nonce"`
+	Fee          int64            `json:"fee"`
+	TotalFee     int64            `json:"totalFee"`
+	PreviousHash []byte           `json:"previousHash"`
+	CurrentHash  []byte           `json:"currentHash"`
+	Round        *consensus.Round `json:"round"`
+	Locker       sync.RWMutex     `json:"-"`
+	StatTree     *MPTPlus.MTP     `json:"-"`
+	TxTree       *MPTPlus.MTP     `json:"-"`
+	EventTree    *MPTPlus.MTP     `json:"-"`
 }
 
 func (block *Block) String() string {
-	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "nonce": %d, "previousHash": "%s", "peers": %s}`,
-		block.Height, block.StatTree.Root, block.TxTree.Root, block.EventTree.Root, block.Nonce, block.PreviousHash, string(block.Peers.Bytes()))
+	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "nonce": %d, "previousHash": "%s", "round": %s}`,
+		block.Height, block.StatTree.Root, block.TxTree.Root, block.EventTree.Root, block.Nonce, block.PreviousHash, block.Round.String())
 }
 
 func (block *Block) Bytes() []byte {

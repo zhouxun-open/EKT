@@ -64,6 +64,7 @@ func (blockchain *BlockChain) NewBlock(block Block) error {
 		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), block.StatTree.Root),
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
+		Round:        consensus.NextRound(block.Round, block.Hash()),
 	}
 	value, _ := json.Marshal(newBlock)
 	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), value)
@@ -112,7 +113,7 @@ func (blockchain *BlockChain) Pack() {
 	for ; !bytes.HasPrefix(block.Hash(), []byte("FFFFFF")); block.NewNonce() {
 	}
 	end := time.Now().Nanosecond()
-	fmt.Printf(`difficulty="FFFFFF", cost=%d`, (end-start)/1e6)
+	fmt.Printf(`\ndifficulty="FFFFFF", cost=%d\n`, (end-start)/1e6)
 	//db.GetDBInst().Set(block.Hash(), block.Bytes())
 	//blockchain.consensus.NewBlock(*block, ConsensusCb)
 }
