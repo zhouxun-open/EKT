@@ -2,6 +2,7 @@ package x_resp
 
 import (
 	"encoding/json"
+	"github.com/EducationEKT/xserver/x_err"
 )
 
 type XRespBody struct {
@@ -31,4 +32,8 @@ func Fail(status int, msg string, result interface{}) *XRespContainer {
 		Headers:  make(map[string]string),
 		Body:     body.ToBytes(),
 	}
+}
+
+func Return(result interface{}, err error) (*XRespContainer, *x_err.XErr) {
+	return Success(result), x_err.NewXErr(err)
 }

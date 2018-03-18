@@ -1,11 +1,14 @@
 package consensus
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
+	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
+	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 )
@@ -50,45 +53,53 @@ func (dpos DPOSConsensus) Run() {
 	}
 	peers := dpos.GetCurrentDPOSPeers()
 	dpos.Round = Round{CurrentIndex: -1, Peers: peers, Random: -1}
-	height := dpos.CurrentHeight()
-	dpos.SyncHeightStatTree(height)
-	//TODO tasks
+	block := dpos.CurrentBlock()
+	if err := crypto.Validate(block.Bytes(), block.Hash()); err != nil {
+		panic(err)
+	}
+	dpos.SyncBlock(block)
 }
 
-func (dpos DPOSConsensus) CurrentHeight() int64 {
-	var currentHeight int64 = 0
+func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
+	var currentBlock *blockchain.Block = nil
 	block, err := dpos.blockchain.CurrentBlock()
 	if err == nil && block != nil {
-		currentHeight = block.Height
+		currentBlock = block
 	}
-	heights := make(map[int64]int64)
+	blocks := make(map[string]int64)
+	mapping := make(map[string]*blockchain.Block)
 	for _, peer := range dpos.Round.Peers {
-		peerHeight, _ := peer.CurrentHeight()
-		num, exist := heights[peerHeight]
+		block, err := peer.CurrentBlock()
+		if err != nil {
+			continue
+		}
+		mapping[hex.EncodeToString(block.Hash())] = block
+		num, exist := blocks[hex.EncodeToString(block.Hash())]
 		if exist && num+1 >= int64(len(dpos.Round.Peers))/2 {
-			currentHeight = peerHeight
+			currentBlock = block
 			break
 		} else {
 			if exist {
-				heights[peerHeight] = num + 1
+				blocks[hex.EncodeToString(block.Hash())] = num + 1
 			} else {
-				heights[peerHeight] = 1
+				blocks[hex.EncodeToString(block.Hash())] = 1
 			}
 		}
 	}
-	var height, num int64 = 0, 0
-	if currentHeight <= 0 {
-		for _, height = range heights {
-			if heights[height] > num {
-				num = heights[height]
+	var maxNum int64 = 0
+	var consensusHash string
+	if currentBlock == nil {
+		for hash, num := range blocks {
+			if num > maxNum {
+				maxNum, consensusHash = num, hash
 			}
 		}
 	}
-	return height
+	return mapping[consensusHash]
 }
 
-func (dpos DPOSConsensus) SyncHeightStatTree(heigth int64) {
-	//TODO
+func (dpos DPOSConsensus) SyncBlock(block *blockchain.Block) {
+	MPTPlus.SyncDB(block.StatRoot, dpos.Round.Peers, false)
 }
 
 func (dpos DPOSConsensus) GetCurrentDPOSPeers() p2p.Peers {

@@ -43,3 +43,8 @@ func (peer Peer) CurrentBlock() (*blockchain.Block, error) {
 	err = json.Unmarshal(body, &block)
 	return &block, err
 }
+
+func (peer Peer) GetDBValue(key []byte) ([]byte, error) {
+	url := fmt.Sprintf(`http://%s:%d/db/api/get`, peer.Address, peer.Port)
+	return util.HttpPost(url, key)
+}

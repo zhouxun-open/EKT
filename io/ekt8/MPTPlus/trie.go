@@ -7,6 +7,7 @@ import (
 
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
+	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 )
 
 var DB db.EKTDB
@@ -107,6 +108,34 @@ func (this *MTP) Update(key, value []byte) error {
 	rootNode.AddSon(newHash, pathValue)
 	this.Root, err = this.SaveNode(*rootNode)
 	return err
+}
+
+func SyncDB(key []byte, peers p2p.Peers, leaf bool) {
+	if _, err := db.GetDBInst().Get(key); err != nil {
+		for _, peer := range peers {
+			value, err := peer.GetDBValue(key)
+			if err != nil {
+				continue
+			}
+			if crypto.Validate(value, key) != nil {
+				continue
+			}
+			db.GetDBInst().Set(key, value)
+			if !leaf {
+				var node TrieNode
+				err = json.Unmarshal(value, &node)
+				if err != nil {
+					continue
+				}
+				if len(node.Sons) > 0 {
+					for _, son := range node.Sons {
+						go SyncDB(son.Hash, peers, node.Leaf)
+					}
+				}
+			}
+			break
+		}
+	}
 }
 
 /**

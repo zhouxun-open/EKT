@@ -66,6 +66,7 @@ func (blockchain *BlockChain) NewBlock(block Block) error {
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 		Round:        consensus.NextRound(block.Round, block.Hash()),
 	}
+	block.UpdateMPTPlusRoot()
 	value, _ := json.Marshal(newBlock)
 	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), value)
 	//lastBlock, err := this.CurrentBlock()

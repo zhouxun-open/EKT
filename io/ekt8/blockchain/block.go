@@ -27,13 +27,16 @@ type Block struct {
 	Round        *consensus.Round `json:"round"`
 	Locker       sync.RWMutex     `json:"-"`
 	StatTree     *MPTPlus.MTP     `json:"-"`
+	StatRoot     []byte           `json:"statRoot"`
 	TxTree       *MPTPlus.MTP     `json:"-"`
+	TxRoot       []byte           `json:"txRoot"`
 	EventTree    *MPTPlus.MTP     `json:"-"`
+	EventRoot    []byte           `json:"eventRoot"`
 }
 
 func (block *Block) String() string {
 	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "nonce": %d, "previousHash": "%s", "round": %s}`,
-		block.Height, block.StatTree.Root, block.TxTree.Root, block.EventTree.Root, block.Nonce, block.PreviousHash, block.Round.String())
+		block.Height, block.StatRoot, block.TxRoot, block.EventRoot, block.Nonce, block.PreviousHash, block.Round.String())
 }
 
 func (block *Block) Bytes() []byte {
@@ -82,6 +85,7 @@ func (block *Block) newAccount(address []byte, pubKey []byte) {
 	account := &common.Account{hex.EncodeToString(address), hex.EncodeToString(pubKey), 0, 0}
 	value, _ := json.Marshal(account)
 	block.StatTree.MustInsert(address, value)
+	block.UpdateMPTPlusRoot()
 }
 
 func (block *Block) NewTransaction(tx *common.Transaction) {
@@ -104,4 +108,11 @@ func (block *Block) NewTransaction(tx *common.Transaction) {
 	}
 	txId, _ := hex.DecodeString(tx.TransactionId)
 	block.TxTree.MustInsert(txId, txResult.ToBytes())
+	block.UpdateMPTPlusRoot()
+}
+
+func (block *Block) UpdateMPTPlusRoot() {
+	block.StatRoot = block.StatTree.Root
+	block.TxRoot = block.TxTree.Root
+	block.EventRoot = block.EventTree.Root
 }
