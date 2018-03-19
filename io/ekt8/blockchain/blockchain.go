@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
+	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabric-client/peer"
@@ -16,11 +17,12 @@ import (
 var BackboneChainId []byte = [32]byte{31: byte(1 & 0xFF)}[:]
 
 const (
-	CurrentBlockKey    = "CurrentBlock"
-	BackboneConsensus  = consensus.DPOS
-	InitStatus         = 0
-	OpenStatus         = 100
-	CaculateHashStatus = 150
+	CurrentBlockKey       = "CurrentBlock"
+	BackboneConsensus     = consensus.DPOS
+	BackboneBlockInterval = 3
+	InitStatus            = 0
+	OpenStatus            = 100
+	CaculateHashStatus    = 150
 )
 
 type BlockChain struct {
@@ -89,12 +91,25 @@ func (blockchain *BlockChain) NewBlock(block Block) error {
 
 func (blockchain *BlockChain) CurrentBlock() (*Block, error) {
 	var err error = nil
+	var block *Block
 	if currentBlock == nil {
 		blockValue, err := db.GetDBInst().Get(blockchain.CurrentBlockKey())
 		if err != nil {
 			return nil, err
 		}
-		err = json.Unmarshal(blockValue, &currentBlock)
+		err = json.Unmarshal(blockValue, &block)
+	}
+	currentBlock := &Block{
+		Height:       block.Height + 1,
+		Nonce:        0,
+		Fee:          blockchain.Fee,
+		TotalFee:     0,
+		PreviousHash: block.Hash(),
+		Locker:       sync.RWMutex{},
+		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), block.StatTree.Root),
+		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
+		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
+		Round:        consensus.NextRound(block.Round, block.Hash()),
 	}
 	return currentBlock, err
 }
@@ -106,15 +121,21 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 	return buffer.Bytes()
 }
 
+func (blockchain *BlockChain) WaitAndPack() {
+	time.Sleep(BackboneBlockInterval * time.Second)
+	blockchain.Pack()
+}
+
 func (blockchain *BlockChain) Pack() {
-	//TODO
 	block, _ := blockchain.CurrentBlock()
 	block.Locker.Lock()
+	defer block.Locker.Unlock()
 	start := time.Now().Nanosecond()
-	for ; !bytes.HasPrefix(block.Hash(), []byte("FFFFFF")); block.NewNonce() {
+	for ; !bytes.HasPrefix(block.CaculateHash(), []byte("FFFFFF")); block.NewNonce() {
 	}
 	end := time.Now().Nanosecond()
 	fmt.Printf(`\ndifficulty="FFFFFF", cost=%d\n`, (end-start)/1e6)
+	blockchain_manager.MainBlockChainConsensus.BlockBorn(block)
 	//db.GetDBInst().Set(block.Hash(), block.Bytes())
 	//blockchain.consensus.NewBlock(*block, ConsensusCb)
 }

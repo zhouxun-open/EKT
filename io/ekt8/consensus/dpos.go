@@ -47,6 +47,9 @@ func (dpos DPOSConsensus) ManageBlockChain(blockchain *blockchain.BlockChain) {
 	dpos.blockchain = blockchain
 }
 
+func (dpos DPOSConsensus) BlockBorn(block *blockchain.Block) {
+}
+
 func (dpos DPOSConsensus) Run() {
 	if dpos.blockchain == nil {
 		return
@@ -58,10 +61,6 @@ func (dpos DPOSConsensus) Run() {
 		panic(err)
 	}
 	dpos.SyncBlock(block)
-	for {
-		//TODO
-		fmt.Println("")
-	}
 }
 
 func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {

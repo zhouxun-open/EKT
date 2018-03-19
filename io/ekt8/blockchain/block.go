@@ -43,7 +43,12 @@ func (block *Block) Bytes() []byte {
 }
 
 func (block *Block) Hash() []byte {
-	return crypto.Sha3_256(block.Hash())
+	return block.CurrentHash
+}
+
+func (block *Block) CaculateHash() []byte {
+	block.CurrentHash = crypto.Sha3_256(block.Bytes())
+	return block.CurrentHash
 }
 
 func (block *Block) NewNonce() {
