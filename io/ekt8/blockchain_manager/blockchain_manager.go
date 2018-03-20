@@ -12,16 +12,35 @@ import (
 var MainBlockChain *blockchain.BlockChain
 var MainBlockChainConsensus consensus.DPOSConsensus
 
+var blockchainManager *BlockchainManager
+
+type BlockchainManager struct {
+	Blockchains map[string]blockchain.BlockChain
+	Consensuses map[string]consensus.Consensus
+}
+
 func init() {
+	blockchainManager = &BlockchainManager{
+		Blockchains: make(map[string]blockchain.BlockChain),
+		Consensuses: make(map[string]consensus.Consensus),
+	}
 	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{},
 		blockchain.BackboneConsensus, 1e6, []byte("FFFFFF")}
-	switch MainBlockChain.Consensus {
-	case consensus.DPOS:
-		dpos := consensus.DPOSConsensus{}
-		dpos.ManageBlockChain(MainBlockChain)
-		MainBlockChainConsensus = dpos
-		go dpos.Run()
-	}
+	MainBlockChainConsensus = consensus.DPOSConsensus{}
+	MainBlockChainConsensus.ManageBlockChain(MainBlockChain)
+	go MainBlockChainConsensus.Run()
+}
+
+func GetManagerInst() *BlockchainManager {
+	return blockchainManager
+}
+
+func GetMainChain() *blockchain.BlockChain {
+	return MainBlockChain
+}
+
+func GetMainChainConsensus() consensus.DPOSConsensus {
+	return MainBlockChainConsensus
 }
 
 type Engine struct {

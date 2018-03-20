@@ -11,7 +11,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
-	"github.com/hyperledger/fabric-sdk-go/pkg/fabric-client/peer"
+	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 )
 
 var BackboneChainId []byte = [32]byte{31: byte(1 & 0xFF)}[:]
@@ -34,7 +34,7 @@ type BlockChain struct {
 	Difficulty []byte
 }
 
-func (blockchain *BlockChain) GenesisBlock(peers peer.Peer) {}
+func (blockchain *BlockChain) GenesisBlock(peers p2p.Peers) {}
 
 func (blockchain *BlockChain) SyncBlockChain() error {
 	blockchain.Locker.Lock()
@@ -68,9 +68,10 @@ func (blockchain *BlockChain) NewBlock(block Block) error {
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 		Round:        consensus.NextRound(block.Round, block.Hash()),
 	}
+	newBlock.UpdateMPTPlusRoot()
 	block.UpdateMPTPlusRoot()
-	value, _ := json.Marshal(newBlock)
-	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), value)
+	// TODO refact block的产生和交易模块
+	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
 	//lastBlock, err := this.CurrentBlock()
 	//if err != nil {
 	//	return err
