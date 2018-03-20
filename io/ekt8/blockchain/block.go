@@ -9,28 +9,28 @@ import (
 	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
-	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 )
 
 var currentBlock *Block = nil
 
 type Block struct {
-	Height       int64            `json:"height"`
-	Nonce        int64            `json:"nonce"`
-	Fee          int64            `json:"fee"`
-	TotalFee     int64            `json:"totalFee"`
-	PreviousHash []byte           `json:"previousHash"`
-	CurrentHash  []byte           `json:"currentHash"`
-	Round        *consensus.Round `json:"round"`
-	Locker       sync.RWMutex     `json:"-"`
-	StatTree     *MPTPlus.MTP     `json:"-"`
-	StatRoot     []byte           `json:"statRoot"`
-	TxTree       *MPTPlus.MTP     `json:"-"`
-	TxRoot       []byte           `json:"txRoot"`
-	EventTree    *MPTPlus.MTP     `json:"-"`
-	EventRoot    []byte           `json:"eventRoot"`
+	Height       int64              `json:"height"`
+	Nonce        int64              `json:"nonce"`
+	Fee          int64              `json:"fee"`
+	TotalFee     int64              `json:"totalFee"`
+	PreviousHash []byte             `json:"previousHash"`
+	CurrentHash  []byte             `json:"currentHash"`
+	Round        *i_consensus.Round `json:"round"`
+	Locker       sync.RWMutex       `json:"-"`
+	StatTree     *MPTPlus.MTP       `json:"-"`
+	StatRoot     []byte             `json:"statRoot"`
+	TxTree       *MPTPlus.MTP       `json:"-"`
+	TxRoot       []byte             `json:"txRoot"`
+	EventTree    *MPTPlus.MTP       `json:"-"`
+	EventRoot    []byte             `json:"eventRoot"`
 }
 
 func (block *Block) String() string {
@@ -100,7 +100,7 @@ func (block *Block) NewTransaction(tx *common.Transaction) {
 	account, _ := block.GetAccount(fromAddress)
 	recieverAccount, _ := block.GetAccount(toAddress)
 	var txResult *common.TxResult
-	if account.Amount() < tx.Amount+block.Fee {
+	if account.GetAmount() < tx.Amount+block.Fee {
 		txResult = common.NewTransactionResult(tx, false, "no enough amount")
 	} else {
 		txResult = common.NewTransactionResult(tx, true, "")
@@ -119,4 +119,5 @@ func (block *Block) UpdateMPTPlusRoot() {
 	block.StatRoot = block.StatTree.Root
 	block.TxRoot = block.TxTree.Root
 	block.EventRoot = block.EventTree.Root
+	block.CaculateHash()
 }

@@ -2,23 +2,26 @@ package blockchain
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
-	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
-	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
-	"github.com/EducationEKT/EKT/io/ekt8/p2p"
+	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 )
 
-var BackboneChainId []byte = [32]byte{31: byte(1 & 0xFF)}[:]
+var BackboneChainId []byte
+
+func init() {
+	BackboneChainId, _ = hex.DecodeString("00000000000000000000000000000001")
+}
 
 const (
 	CurrentBlockKey       = "CurrentBlock"
-	BackboneConsensus     = consensus.DPOS
+	BackboneConsensus     = i_consensus.DPOS
 	BackboneBlockInterval = 3
 	InitStatus            = 0
 	OpenStatus            = 100
@@ -27,26 +30,24 @@ const (
 
 type BlockChain struct {
 	ChainId    []byte
-	Consensus  consensus.ConsensusType
+	Consensus  i_consensus.ConsensusType
 	Locker     sync.RWMutex
-	status     int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
+	Status     int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
 	Fee        int64
 	Difficulty []byte
 }
 
-func (blockchain *BlockChain) GenesisBlock(peers p2p.Peers) {}
-
 func (blockchain *BlockChain) SyncBlockChain() error {
 	blockchain.Locker.Lock()
 	defer blockchain.Locker.Unlock()
-	blockchain.status = OpenStatus
+	blockchain.Status = OpenStatus
 	return nil
 }
 
 func (blockchain *BlockChain) GetStatus() int {
 	blockchain.Locker.RLock()
 	defer blockchain.Locker.RUnlock()
-	return blockchain.status
+	return blockchain.Status
 }
 
 func (blockchain *BlockChain) NewBlock(block Block) error {
@@ -56,19 +57,19 @@ func (blockchain *BlockChain) NewBlock(block Block) error {
 		return err
 	}
 	db.GetDBInst().Set(block.Hash(), block.Bytes())
-	newBlock := &Block{
-		Height:       block.Height + 1,
-		Nonce:        0,
-		Fee:          blockchain.Fee,
-		TotalFee:     0,
-		PreviousHash: block.Hash(),
-		Locker:       sync.RWMutex{},
-		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), block.StatTree.Root),
-		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
-		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
-		Round:        consensus.NextRound(block.Round, block.Hash()),
-	}
-	newBlock.UpdateMPTPlusRoot()
+	//newBlock := &Block{
+	//	Height:       block.Height + 1,
+	//	GetNonce:        0,
+	//	Fee:          blockchain.Fee,
+	//	TotalFee:     0,
+	//	PreviousHash: block.Hash(),
+	//	Locker:       sync.RWMutex{},
+	//	StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), block.StatTree.Root),
+	//	TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
+	//	EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
+	//	Round:        consensus.NextRound(block.Round, block.Hash()),
+	//}
+	//newBlock.UpdateMPTPlusRoot()
 	block.UpdateMPTPlusRoot()
 	// TODO refact block的产生和交易模块
 	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
@@ -95,10 +96,12 @@ func (blockchain *BlockChain) CurrentBlock() (*Block, error) {
 	var block *Block
 	if currentBlock == nil {
 		blockValue, err := db.GetDBInst().Get(blockchain.CurrentBlockKey())
-		if err != nil {
-			return nil, err
+		if err == nil {
+			err = json.Unmarshal(blockValue, &block)
+			if err != nil {
+				return nil, err
+			}
 		}
-		err = json.Unmarshal(blockValue, &block)
 	}
 	currentBlock := &Block{
 		Height:       block.Height + 1,
@@ -110,7 +113,6 @@ func (blockchain *BlockChain) CurrentBlock() (*Block, error) {
 		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), block.StatTree.Root),
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
-		Round:        consensus.NextRound(block.Round, block.Hash()),
 	}
 	return currentBlock, err
 }
@@ -136,7 +138,8 @@ func (blockchain *BlockChain) Pack() {
 	}
 	end := time.Now().Nanosecond()
 	fmt.Printf(`\ndifficulty="FFFFFF", cost=%d\n`, (end-start)/1e6)
-	blockchain_manager.MainBlockChainConsensus.BlockBorn(block)
+	// TODO notify consensus
+	//blockchain_manager.MainBlockChainConsensus.BlockBorn(block)
 	//db.GetDBInst().Set(block.Hash(), block.Bytes())
 	//blockchain.consensus.NewBlock(*block, ConsensusCb)
 }

@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 )
 
@@ -29,9 +28,9 @@ type TxResult struct {
 	TxId      string `json:"txId"`
 	From      string `json:"from"`
 	To        string `json:"to"`
-	Amount    int64  `json:"amount"`
+	Amount    int64  `json:"Amount"`
 	TimeStamp Time   `json:"timestamp"`
-	Nonce     int64  `json:"nonce"`
+	Nonce     int64  `json:"Nonce"`
 	Fee       int64  `json:"fee"`
 	Sign      string `json:"sign"`
 	Success   bool   `json:"success"`
@@ -98,7 +97,7 @@ func (tx *Transaction) Bytes() []byte {
 }
 
 func (tx *Transaction) String() string {
-	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "nonce": %d}`,
+	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "Amount": %d, "Nonce": %d}`,
 		tx.From, tx.To,
 		tx.TimeStamp, tx.Amount, tx.Nonce)
 }
@@ -113,16 +112,14 @@ func (tx *Transaction) Validate() error {
 	if !bytes.Equal(signedTxId, txIdBytes) {
 		return errors.New("Invalid transaction")
 	}
-	block, err := blockchain_manager.MainBlockChain.CurrentBlock()
 	if err != nil {
 		return err
 	}
 	var account Account
-	address, err := hex.DecodeString(tx.From)
+	//HexAddress, err := hex.DecodeString(tx.From)
 	if err != nil {
 		return err
 	}
-	block.StatTree.GetInterfaceValue(address, &account)
 	if !crypto.Verify(sign, account.PublicKey(), tx.Bytes()) {
 		return errors.New("Invalid Signature")
 	}

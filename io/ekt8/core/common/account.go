@@ -6,50 +6,50 @@ import (
 )
 
 type Account struct {
-	address    string `json:"address"`
-	publickKey string `json:"publicKey"`
-	amount     int64  `json:"amount"`
-	nonce      int64  `json:"nonce"`
+	HexAddress    string `json:"HexAddress"`
+	HexPublickKey string `json:"publicKey"`
+	Amount        int64  `json:"Amount"`
+	Nonce         int64  `json:"Nonce"`
 }
 
 func (account Account) ToString() string {
-	return fmt.Sprintf(`{"address": "%s", "publicKey": "%s", "amount": %s, "nonce": %d}`,
-		account.address, account.publickKey, account.amount, account.nonce)
+	return fmt.Sprintf(`{"HexAddress": "%s", "publicKey": "%s", "Amount": %s, "Nonce": %d}`,
+		account.HexAddress, account.HexPublickKey, account.Amount, account.Nonce)
 }
 
 func (account Account) ToBytes() []byte {
 	return []byte(account.ToString())
 }
 
-func (account Account) Nonce() int64 {
-	return account.nonce
+func (account Account) GetNonce() int64 {
+	return account.Nonce
 }
 
 func (account Account) Address() []byte {
-	address, _ := hex.DecodeString(account.address)
+	address, _ := hex.DecodeString(account.HexAddress)
 	return address
 }
 
 func (account Account) PublicKey() []byte {
-	publicKey, _ := hex.DecodeString(account.publickKey)
+	publicKey, _ := hex.DecodeString(account.HexPublickKey)
 	return publicKey
 }
 
-func (account Account) Amount() int64 {
-	return account.amount
+func (account Account) GetAmount() int64 {
+	return account.Amount
 }
 
 func (account Account) AddAmount(amount int64) {
-	account.amount += amount
-	//account.nonce++
+	account.Amount += amount
+	//account.Nonce++
 }
 
 func (account Account) ReduceAmount(amount int64) {
-	account.amount -= amount
-	account.nonce++
+	account.Amount -= amount
+	account.Nonce++
 }
 
 func (account Account) AlterPublicKey(newPublicKey []byte) {
-	account.publickKey = hex.EncodeToString(newPublicKey)
-	account.nonce++
+	account.HexPublickKey = hex.EncodeToString(newPublicKey)
+	account.Nonce++
 }

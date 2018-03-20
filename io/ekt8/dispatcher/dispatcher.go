@@ -41,6 +41,7 @@ func (dispacher DefaultDispatcher) GetBackBoneBlockChain() *blockchain.BlockChai
 }
 
 func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transaction) {
+	// TODO move validate to blockchain
 	if err := transaction.Validate(); err != nil {
 		return
 	}
@@ -49,9 +50,9 @@ func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transacti
 		if block, err := blockChain.CurrentBlock(); err == nil {
 			address, _ := hex.DecodeString(transaction.From)
 			account, _ := block.GetAccount(address)
-			if transaction.Nonce <= account.Nonce() {
+			if transaction.Nonce <= account.GetNonce() {
 				return
-			} else if transaction.Nonce-account.Nonce() > 1 {
+			} else if transaction.Nonce-account.GetNonce() > 1 {
 				tx_pool.GetTxPool().Park(transaction)
 			} else {
 				toAddress, _ := hex.DecodeString(transaction.To)
