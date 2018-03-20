@@ -18,15 +18,14 @@ type BlockchainManager struct {
 	Consensuses map[string]i_consensus.Consensus
 }
 
-func init() {
+func Init() {
 	blockchainManager = &BlockchainManager{
 		Blockchains: make(map[string]blockchain.BlockChain),
 		Consensuses: make(map[string]i_consensus.Consensus),
 	}
 	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{},
 		blockchain.BackboneConsensus, 1e6, []byte("FFFFFF")}
-	MainBlockChainConsensus = consensus.DPOSConsensus{}
-	MainBlockChainConsensus.ManageBlockChain(MainBlockChain)
+	MainBlockChainConsensus = consensus.DPOSConsensus{Blockchain: MainBlockChain}
 	go MainBlockChainConsensus.Run()
 }
 

@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 )
@@ -16,7 +15,7 @@ import (
 var BackboneChainId []byte
 
 func init() {
-	BackboneChainId, _ = hex.DecodeString("00000000000000000000000000000001")
+	BackboneChainId, _ = hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000001")
 }
 
 const (
@@ -95,24 +94,13 @@ func (blockchain *BlockChain) CurrentBlock() (*Block, error) {
 	var err error = nil
 	var block *Block
 	if currentBlock == nil {
-		blockValue, err := db.GetDBInst().Get(blockchain.CurrentBlockKey())
+		key := blockchain.CurrentBlockKey()
+		blockValue, err := db.GetDBInst().Get(key)
 		if err == nil {
 			err = json.Unmarshal(blockValue, &block)
-			if err != nil {
-				return nil, err
-			}
+			currentBlock = block
+			return block, err
 		}
-	}
-	currentBlock := &Block{
-		Height:       block.Height + 1,
-		Nonce:        0,
-		Fee:          blockchain.Fee,
-		TotalFee:     0,
-		PreviousHash: block.Hash(),
-		Locker:       sync.RWMutex{},
-		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), block.StatTree.Root),
-		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
-		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 	}
 	return currentBlock, err
 }

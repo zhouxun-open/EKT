@@ -18,17 +18,10 @@ type DPOSConsensus struct {
 	Blockchain *blockchain.BlockChain
 }
 
-func (dpos DPOSConsensus) ManageBlockChain(blockchain *blockchain.BlockChain) {
-	dpos.Blockchain = blockchain
-}
-
 func (dpos DPOSConsensus) BlockBorn(block *blockchain.Block) {
 }
 
 func (dpos DPOSConsensus) Run() {
-	//if dpos.Blockchain == nil {
-	//	return
-	//}
 	peers := dpos.GetCurrentDPOSPeers()
 	dpos.Round = i_consensus.Round{CurrentIndex: -1, Peers: peers, Random: -1}
 	block := dpos.CurrentBlock()

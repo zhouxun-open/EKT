@@ -1,24 +1,16 @@
 package db
 
-import "github.com/EducationEKT/EKT/io/ekt8/db/leveldb"
-
-type EKTDB interface {
-	Set(key, value []byte) error
-	Get(Key []byte) ([]byte, error)
-	Delete(Key []byte) error
-}
-
-var ektDB EKTDB
+var EktDB *LevelDB
 
 func InitEKTDB(filePath string) error {
-	db, err := leveldb.NewLevelDB(filePath)
+	db, err := NewLevelDB(filePath)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	ektDB = db
-	return nil
+	EktDB = db
+	return err
 }
 
-func GetDBInst() EKTDB {
-	return ektDB
+func GetDBInst() *LevelDB {
+	return EktDB
 }

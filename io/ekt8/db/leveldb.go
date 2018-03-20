@@ -1,4 +1,4 @@
-package leveldb
+package db
 
 import (
 	"github.com/syndtr/goleveldb/leveldb"
@@ -8,12 +8,12 @@ type LevelDB struct {
 	DB *leveldb.DB
 }
 
-func NewLevelDB(filePath string) (db LevelDB, err error) {
+func NewLevelDB(filePath string) (db *LevelDB, err error) {
 	levelDB, err := leveldb.OpenFile(filePath, nil)
 	if err != nil {
 		return
 	}
-	db = LevelDB{levelDB}
+	db = &LevelDB{DB: levelDB}
 	return
 }
 

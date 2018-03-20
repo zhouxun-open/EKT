@@ -6,7 +6,7 @@ import (
 	"os"
 
 	_ "github.com/EducationEKT/EKT/io/ekt8/api"
-	_ "github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
+	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
@@ -23,6 +23,7 @@ func init() {
 }
 
 func main() {
+	fmt.Println("server listen on :19951")
 	err := http.ListenAndServe(":19951", nil)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -42,6 +43,7 @@ func InitService() error {
 	if err != nil {
 		return err
 	}
+	blockchain_manager.Init()
 
 	return nil
 }

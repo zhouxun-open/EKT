@@ -9,6 +9,5 @@ const (
 type ConsensusType int
 
 type Consensus interface {
-	ManageBlockChain(chain interface{})
 	Run()
 }
