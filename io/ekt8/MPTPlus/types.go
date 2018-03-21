@@ -32,14 +32,14 @@ type TrieNode struct {
 type MTP struct {
 	Lock sync.RWMutex
 	Root []byte
-	DB   db.LevelDB
+	DB   *db.LevelDB
 }
 
-func MTP_Tree(db db.LevelDB, root []byte) *MTP {
+func MTP_Tree(db *db.LevelDB, root []byte) *MTP {
 	return &MTP{DB: db, Root: root, Lock: sync.RWMutex{}}
 }
 
-func NewMTP(db db.LevelDB) *MTP {
+func NewMTP(db *db.LevelDB) *MTP {
 	node := TrieNode{
 		Root:      true,
 		Leaf:      false,

@@ -57,7 +57,7 @@ func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transacti
 			if transaction.Nonce <= account.GetNonce() {
 				return
 			} else if transaction.Nonce-account.GetNonce() > 1 {
-				tx_pool.GetTxPool().Park(transaction)
+				tx_pool.GetTxPool().Park(transaction, tx_pool.Block)
 			} else {
 				toAddress, _ := hex.DecodeString(transaction.To)
 				if !block.ExistAddress(toAddress) {

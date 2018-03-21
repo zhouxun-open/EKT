@@ -11,7 +11,8 @@ import (
 
 	"xserver/x_utils/x_random"
 
-	"github.com/EducationEKT/EKT/io/ekt8/db/leveldb"
+	"github.com/EducationEKT/EKT/io/ekt8/db"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type KeyValue struct {
@@ -36,7 +37,7 @@ func (this RandomKeyValues) Less(i, j int) bool {
 }
 
 func TestMTPInsertAndGet(t *testing.T) {
-	db, err := leveldb.NewLevelDB("testTrie11")
+	db, err := db.NewLevelDB("testTrie11")
 	if err != nil {
 		t.Fail()
 	}
@@ -74,7 +75,7 @@ func TestMTPInsertAndGet(t *testing.T) {
 }
 
 func TestMTPRandomInsert(t *testing.T) {
-	db, err := leveldb.NewLevelDB("testTrie11")
+	db, err := db.NewLevelDB("testTrie11")
 	if err != nil {
 		t.Fail()
 	}

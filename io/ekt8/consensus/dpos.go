@@ -20,7 +20,17 @@ type DPOSConsensus struct {
 }
 
 func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
-
+	dpos.Blockchain.Locker.Lock()
+	defer dpos.Blockchain.Locker.Unlock()
+	lastBlock, _ := dpos.Blockchain.LastBlock()
+	if dpos.Blockchain.Status == blockchain.OpenStatus {
+		var account common.Account
+		address, _ := hex.DecodeString(tx.From)
+		if err := lastBlock.StatTree.GetInterfaceValue(address, &account); err != nil {
+			if account.Nonce+1 < tx.Nonce {
+			}
+		}
+	}
 }
 
 func (dpos DPOSConsensus) BlockBorn(block *blockchain.Block) {
