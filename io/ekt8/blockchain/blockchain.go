@@ -50,7 +50,7 @@ func (blockchain *BlockChain) GetStatus() int {
 	return blockchain.Status
 }
 
-func (blockchain *BlockChain) NewBlock(block Block) error {
+func (blockchain *BlockChain) NewBlock(block *Block) error {
 	blockchain.Locker.Lock()
 	defer blockchain.Locker.Unlock()
 	if err := block.Validate(); err != nil {
@@ -118,6 +118,7 @@ func (blockchain *BlockChain) WaitAndPack() {
 	blockchain.Pack()
 }
 
+// consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法
 func (blockchain *BlockChain) Pack() *Block {
 	block := blockchain.CurrentBlock
 	block.Locker.Lock()
@@ -128,14 +129,4 @@ func (blockchain *BlockChain) Pack() *Block {
 	end := time.Now().Nanosecond()
 	fmt.Printf(`\ndifficulty="FFFFFF", cost=%d\n`, (end-start)/1e6)
 	return block
-	// TODO notify consensus
-	//blockchain_manager.MainBlockChainConsensus.BlockBorn(block)
-	//db.GetDBInst().Set(block.Hash(), block.Bytes())
-	//blockchain.consensus.NewBlock(*block, ConsensusCb)
-}
-
-func ConsensusCb(blockChain BlockChain, block Block, result bool) {
-	if result {
-		blockChain.NewBlock(block)
-	}
 }

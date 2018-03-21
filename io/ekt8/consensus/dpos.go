@@ -65,6 +65,17 @@ func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 	return mapping[consensusHash]
 }
 
+func (dpos DPOSConsensus) SyncBlockChain() {
+	lastBlock, err := dpos.Blockchain.LastBlock()
+	if err != nil {
+		lastBlock = nil
+	}
+	peerLast := dpos.CurrentBlock()
+	if peerLast.Height > lastBlock.Height {
+		dpos.Blockchain.NewBlock(peerLast)
+	}
+}
+
 func (dpos DPOSConsensus) SyncBlock(block *blockchain.Block) {
 	MPTPlus.SyncDB(block.StatRoot, dpos.Round.Peers, false)
 }
