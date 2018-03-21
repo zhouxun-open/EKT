@@ -50,13 +50,13 @@ EKT公链是支持对外的跨公链交易的，但是是需要一定操作。
 <h3 id="cp323">3.2.3 跨公链的交易共识</h3>
 EKT的跨公链操作对跨链协议是这样定义的：假如存在两条公链EKT定义为`PC1`和ETH定义为`PC2`，在`PC1`上有一个用户`user1`，地址位`address1`， 在`PC2`上拥有一个用户`user2`，在`PC1`上有一个Token定义为`T1`。如果`user1`要将自己在`PC1`上拥有的`T1`转移给`PC2`上的`user2`，那么在`PC2`上必须已经对`PC1`这条公链和`T1`进行了注册，这时就有了第一个报文：<a href="#handshake">跨链握手报文</a> ，当`PC2`对上述报文回复正确之后，`user1`才可以将自己的`T1`转移到了`PC2`。在此跨公链转账打包成功之后，`PC1`需要将交易信息和区块头信息发送给`PC2`进行校验，这就是第二个报文：<a href="#transaction">跨链交易报文</a> ，`PC2`校验之后存入自己的区块链中之后需要给`PC1`回复第三个报文：<a href="#confirm">跨链确认报文</a>，否则`PC1`会继续给`PC2`发送<a href="#transaction">跨链交易报文</a>，直到自己收到`PC2`的第三个报文：<a href="#confirm">跨链确认报文</a>。给`user1`将自己的`T1`转移到了`PC2`上之后，这些Token在`PC2`上怎么转移对于`PC1`来说是无关紧要的，因为在`PC1`上记录的是将`T1`转移到了`PC2`，而在`PC2`向`PC1`发送<a href="#transaction">跨链交易报文</a>的时候，`PC1`也是不会校验在`PC2`上每个地址持有`T1`的数量，而是校验在`PC1`链中当前的`PC2`公链id拥有的`T1`的数量。
 <h3 id="cp324">3.2.4 跨公链报文协议</h3>
-为了兼容大多数公链，EKT公链定义报文协议使用了HTTP协议作为基础，请求和响应的Content-Type必须为application/json，请求参数和响应参数必须与规定相同。详见 [跨链报文协议](./crosschain.md)
+为了兼容大多数公链，EKT公链定义报文协议使用了HTTP协议作为基础，请求和响应的Content-Type必须为application/json，请求参数和响应参数必须与规定相同。详见 [跨链报文协议](docs/crosschain.md)
 <h4 id="cp3241">3.2.4.1跨链握手协议</h4>
-    详见 [跨链报文协议](./crosschain.md)
+    详见 [跨链报文协议](docs/crosschain.md)
 <h4 id="cp3242">3.2.4.2跨链交易报文</h4>
-    详见 [跨链报文协议](./crosschain.md)
+    详见 [跨链报文协议](docs/crosschain.md)
 <h4 id="cp3243">3.2.4.3跨链确认报文</h4>
-    详见 [跨链报文协议](./crosschain.md)
+    详见 [跨链报文协议](docs/crosschain.md)
 <h1 id="cp4">4、DAPP(无区块的DAPP设计)</h1>
 EKT公链的DAPP分为DAPP服务端和DAPP客户端，DAPP服务端就是智能合约，DAPP客户端是基于JavaScript的一个框架，用户可以根据这个框架实现自己的客户端功能。<br/>
 EKT公链的DAPP的优势体现在哪里呢？<br/>
