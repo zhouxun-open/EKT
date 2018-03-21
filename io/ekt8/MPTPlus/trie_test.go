@@ -12,7 +12,6 @@ import (
 	"xserver/x_utils/x_random"
 
 	"github.com/EducationEKT/EKT/io/ekt8/db"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type KeyValue struct {
