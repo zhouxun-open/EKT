@@ -9,5 +9,6 @@ const (
 type ConsensusType int
 
 type Consensus interface {
+	//接口中没有声明，但是在Consensus的所有的实现struct中都必须拥有blockchain结构体
 	Run()
 }

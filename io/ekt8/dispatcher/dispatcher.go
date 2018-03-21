@@ -47,7 +47,7 @@ func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transacti
 	}
 	blockChain := dispatcher.GetBackBoneBlockChain()
 	if blockChain.GetStatus() == 100 {
-		if block, err := blockChain.CurrentBlock(); err == nil {
+		if block := blockChain.CurrentBlock; block != nil {
 			address, _ := hex.DecodeString(transaction.From)
 			account, _ := block.GetAccount(address)
 			if transaction.Nonce <= account.GetNonce() {
@@ -71,7 +71,7 @@ func (dispatcher DefaultDispatcher) NewEvent(evt *event.Event) {
 	}
 	if evt.EventType == event.NewAccountEvent {
 		accountParam := (evt.EventParam).(event.NewAccountParam)
-		block, _ := blockchain_manager.MainBlockChain.CurrentBlock()
+		block := blockchain_manager.MainBlockChain.CurrentBlock
 		address, err := hex.DecodeString(accountParam.Address)
 		if err != nil && !block.ExistAddress(address) {
 			pubKey, err := hex.DecodeString(accountParam.PubKey)

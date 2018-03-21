@@ -25,7 +25,7 @@ func (dpos DPOSConsensus) Run() {
 	peers := dpos.GetCurrentDPOSPeers()
 	dpos.Round = i_consensus.Round{CurrentIndex: -1, Peers: peers, Random: -1}
 	block := dpos.CurrentBlock()
-	if err := crypto.Validate(block.Bytes(), block.Hash()); err != nil {
+	if err := crypto.Validate(block.Bytes(), block.CaculateHash()); err != nil {
 		panic(err)
 	}
 	dpos.SyncBlock(block)
@@ -33,10 +33,6 @@ func (dpos DPOSConsensus) Run() {
 
 func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 	var currentBlock *blockchain.Block = nil
-	block, err := dpos.Blockchain.CurrentBlock()
-	if err == nil && block != nil {
-		currentBlock = block
-	}
 	blocks := make(map[string]int64)
 	mapping := make(map[string]*blockchain.Block)
 	for _, peer := range dpos.Round.Peers {

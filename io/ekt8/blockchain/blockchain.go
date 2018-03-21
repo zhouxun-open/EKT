@@ -28,12 +28,13 @@ const (
 )
 
 type BlockChain struct {
-	ChainId    []byte
-	Consensus  i_consensus.ConsensusType
-	Locker     sync.RWMutex
-	Status     int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
-	Fee        int64
-	Difficulty []byte
+	ChainId      []byte
+	Consensus    i_consensus.ConsensusType
+	CurrentBlock *Block
+	Locker       sync.RWMutex
+	Status       int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
+	Fee          int64
+	Difficulty   []byte
 }
 
 func (blockchain *BlockChain) SyncBlockChain() error {
@@ -90,7 +91,7 @@ func (blockchain *BlockChain) NewBlock(block Block) error {
 	//return db.GetDBInst().Set(this.CurrentBlockKey(), value)
 }
 
-func (blockchain *BlockChain) CurrentBlock() (*Block, error) {
+func (blockchain *BlockChain) LastBlock() (*Block, error) {
 	var err error = nil
 	var block *Block
 	if currentBlock == nil {
@@ -117,8 +118,8 @@ func (blockchain *BlockChain) WaitAndPack() {
 	blockchain.Pack()
 }
 
-func (blockchain *BlockChain) Pack() {
-	block, _ := blockchain.CurrentBlock()
+func (blockchain *BlockChain) Pack() *Block {
+	block := blockchain.CurrentBlock
 	block.Locker.Lock()
 	defer block.Locker.Unlock()
 	start := time.Now().Nanosecond()
@@ -126,6 +127,7 @@ func (blockchain *BlockChain) Pack() {
 	}
 	end := time.Now().Nanosecond()
 	fmt.Printf(`\ndifficulty="FFFFFF", cost=%d\n`, (end-start)/1e6)
+	return block
 	// TODO notify consensus
 	//blockchain_manager.MainBlockChainConsensus.BlockBorn(block)
 	//db.GetDBInst().Set(block.Hash(), block.Bytes())

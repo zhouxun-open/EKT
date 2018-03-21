@@ -16,7 +16,7 @@ func init() {
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	block, err := blockchain_manager.MainBlockChain.CurrentBlock()
+	block, err := blockchain_manager.MainBlockChain.LastBlock()
 	return x_resp.Success(block), x_err.NewXErr(err)
 }
 

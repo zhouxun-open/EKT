@@ -23,9 +23,10 @@ func Init() {
 		Blockchains: make(map[string]blockchain.BlockChain),
 		Consensuses: make(map[string]i_consensus.Consensus),
 	}
-	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, sync.RWMutex{},
+	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, nil, sync.RWMutex{},
 		blockchain.BackboneConsensus, 1e6, []byte("FFFFFF")}
 	MainBlockChainConsensus = consensus.DPOSConsensus{Blockchain: MainBlockChain}
+	//TODO 查看自己subscribe的blockchain
 	go MainBlockChainConsensus.Run()
 }
 
