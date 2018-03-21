@@ -7,6 +7,7 @@ import (
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
+	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
@@ -16,6 +17,10 @@ import (
 type DPOSConsensus struct {
 	Round      i_consensus.Round
 	Blockchain *blockchain.BlockChain
+}
+
+func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
+
 }
 
 func (dpos DPOSConsensus) BlockBorn(block *blockchain.Block) {

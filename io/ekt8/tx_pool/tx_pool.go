@@ -2,6 +2,11 @@ package tx_pool
 
 import "github.com/EducationEKT/EKT/io/ekt8/core/common"
 
+const (
+	Block = iota
+	Queue
+)
+
 var txPool TxPool
 
 func init() {

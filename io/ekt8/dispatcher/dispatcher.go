@@ -16,6 +16,10 @@ func init() {
 	dispatcher = DefaultDispatcher{}
 }
 
+func NewTransaction(transaction common.Transaction) {
+	blockchain_manager.MainBlockChainConsensus.NewTransaction(transaction)
+}
+
 type IDispatcher interface {
 	NewTransaction(transaction *common.Transaction)
 	NewEvent(event *event.Event)
