@@ -41,16 +41,18 @@ func GetTxPool() TxPool {
 //}
 /*
 把交易放在 txPool 里等待打包
- */
+*/
 func (txPool TxPool) Park(tx *common.Transaction, reason int) {
 
 }
+
 /*
 当交易被区块打包后,将交易移出txPool
 */
 func (TxPool TxPool) Notify(tx *common.Transaction) {
 
 }
+
 /*当交易被区块打包后,将交易批量移出txPool
 
  */
@@ -62,9 +64,23 @@ func (txPool TxPool) BatchNotify(txs []*common.Transaction) {
 返回就绪队列中指定数量的交易
 如果size小于等于0，返回全部
 */
-func (tx TxPool)Fetch(size int)[]*common.Transaction{
-	var t []*common.Transaction
-	return t
+func (tx TxPool) Fetch(size int) map[string]*common.Transaction {
+	if size <= 0 {
+		return txPool.ready
+	} else if size > len(txPool.ready) {
+		return txPool.ready
+	} else {
+		returnMap := make(map[string]*common.Transaction)
+		count := 0
+		for k, v := range txPool.ready {
+			if count >= size {
+				break
+			}
+			count++
+			returnMap[k] = v
+		}
+		return returnMap
+	}
 }
 
 func (u UserTransactions) Len() int {
