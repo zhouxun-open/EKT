@@ -58,8 +58,3 @@ func (blockQueue BlockQueue) Swap(i, j int){
 func (blockQueue BlockQueue) Less(i, j int) bool {
 	return blockQueue[i].Nonce < blockQueue[j].Nonce
 }
-
-//just test sort function
-func test(){
-	sort.Sort(txPool.wait)
-}
