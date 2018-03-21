@@ -11,15 +11,22 @@ const (
 
 var txPool TxPool
 
-type BlockQueue [] *common.Transaction
+//等待依赖队列 k:user address v:transactions of user
+type BlockQueue map[string]UserTransactions
+
+//就绪队列 k:transaction id v:transaction
+type ReadyQueue map[string]*common.Transaction
+
+//wrapper for sort
+type UserTransactions []*common.Transaction
 
 func init() {
 	txPool = TxPool{}
 }
 
 type TxPool struct {
-	ready map[string]*common.Transaction
-	wait BlockQueue
+	ready ReadyQueue
+	block BlockQueue
 }
 
 func GetTxPool() TxPool {
@@ -32,28 +39,42 @@ func GetTxPool() TxPool {
 //	}
 //	txPool.ready[tx.TransactionId] = tx
 //}
+/*
+把交易放在 txPool 里等待打包
+ */
+func (txPool TxPool) Park(tx *common.Transaction, reason int) {
 
-func (txPool TxPool) Park(tx *common.Transaction ,reason int){
+}
+/*
+当交易被区块打包后,将交易移出txPool
+*/
+func (TxPool TxPool) Notify(tx *common.Transaction) {
+
+}
+/*当交易被区块打包后,将交易批量移出txPool
+
+ */
+func (txPool TxPool) BatchNotify(txs []*common.Transaction) {
 
 }
 
-func (TxPool TxPool) Notify(tx *common.Transaction ){
-
+/*
+返回就绪队列中指定数量的交易
+如果size小于等于0，返回全部
+*/
+func (tx TxPool)Fetch(size int)[]*common.Transaction{
+	var t []*common.Transaction
+	return t
 }
 
-func (txPool TxPool) BatchNotify(txs []*common.Transaction){
-
+func (u UserTransactions) Len() int {
+	return len(u)
 }
 
-
-func (blockQueue BlockQueue) Len() int{
-	return len(blockQueue)
+func (u UserTransactions) Swap(i, j int) {
+	u[i].Nonce, u[j].Nonce = u[j].Nonce, u[i].Nonce
 }
 
-func (blockQueue BlockQueue) Swap(i, j int){
-	blockQueue[i].Nonce, blockQueue[j].Nonce =blockQueue[j].Nonce, blockQueue[i].Nonce
-}
-
-func (blockQueue BlockQueue) Less(i, j int) bool {
-	return blockQueue[i].Nonce < blockQueue[j].Nonce
+func (u UserTransactions) Less(i, j int) bool {
+	return u[i].Nonce < u[j].Nonce
 }
