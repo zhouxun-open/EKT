@@ -78,6 +78,7 @@ func (tx TxPool) Fetch(size int) map[string]*common.Transaction {
 			}
 			count++
 			returnMap[k] = v
+			delete(txPool.ready,k)//delete (k,v) from readyqueue
 		}
 		return returnMap
 	}
@@ -88,7 +89,7 @@ func (u UserTransactions) Len() int {
 }
 
 func (u UserTransactions) Swap(i, j int) {
-	u[i].Nonce, u[j].Nonce = u[j].Nonce, u[i].Nonce
+	u[i], u[j] = u[j], u[i]
 }
 
 func (u UserTransactions) Less(i, j int) bool {
