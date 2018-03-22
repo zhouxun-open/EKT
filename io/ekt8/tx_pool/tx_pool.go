@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	Block = iota
-	Queue
+	Block = 0
+	Ready = 1
 )
 
 var txPool TxPool
@@ -43,7 +43,7 @@ func GetTxPool() TxPool {
 把交易放在 txPool 里等待打包
 */
 func (txPool TxPool) Park(tx *common.Transaction, reason int) {
-	if reason == Queue {
+	if reason == Ready {
 		txPool.ready[tx.TransactionId] = tx
 	} else if reason == Block {
 		txs_slice := txPool.block[tx.From]
@@ -55,7 +55,6 @@ func (txPool TxPool) Park(tx *common.Transaction, reason int) {
 当交易被区块打包后,将交易移出txPool
 */
 func (TxPool TxPool) Notify(tx *common.Transaction) {
-
 }
 
 /*当交易被区块打包后,将交易批量移出txPool
