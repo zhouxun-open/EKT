@@ -55,13 +55,16 @@ func (txPool TxPool) Park(tx *common.Transaction, reason int) {
 当交易被区块打包后,将交易移出txPool
 */
 func (TxPool TxPool) Notify(tx *common.Transaction) {
+	delete(txPool.ready,tx.TransactionId)
 }
 
 /*当交易被区块打包后,将交易批量移出txPool
 
  */
 func (txPool TxPool) BatchNotify(txs []*common.Transaction) {
-
+	for _,tx:=range txs{
+		delete(txPool.ready,tx.TransactionId)
+	}
 }
 
 /*
@@ -82,7 +85,7 @@ func (tx TxPool) Fetch(size int) map[string]*common.Transaction {
 			}
 			count++
 			returnMap[k] = v
-			delete(txPool.ready, k) //delete (k,v) from readyqueue
+			//delete(txPool.ready, k) //delete (k,v) from readyqueue
 		}
 		return returnMap
 	}
