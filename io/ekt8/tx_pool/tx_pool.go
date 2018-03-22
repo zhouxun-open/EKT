@@ -43,7 +43,12 @@ func GetTxPool() TxPool {
 把交易放在 txPool 里等待打包
 */
 func (txPool TxPool) Park(tx *common.Transaction, reason int) {
-
+	if reason == Queue {
+		txPool.ready[tx.TransactionId] = tx
+	} else if reason == Block {
+		txs_slice := txPool.block[tx.From]
+		txPool.block[tx.From] = append(txs_slice, tx)
+	}
 }
 
 /*
@@ -78,6 +83,7 @@ func (tx TxPool) Fetch(size int) map[string]*common.Transaction {
 			}
 			count++
 			returnMap[k] = v
+			delete(txPool.ready, k) //delete (k,v) from readyqueue
 		}
 		return returnMap
 	}
@@ -88,7 +94,7 @@ func (u UserTransactions) Len() int {
 }
 
 func (u UserTransactions) Swap(i, j int) {
-	u[i].Nonce, u[j].Nonce = u[j].Nonce, u[i].Nonce
+	u[i], u[j] = u[j], u[i]
 }
 
 func (u UserTransactions) Less(i, j int) bool {
