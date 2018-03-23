@@ -9,8 +9,6 @@ const (
 	Ready = 1
 )
 
-var txPool TxPool
-
 //等待依赖队列 k:user address v:transactions of user
 type BlockQueue map[string]UserTransactions
 
@@ -20,17 +18,9 @@ type ReadyQueue map[string]*common.Transaction
 //wrapper for sort
 type UserTransactions []*common.Transaction
 
-func init() {
-	txPool = TxPool{}
-}
-
 type TxPool struct {
 	ready ReadyQueue
 	block BlockQueue
-}
-
-func GetTxPool() TxPool {
-	return txPool
 }
 
 //func (txPool TxPool) Park(tx *common.Transaction) {
@@ -84,13 +74,13 @@ func (txPool TxPool) BatchNotify(txs []*common.Transaction) {
 */
 func (tx TxPool) Fetch(size int) map[string]*common.Transaction {
 	if size <= 0 {
-		return txPool.ready
-	} else if size > len(txPool.ready) {
-		return txPool.ready
+		return tx.ready
+	} else if size > len(tx.ready) {
+		return tx.ready
 	} else {
 		returnMap := make(map[string]*common.Transaction)
 		count := 0
-		for k, v := range txPool.ready {
+		for k, v := range tx.ready {
 			if count >= size {
 				break
 			}
