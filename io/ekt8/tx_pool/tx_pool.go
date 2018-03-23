@@ -59,10 +59,10 @@ func (txPool TxPool) Notify(tx *common.Transaction) {
 	delete(txPool.ready, tx.TransactionId)
 	txs := txPool.block[tx.From]
 	if txs != nil {
-		for i, tx := range txs {
-			if tx.Nonce == tx.Nonce+1 {
+		for i, _tx := range txs {
+			if _tx.Nonce == tx.Nonce+1 {
 				txs = append(txs[:i], txs[i+1:]...)
-				txPool.ready[tx.TransactionId] = tx
+				txPool.ready[_tx.TransactionId] = _tx
 				break
 			}
 		}
