@@ -53,17 +53,28 @@ func (txPool TxPool) Park(tx *common.Transaction, reason int) {
 
 /*
 当交易被区块打包后,将交易移出txPool
+如果当前用户有Nonce比当前大一的tx在Block队列，则移动至ready队列
 */
-func (TxPool TxPool) Notify(tx *common.Transaction) {
-	delete(txPool.ready,tx.TransactionId)
+func (txPool TxPool) Notify(tx *common.Transaction) {
+	delete(txPool.ready, tx.TransactionId)
+	txs := txPool.block[tx.From]
+	if txs != nil {
+		for i, tx := range txs {
+			if tx.Nonce == tx.Nonce+1 {
+				txs = append(txs[:i], txs[i+1:]...)
+				txPool.ready[tx.TransactionId] = tx
+				break
+			}
+		}
+	}
 }
 
 /*当交易被区块打包后,将交易批量移出txPool
 
  */
 func (txPool TxPool) BatchNotify(txs []*common.Transaction) {
-	for _,tx:=range txs{
-		delete(txPool.ready,tx.TransactionId)
+	for _, tx := range txs {
+		txPool.Notify(tx)
 	}
 }
 
