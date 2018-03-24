@@ -88,6 +88,7 @@ func (txPool TxPool) Fetch(size int32) (result []*common.Transaction) {
 	}
 	for id, ptx := range txPool.ready {
 		delete(txPool.ready, id)
+		result=append(result,ptx)
 		count++
 		record = append(record, ptx)
 		if count >= size { //watch
