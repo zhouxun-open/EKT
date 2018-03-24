@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/tx_pool"
@@ -118,7 +119,19 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 
 func (blockchain *BlockChain) WaitAndPack() {
 	time.Sleep(BackboneBlockInterval * time.Second)
+	blockchain.Locker.Lock()
+	defer blockchain.Locker.Unlock()
 	blockchain.Pack()
+}
+
+func (blockchain *BlockChain) NewTransaction(tx *common.Transaction) {
+	blockchain.Locker.Lock()
+	defer blockchain.Locker.Unlock()
+	if blockchain.Status == OpenStatus {
+		blockchain.CurrentBlock.NewTransaction(tx)
+	} else {
+		blockchain.TxPool.Park(tx, tx_pool.Ready)
+	}
 }
 
 // consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法
