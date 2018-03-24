@@ -109,11 +109,11 @@ func (tx *Transaction) Validate() error {
 	}
 	signedTxId := crypto.Sha3_256(sign)
 	txIdBytes, err := hex.DecodeString(tx.TransactionId)
-	if !bytes.Equal(signedTxId, txIdBytes) {
-		return errors.New("Invalid transaction")
-	}
 	if err != nil {
 		return err
+	}
+	if !bytes.Equal(signedTxId, txIdBytes) {
+		return errors.New("Invalid transaction")
 	}
 	var account Account
 	//HexAddress, err := hex.DecodeString(tx.From)

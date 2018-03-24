@@ -23,6 +23,13 @@ type TxPool struct {
 	block BlockQueue
 }
 
+func NewTxPool() *TxPool {
+	return &TxPool{
+		ready: make(map[string]*common.Transaction),
+		block: make(map[string]UserTransactions),
+	}
+}
+
 //func (txPool TxPool) Park(tx *common.Transaction) {
 //	if txPool.ready[tx.TransactionId] != nil {
 //		return

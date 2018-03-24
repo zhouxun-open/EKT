@@ -10,6 +10,7 @@ import (
 
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
+	"github.com/EducationEKT/EKT/io/ekt8/tx_pool"
 )
 
 var BackboneChainId []byte
@@ -28,13 +29,15 @@ const (
 )
 
 type BlockChain struct {
-	ChainId      []byte
-	Consensus    i_consensus.ConsensusType
-	CurrentBlock *Block
-	Locker       sync.RWMutex
-	Status       int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
-	Fee          int64
-	Difficulty   []byte
+	ChainId       []byte
+	Consensus     i_consensus.ConsensusType
+	CurrentBlock  *Block
+	Locker        sync.RWMutex
+	Status        int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
+	Fee           int64
+	Difficulty    []byte
+	TxPool        *tx_pool.TxPool
+	CurrentHeight int64
 }
 
 func (blockchain *BlockChain) SyncBlockChain() error {
