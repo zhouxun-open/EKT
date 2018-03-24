@@ -101,27 +101,3 @@ func (tx *Transaction) String() string {
 		tx.From, tx.To,
 		tx.TimeStamp, tx.Amount, tx.Nonce)
 }
-
-func (tx *Transaction) Validate() error {
-	sign, err := hex.DecodeString(tx.Sign)
-	if err != nil {
-		return err
-	}
-	signedTxId := crypto.Sha3_256(sign)
-	txIdBytes, err := hex.DecodeString(tx.TransactionId)
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(signedTxId, txIdBytes) {
-		return errors.New("Invalid transaction")
-	}
-	var account Account
-	//HexAddress, err := hex.DecodeString(tx.From)
-	if err != nil {
-		return err
-	}
-	if !crypto.Verify(sign, account.PublicKey(), tx.Bytes()) {
-		return errors.New("Invalid Signature")
-	}
-	return nil
-}
