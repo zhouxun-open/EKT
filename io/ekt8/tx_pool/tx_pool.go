@@ -79,24 +79,27 @@ func (txPool TxPool) BatchNotify(txs []*common.Transaction) {
 返回能够打包的指定数量的交易
 如果size小于等于0，返回全部
 */
-func (tx TxPool) Fetch(size int) map[string]*common.Transaction {
-	if size <= 0 {
-		return tx.ready
-	} else if size > len(tx.ready) {
-		return tx.ready
-	} else {
-		returnMap := make(map[string]*common.Transaction)
-		count := 0
-		for k, v := range tx.ready {
-			if count >= size {
-				break
-			}
-			count++
-			returnMap[k] = v
-			//delete(txPool.ready, k) //delete (k,v) from readyqueue
-		}
-		return returnMap
+func (txPool TxPool) Fetch(size int32) (result []*common.Transaction) {
+	result = []*common.Transaction{}
+	record := []*common.Transaction{}
+	var count int32 = 0
+	if size < 0 {
+		size=^(size<<31)
 	}
+	for id, ptx := range txPool.ready {
+		delete(txPool.ready, id)
+		count++
+		record = append(record, ptx)
+		if count >= size { //watch
+			txPool.BatchNotify(record)
+			return
+		}
+		if len(txPool.ready) == 0 {
+			txPool.BatchNotify(record)
+			record = []*common.Transaction{}
+		}
+	}
+	return
 }
 
 func (u UserTransactions) Len() int {
