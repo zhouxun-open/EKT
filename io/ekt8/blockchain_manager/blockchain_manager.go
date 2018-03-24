@@ -1,12 +1,19 @@
 package blockchain_manager
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/consensus"
+	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/tx_pool"
+)
+
+const (
+	BlockchainManagerDBKey = "BlockchainManagerDBKey"
 )
 
 var MainBlockChain *blockchain.BlockChain
@@ -15,20 +22,42 @@ var MainBlockChainConsensus consensus.DPOSConsensus
 var blockchainManager *BlockchainManager
 
 type BlockchainManager struct {
-	Blockchains map[string]blockchain.BlockChain
+	Blockchains map[string]*blockchain.BlockChain
 	Consensuses map[string]i_consensus.Consensus
 }
 
 func Init() {
 	blockchainManager = &BlockchainManager{
-		Blockchains: make(map[string]blockchain.BlockChain),
+		Blockchains: make(map[string]*blockchain.BlockChain),
 		Consensuses: make(map[string]i_consensus.Consensus),
 	}
 	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, nil, sync.RWMutex{},
 		blockchain.BackboneConsensus, 1e6, []byte("FFFFFF"), tx_pool.NewTxPool(), 0}
 	MainBlockChainConsensus = consensus.DPOSConsensus{Blockchain: MainBlockChain}
-	//TODO 查看自己subscribe的blockchain
 	go MainBlockChainConsensus.Run()
+	value, err := db.GetDBInst().Get([]byte(BlockchainManagerDBKey))
+	if err != nil {
+		return
+	}
+	blockchains := make([]*blockchain.BlockChain, 0)
+	err = json.Unmarshal(value, &blockchains)
+	if err != nil {
+		return
+	}
+	for _, blockchain := range blockchains {
+		chainId := hex.EncodeToString(blockchain.ChainId)
+		blockchainManager.Blockchains[chainId] = blockchain
+		switch blockchain.Consensus {
+		case i_consensus.DPOS:
+			consensus := consensus.DPOSConsensus{Blockchain: blockchain}
+			blockchainManager.Consensuses[chainId] = consensus
+			go consensus.Run()
+		default:
+			consensus := consensus.DPOSConsensus{Blockchain: blockchain}
+			blockchainManager.Consensuses[chainId] = consensus
+			go consensus.Run()
+		}
+	}
 }
 
 func GetManagerInst() *BlockchainManager {
