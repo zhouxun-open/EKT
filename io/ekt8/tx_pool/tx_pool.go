@@ -69,7 +69,7 @@ func (txPool TxPool) BatchNotify(txs []*common.Transaction) {
 }
 
 /*
-返回就绪队列中指定数量的交易
+返回能够打包的指定数量的交易
 如果size小于等于0，返回全部
 */
 func (tx TxPool) Fetch(size int) map[string]*common.Transaction {
