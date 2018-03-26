@@ -40,7 +40,7 @@ func ValidateTx(tx *common.Transaction) bool {
 		return false
 	}
 	signedTxId := crypto.Sha3_256(sign)
-	txIdBytes, err := hex.DecodeString(tx.TransactionId)
+	txIdBytes, err := hex.DecodeString(tx.TransactionId())
 	if err != nil {
 		return false
 	}

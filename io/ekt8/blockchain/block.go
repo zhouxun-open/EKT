@@ -110,7 +110,7 @@ func (block *Block) NewTransaction(tx *common.Transaction) {
 		block.StatTree.MustInsert(fromAddress, account.ToBytes())
 		block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
 	}
-	txId, _ := hex.DecodeString(tx.TransactionId)
+	txId, _ := hex.DecodeString(tx.TransactionId())
 	block.TxTree.MustInsert(txId, txResult.ToBytes())
 	block.UpdateMPTPlusRoot()
 }

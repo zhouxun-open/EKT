@@ -41,7 +41,7 @@ func NewTxPool() *TxPool {
 */
 func (txPool TxPool) Park(tx *common.Transaction, reason int) {
 	if reason == Ready {
-		txPool.ready[tx.TransactionId] = tx
+		txPool.ready[tx.TransactionId()] = tx
 	} else if reason == Block {
 		txs_slice := txPool.block[tx.From]
 		txPool.block[tx.From] = append(txs_slice, tx)
@@ -53,13 +53,13 @@ func (txPool TxPool) Park(tx *common.Transaction, reason int) {
 如果当前用户有Nonce比当前大一的tx在Block队列，则移动至ready队列
 */
 func (txPool TxPool) Notify(tx *common.Transaction) {
-	delete(txPool.ready, tx.TransactionId)
+	delete(txPool.ready, tx.TransactionId())
 	txs := txPool.block[tx.From]
 	if txs != nil {
 		for i, _tx := range txs {
 			if _tx.Nonce == tx.Nonce+1 {
 				txs = append(txs[:i], txs[i+1:]...)
-				txPool.ready[_tx.TransactionId] = _tx
+				txPool.ready[_tx.TransactionId()] = _tx
 				break
 			}
 		}

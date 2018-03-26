@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 )
 
 type Transactions []*Transaction
 
 type Transaction struct {
-	TransactionId string
 	From          string
 	To            string
 	TimeStamp     Time // UnixTimeStamp
@@ -33,7 +33,6 @@ type TxResult struct {
 
 func NewTransactionResult(tx *Transaction, success bool, failMessage string) *TxResult {
 	return &TxResult{
-		TxId:      tx.TransactionId,
 		From:      tx.From,
 		To:        tx.To,
 		TimeStamp: tx.TimeStamp,
@@ -48,7 +47,6 @@ func NewTransactionResult(tx *Transaction, success bool, failMessage string) *Tx
 
 func (txResult *TxResult) ToTransaction() *Transaction {
 	return &Transaction{
-		TransactionId: txResult.TxId,
 		From:          txResult.From,
 		To:            txResult.To,
 		TimeStamp:     txResult.TimeStamp,
@@ -72,7 +70,7 @@ func (transactions Transactions) Len() int {
 }
 
 func (transactions Transactions) Less(i, j int) bool {
-	return strings.Compare(transactions[i].TransactionId, transactions[j].TransactionId) > 0
+	return strings.Compare(transactions[i].TransactionId(), transactions[j].TransactionId()) > 0
 }
 
 func (transactions Transactions) Swap(i, j int) {
@@ -87,4 +85,14 @@ func (tx *Transaction) String() string {
 	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "Amount": %d, "Nonce": %d}`,
 		tx.From, tx.To,
 		tx.TimeStamp, tx.Amount, tx.Nonce)
+}
+
+func (tx *Transaction) TransactionId() (ID string) {
+	marshal,e:=json.Marshal(tx)
+	if e!=nil{
+		//handle error
+		panic(e)
+	}
+	ID=string(crypto.Sha3_256(marshal))
+	return
 }
