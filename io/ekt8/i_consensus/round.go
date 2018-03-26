@@ -43,5 +43,5 @@ func (round Round) Less(i, j int) bool {
 
 func (round Round) String() string {
 	peers, _ := json.Marshal(round.Peers)
-	return fmt.Sprintf(`{"peers": %s, "random": %d}`, string(peers), round.Random)
+	return fmt.Sprintf(`{"currentIndex": %d, "peers": %s, "random": %d}`, round.CurrentIndex, string(peers), round.Random)
 }

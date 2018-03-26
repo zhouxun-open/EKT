@@ -1,15 +1,9 @@
 package common
 
 import (
-	"bytes"
-	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"sort"
 	"strings"
-
-	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 )
 
 type Transactions []*Transaction
@@ -83,13 +77,6 @@ func (transactions Transactions) Less(i, j int) bool {
 
 func (transactions Transactions) Swap(i, j int) {
 	transactions[i], transactions[j] = transactions[j], transactions[i]
-}
-
-func (transactions Transactions) Hash() string {
-	sort.Sort(transactions)
-	bytes, _ := json.Marshal(transactions)
-	fmt.Println(string(bytes))
-	return ""
 }
 
 func (tx *Transaction) Bytes() []byte {

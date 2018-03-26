@@ -54,6 +54,10 @@ func (blockchain *BlockChain) GetStatus() int {
 	return blockchain.Status
 }
 
+func (blockchain *BlockChain) ValidateBlock(block *Block) bool {
+	return false
+}
+
 func (blockchain *BlockChain) NewBlock(block *Block) error {
 	blockchain.Locker.Lock()
 	defer blockchain.Locker.Unlock()
@@ -61,38 +65,10 @@ func (blockchain *BlockChain) NewBlock(block *Block) error {
 		return err
 	}
 	db.GetDBInst().Set(block.Hash(), block.Bytes())
-	//newBlock := &Block{
-	//	Height:       block.Height + 1,
-	//	GetNonce:        0,
-	//	Fee:          blockchain.Fee,
-	//	TotalFee:     0,
-	//	PreviousHash: block.Hash(),
-	//	Locker:       sync.RWMutex{},
-	//	StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), block.StatTree.Root),
-	//	TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
-	//	EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
-	//	Round:        consensus.NextRound(block.Round, block.Hash()),
-	//}
-	//newBlock.UpdateMPTPlusRoot()
-	block.UpdateMPTPlusRoot()
+	//TODO sync tx and stat
 	// TODO refact block的产生和交易模块
+	block.UpdateMPTPlusRoot()
 	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
-	//lastBlock, err := this.CurrentBlock()
-	//if err != nil {
-	//	return err
-	//}
-	//if lastBlock.Height > block.Height {
-	//	return errors.New("height exist")
-	//}
-	//err = db.GetDBInst().Set(block.CurrentHash, block.Hash())
-	//if err != nil {
-	//	return err
-	//}
-	//value, err := json.Marshal(block)
-	//if err != nil {
-	//	return err
-	//}
-	//return db.GetDBInst().Set(this.CurrentBlockKey(), value)
 }
 
 func (blockchain *BlockChain) LastBlock() (*Block, error) {

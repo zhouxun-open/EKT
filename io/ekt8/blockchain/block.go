@@ -56,7 +56,7 @@ func (block *Block) NewNonce() {
 }
 
 func (block Block) Validate() error {
-	if !bytes.Equal(block.Hash(), block.CurrentHash) {
+	if !bytes.Equal(block.CaculateHash(), block.CurrentHash) {
 		return errors.New("Invalid Hash")
 	}
 	return nil
