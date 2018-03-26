@@ -88,11 +88,7 @@ func (tx *Transaction) String() string {
 }
 
 func (tx *Transaction) TransactionId() (ID string) {
-	marshal,e:=json.Marshal(tx)
-	if e!=nil{
-		//handle error
-		panic(e)
-	}
-	ID=string(crypto.Sha3_256(marshal))
+	txData,_:=json.Marshal(tx)
+	ID=string(crypto.Sha3_256(txData))
 	return
 }
