@@ -37,12 +37,17 @@ func (dpos DPOSConsensus) BlockBorn(block *blockchain.Block) {
 }
 
 func (dpos DPOSConsensus) Run() {
+	//获取21个节点的集合
 	peers := dpos.GetCurrentDPOSPeers()
+	//
 	dpos.Round = i_consensus.Round{CurrentIndex: -1, Peers: peers, Random: -1}
+	//获取当前的待验证block header
 	block := dpos.CurrentBlock()
+	//验证block是否合法
 	if err := crypto.Validate(block.Bytes(), block.CaculateHash()); err != nil {
 		panic(err)
 	}
+	//异步在全局添加区块到区块链
 	dpos.SyncBlock(block)
 }
 
