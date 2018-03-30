@@ -6,6 +6,8 @@ import (
 	"github.com/EducationEKT/xserver/x_err"
 	"fmt"
 	"github.com/EducationEKT/xserver/x_http/x_router"
+	"github.com/EducationEKT/EKT/io/ekt8/p2p"
+	"github.com/EducationEKT/EKT/io/ekt8/util"
 )
 
 /*
@@ -17,4 +19,12 @@ func init(){
 
 func receive(req *x_req.XReq)(*x_resp.XRespContainer, *x_err.XErr){
 	return x_resp.Success("receive"),nil
+}
+
+
+func broadcast(req *x_req.XReq,peers p2p.Peers){
+	for _,peer:=range peers {
+		url := fmt.Sprintf(`http://%s:%d/consenus/api/receive`, peer.Address, peer.Port)
+		util.HttpPost(url,[]byte("block header"))
+	}
 }
