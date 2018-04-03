@@ -50,6 +50,7 @@ func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transacti
 		return
 	}
 	blockChain := dispatcher.GetBackBoneBlockChain()
+	// TODO 把不同blockchain的transaction分开
 	if blockChain.GetStatus() == 100 {
 		if block := blockChain.CurrentBlock; block != nil {
 			address, _ := hex.DecodeString(transaction.From)
@@ -63,7 +64,8 @@ func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transacti
 				if !block.ExistAddress(toAddress) {
 					return
 				}
-				block.NewTransaction(transaction)
+				blockChain.NewTransaction(transaction)
+				//block.NewTransaction(transaction)
 			}
 		}
 	}

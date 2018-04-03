@@ -104,7 +104,7 @@ func (blockchain *BlockChain) NewTransaction(tx *common.Transaction) {
 	blockchain.Locker.Lock()
 	defer blockchain.Locker.Unlock()
 	if blockchain.Status == OpenStatus {
-		blockchain.CurrentBlock.NewTransaction(tx)
+		blockchain.CurrentBlock.NewTransaction(tx, blockchain.Fee)
 	} else {
 		blockchain.TxPool.Park(tx, tx_pool.Ready)
 	}

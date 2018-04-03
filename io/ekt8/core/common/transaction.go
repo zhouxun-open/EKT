@@ -10,50 +10,28 @@ import (
 type Transactions []*Transaction
 
 type Transaction struct {
-	From         string
-	To           string
-	TimeStamp    Time // UnixTimeStamp
-	Amount       int64
-	Nonce        int64
-	Sign         string
-	ToeknAddress string
+	From         string `json:"from"`
+	To           string `json:"to"`
+	TimeStamp    Time   `json:"time"` // UnixTimeStamp
+	Amount       int64  `json:"amount"`
+	Nonce        int64  `json:"nonce"`
+	TokenAddress string `json:"tokenAddress"`
+	Sign         string `json:"sign"`
 }
 
 type TxResult struct {
-	TxId      string `json:"txId"`
-	From      string `json:"from"`
-	To        string `json:"to"`
-	Amount    int64  `json:"Amount"`
-	TimeStamp Time   `json:"timestamp"`
-	Nonce     int64  `json:"Nonce"`
-	Fee       int64  `json:"fee"`
-	Sign      string `json:"sign"`
-	Success   bool   `json:"success"`
-	FailMsg   string `json:"failMsg"`
+	TxId    string `json:"txId"`
+	Fee     int64  `json:"fee"`
+	Success bool   `json:"success"`
+	FailMsg string `json:"failMsg"`
 }
 
-func NewTransactionResult(tx *Transaction, success bool, failMessage string) *TxResult {
+func NewTransactionResult(tx *Transaction, fee int64, success bool, failMessage string) *TxResult {
 	return &TxResult{
-		From:      tx.From,
-		To:        tx.To,
-		TimeStamp: tx.TimeStamp,
-		Amount:    tx.Amount,
-		Nonce:     tx.Nonce,
-		Sign:      tx.Sign,
-		Fee:       1e6,
-		Success:   success,
-		FailMsg:   failMessage,
-	}
-}
-
-func (txResult *TxResult) ToTransaction() *Transaction {
-	return &Transaction{
-		From:      txResult.From,
-		To:        txResult.To,
-		TimeStamp: txResult.TimeStamp,
-		Amount:    txResult.Amount,
-		Nonce:     txResult.Nonce,
-		Sign:      txResult.Sign,
+		TxId:    tx.TransactionId(),
+		Fee:     fee,
+		Success: success,
+		FailMsg: failMessage,
 	}
 }
 

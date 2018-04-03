@@ -92,7 +92,7 @@ func (block *Block) newAccount(address []byte, pubKey []byte) {
 	block.UpdateMPTPlusRoot()
 }
 
-func (block *Block) NewTransaction(tx *common.Transaction) {
+func (block *Block) NewTransaction(tx *common.Transaction, fee int64) {
 	block.Locker.Lock()
 	defer block.Locker.Unlock()
 	fromAddress, _ := hex.DecodeString(tx.From)
@@ -101,9 +101,9 @@ func (block *Block) NewTransaction(tx *common.Transaction) {
 	recieverAccount, _ := block.GetAccount(toAddress)
 	var txResult *common.TxResult
 	if account.GetAmount() < tx.Amount+block.Fee {
-		txResult = common.NewTransactionResult(tx, false, "no enough amount")
+		txResult = common.NewTransactionResult(tx, fee, false, "no enough amount")
 	} else {
-		txResult = common.NewTransactionResult(tx, true, "")
+		txResult = common.NewTransactionResult(tx, fee, true, "")
 		account.ReduceAmount(tx.Amount + block.Fee)
 		block.TotalFee += block.Fee
 		recieverAccount.AddAmount(tx.Amount)
