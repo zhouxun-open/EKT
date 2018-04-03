@@ -3,7 +3,6 @@ package validator
 import (
 	"bytes"
 	"encoding/hex"
-	"strings"
 
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
@@ -19,7 +18,7 @@ func Validate(address, msg, sign []byte) bool {
 	if err != nil {
 		return false
 	}
-	return strings.EqualFold(hex.EncodeToString(pubkey), account.HexPublickKey)
+	return bytes.Equal(pubkey, account.PublicKey())
 }
 
 func ValidateTx(tx *common.Transaction) bool {
@@ -47,5 +46,5 @@ func ValidateTx(tx *common.Transaction) bool {
 	if !bytes.Equal(signedTxId, txIdBytes) {
 		return false
 	}
-	return strings.EqualFold(hex.EncodeToString(pubkey), account.HexPublickKey)
+	return bytes.Equal(pubkey, account.PublicKey())
 }

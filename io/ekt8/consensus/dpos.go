@@ -18,6 +18,7 @@ type DPOSConsensus struct {
 	Round      i_consensus.Round
 	Blockchain *blockchain.BlockChain
 }
+
 //从网络层转发过来的交易,进入打包流程
 func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
 	dpos.Blockchain.Locker.Lock()
@@ -27,11 +28,12 @@ func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
 		var account common.Account
 		address, _ := hex.DecodeString(tx.From)
 		if err := lastBlock.StatTree.GetInterfaceValue(address, &account); err != nil {
-			if account.Nonce+1 < tx.Nonce {
+			if account.GetNonce()+1 < tx.Nonce {
 			}
 		}
 	}
 }
+
 //
 func (dpos DPOSConsensus) BlockBorn(block *blockchain.Block) {
 }
@@ -50,6 +52,7 @@ func (dpos DPOSConsensus) Run() {
 	//异步在全局添加区块到区块链
 	dpos.SyncBlock(block)
 }
+
 //从其他节点得到待验证block header
 func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 	var currentBlock *blockchain.Block = nil
@@ -84,6 +87,7 @@ func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 	}
 	return mapping[consensusHash]
 }
+
 //同步区块链
 func (dpos DPOSConsensus) SyncBlockChain() {
 	lastBlock, err := dpos.Blockchain.LastBlock()
@@ -95,10 +99,12 @@ func (dpos DPOSConsensus) SyncBlockChain() {
 		dpos.Blockchain.NewBlock(peerLast)
 	}
 }
+
 //根据区块header同步body
 func (dpos DPOSConsensus) SyncBlock(block *blockchain.Block) {
 	MPTPlus.SyncDB(block.StatRoot, dpos.Round.Peers, false)
 }
+
 //获取当前的peers
 func (dpos DPOSConsensus) GetCurrentDPOSPeers() p2p.Peers {
 	return p2p.MainChainDPosNode
@@ -114,6 +120,7 @@ func CurrentHeight(peer p2p.Peer) (int64, error) {
 	err = json.Unmarshal(body, &block)
 	return block.Height, err
 }
+
 //向指定节点获取最新区块
 func CurrentBlock(peer p2p.Peer) (*blockchain.Block, error) {
 	url := fmt.Sprintf(`http://%s:%d/blocks/api/last`, peer.Address, peer.Port)

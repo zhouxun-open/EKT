@@ -86,7 +86,7 @@ func (block *Block) CreateAccount(address, pubKey []byte) {
 }
 
 func (block *Block) newAccount(address []byte, pubKey []byte) {
-	account := &common.Account{hex.EncodeToString(address), hex.EncodeToString(pubKey), 0, 0}
+	account := common.NewAccount(address, pubKey)
 	value, _ := json.Marshal(account)
 	block.StatTree.MustInsert(address, value)
 	block.UpdateMPTPlusRoot()
