@@ -36,6 +36,12 @@ type UpdatePublicKeyParam struct {
 	EventId   string
 }
 
+type EventResult struct {
+	EventId string
+	Success bool
+	Reason  string
+}
+
 func (newAccountParam NewAccountParam) EventType() string {
 	return NewAccountEvent
 }

@@ -3,19 +3,20 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"strings"
 )
 
 type Transactions []*Transaction
 
 type Transaction struct {
-	From          string
-	To            string
-	TimeStamp     Time // UnixTimeStamp
-	Amount        int64
-	Nonce         int64
-	Sign          string
+	From         string
+	To           string
+	TimeStamp    Time // UnixTimeStamp
+	Amount       int64
+	Nonce        int64
+	Sign         string
+	ToeknAddress string
 }
 
 type TxResult struct {
@@ -47,12 +48,12 @@ func NewTransactionResult(tx *Transaction, success bool, failMessage string) *Tx
 
 func (txResult *TxResult) ToTransaction() *Transaction {
 	return &Transaction{
-		From:          txResult.From,
-		To:            txResult.To,
-		TimeStamp:     txResult.TimeStamp,
-		Amount:        txResult.Amount,
-		Nonce:         txResult.Nonce,
-		Sign:          txResult.Sign,
+		From:      txResult.From,
+		To:        txResult.To,
+		TimeStamp: txResult.TimeStamp,
+		Amount:    txResult.Amount,
+		Nonce:     txResult.Nonce,
+		Sign:      txResult.Sign,
 	}
 }
 
@@ -88,7 +89,7 @@ func (tx *Transaction) String() string {
 }
 
 func (tx *Transaction) TransactionId() (ID string) {
-	txData,_:=json.Marshal(tx)
-	ID=string(crypto.Sha3_256(txData))
+	txData, _ := json.Marshal(tx)
+	ID = string(crypto.Sha3_256(txData))
 	return
 }
