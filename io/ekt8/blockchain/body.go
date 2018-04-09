@@ -1,20 +1,28 @@
 package blockchain
 
 import (
+	"encoding/json"
+
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 )
 
 type BlockBody struct {
-	TxResults   []common.TxResult
-	EventResult []event.EventResult
+	TxResults    []common.TxResult   `json:"txResults"`
+	EventResults []event.EventResult `json:"eventResults"`
 }
 
 func NewBlockBody() *BlockBody {
 	return &BlockBody{
-		TxResults:   make([]common.TxResult, 0),
-		EventResult: make([]event.EventResult, 0),
+		TxResults:    make([]common.TxResult, 0),
+		EventResults: make([]event.EventResult, 0),
 	}
+}
+
+func FromBytes(data []byte) (*BlockBody, error) {
+	var body BlockBody
+	err := json.Unmarshal(data, &body)
+	return &body, err
 }
 
 func (body *BlockBody) AddTxResult(txResult common.TxResult) {
@@ -22,5 +30,5 @@ func (body *BlockBody) AddTxResult(txResult common.TxResult) {
 }
 
 func (body *BlockBody) AddEventResult(eventResult event.EventResult) {
-	body.EventResult = append(body.EventResult, eventResult)
+	body.EventResults = append(body.EventResults, eventResult)
 }

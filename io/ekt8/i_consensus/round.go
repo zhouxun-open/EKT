@@ -9,9 +9,9 @@ import (
 )
 
 type Round struct {
-	CurrentIndex int // default -1
-	Peers        []p2p.Peer
-	Random       int
+	CurrentIndex int        `json:"currentIndex"` // default -1
+	Peers        []p2p.Peer `json:"peers"`
+	Random       int        `json:"random"`
 }
 
 func NextRound(round *Round, CurrentHash []byte) *Round {

@@ -27,7 +27,7 @@ func ValidateTx(tx *common.Transaction) bool {
 		return false
 	}
 	account, err := stat.GetAccount(address)
-	if err != nil {
+	if err != nil || account == nil {
 		return false
 	}
 	sign, err := hex.DecodeString(tx.Sign)
@@ -36,14 +36,6 @@ func ValidateTx(tx *common.Transaction) bool {
 	}
 	pubkey, err := crypto.RecoverPubKey(tx.Bytes(), sign)
 	if err != nil {
-		return false
-	}
-	signedTxId := crypto.Sha3_256(sign)
-	txIdBytes, err := hex.DecodeString(tx.TransactionId())
-	if err != nil {
-		return false
-	}
-	if !bytes.Equal(signedTxId, txIdBytes) {
 		return false
 	}
 	return bytes.Equal(pubkey, account.PublicKey())

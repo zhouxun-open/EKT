@@ -1,6 +1,8 @@
 package tx_pool
 
 import (
+	"sort"
+
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 )
 
@@ -30,12 +32,6 @@ func NewTxPool() *TxPool {
 	}
 }
 
-//func (txPool TxPool) Park(tx *common.Transaction) {
-//	if txPool.ready[tx.TransactionId] != nil {
-//		return
-//	}
-//	txPool.ready[tx.TransactionId] = tx
-//}
 /*
 把交易放在 txPool 里等待打包
 */
@@ -44,7 +40,9 @@ func (txPool TxPool) Park(tx *common.Transaction, reason int) {
 		txPool.ready[tx.TransactionId()] = tx
 	} else if reason == Block {
 		txs_slice := txPool.block[tx.From]
-		txPool.block[tx.From] = append(txs_slice, tx)
+		txs_slice = append(txs_slice, tx)
+		sort.Sort(txs_slice)
+		txPool.block[tx.From] = txs_slice
 	}
 }
 
@@ -84,20 +82,25 @@ func (txPool TxPool) Fetch(size int32) (result []*common.Transaction) {
 	record := []*common.Transaction{}
 	var count int32 = 0
 	if size < 0 {
-		size=^(size<<31)
+		size = ^(size << 31)
 	}
-	for id, ptx := range txPool.ready {
-		delete(txPool.ready, id)
-		result=append(result,ptx)
-		count++
-		record = append(record, ptx)
-		if count >= size { //watch
-			txPool.BatchNotify(record)
-			return
-		}
-		if len(txPool.ready) == 0 {
-			txPool.BatchNotify(record)
-			record = []*common.Transaction{}
+	for {
+		for txId, transaction := range txPool.ready {
+			delete(txPool.ready, txId)
+			result = append(result, transaction)
+			count++
+			record = append(record, transaction)
+			if count >= size { //watch
+				txPool.BatchNotify(record)
+				return
+			}
+			if len(txPool.ready) == 0 {
+				txPool.BatchNotify(record)
+				record = []*common.Transaction{}
+			}
+			if len(txPool.ready) == 0 {
+				return
+			}
 		}
 	}
 	return

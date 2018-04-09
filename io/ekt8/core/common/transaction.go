@@ -3,8 +3,9 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"strings"
+
+	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 )
 
 type Transactions []*Transaction
@@ -57,17 +58,17 @@ func (transactions Transactions) Swap(i, j int) {
 }
 
 func (tx *Transaction) Bytes() []byte {
-	return []byte(tx.String())
+	token := tx.TokenAddress
+	if strings.EqualFold(token, "") {
+		//默认是EKT
+		token = ""
+	}
+	str := fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "nonce": %d, "tokenAddress": "%s"}`,
+		tx.From, tx.To, tx.TimeStamp, tx.Amount, tx.Nonce, token)
+	return []byte(str)
 }
 
-func (tx *Transaction) String() string {
-	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "Amount": %d, "Nonce": %d}`,
-		tx.From, tx.To,
-		tx.TimeStamp, tx.Amount, tx.Nonce)
-}
-
-func (tx *Transaction) TransactionId() (ID string) {
+func (tx *Transaction) TransactionId() string {
 	txData, _ := json.Marshal(tx)
-	ID = string(crypto.Sha3_256(txData))
-	return
+	return string(crypto.Sha3_256(txData))
 }

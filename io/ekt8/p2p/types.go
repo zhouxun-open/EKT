@@ -8,10 +8,10 @@ import (
 )
 
 type Peer struct {
-	PeerId         []byte
-	Address        []byte
-	Port           int32
-	AddressVersion int
+	PeerId         []byte `json:"peerId"`
+	Address        []byte `json:"address"`
+	Port           int32  `json:"port"`
+	AddressVersion int    `json:"addressVersion"`
 }
 
 type Peers []Peer
