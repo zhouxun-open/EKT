@@ -8,12 +8,14 @@ import (
 )
 
 type BlockBody struct {
+	Height       int64               `json:"height"`
 	TxResults    []common.TxResult   `json:"txResults"`
 	EventResults []event.EventResult `json:"eventResults"`
 }
 
-func NewBlockBody() *BlockBody {
+func NewBlockBody(height int64) *BlockBody {
 	return &BlockBody{
+		Height:       height,
 		TxResults:    make([]common.TxResult, 0),
 		EventResults: make([]event.EventResult, 0),
 	}

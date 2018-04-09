@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"xserver/x_http/x_resp"
+
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
@@ -17,6 +19,17 @@ import (
 type DPOSConsensus struct {
 	Round      i_consensus.Round
 	Blockchain *blockchain.BlockChain
+}
+
+func (dpos DPOSConsensus) ValidateBlock(header *blockchain.Block) {
+	peer := header.Round.Peers[header.Round.CurrentIndex]
+	body, err := getBlockBody(peer, header.Height)
+	if err != nil || body.Height != header.Height {
+		// TODO vote false
+	}
+	// TODO validate body
+
+	//TODO vote true
 }
 
 //从网络层转发过来的交易,进入打包流程
@@ -131,4 +144,21 @@ func CurrentBlock(peer p2p.Peer) (*blockchain.Block, error) {
 	var block blockchain.Block
 	err = json.Unmarshal(body, &block)
 	return &block, err
+}
+
+func getBlockBody(peer p2p.Peer, height int64) (*blockchain.BlockBody, error) {
+	url := fmt.Sprintf(`http://%s:%d/block/api/body?height=%d`, peer.Address, peer.Port, height)
+	body, err := util.HttpGet(url)
+	if err != nil {
+		return nil, err
+	}
+	var resp x_resp.XRespBody
+	err = json.Unmarshal(body, &resp)
+	data, err := json.Marshal(resp.Result)
+	if err == nil {
+		var blockBody blockchain.BlockBody
+		err = json.Unmarshal(data, &blockBody)
+		return &blockBody, err
+	}
+	return nil, err
 }

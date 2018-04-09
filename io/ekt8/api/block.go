@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -13,6 +15,16 @@ func init() {
 	x_router.Post("/blocks/api/voteNext", voteNext)
 	x_router.Post("/blocks/api/voteResult", voteResult)
 	x_router.All("/blocks/api/pack", pack)
+	x_router.Get("/blocks/api/blockHeaders", blockHeaders)
+	x_router.Get("/block/api/body", body)
+}
+
+func body(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	consensus := blockchain_manager.MainBlockChainConsensus
+	if consensus.CurrentBlock().Height == consensus.Blockchain.CurrentBody.Height {
+		return x_resp.Success(consensus.Blockchain.CurrentBody), nil
+	}
+	return nil, x_err.NewXErr(errors.New("can not get body"))
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -26,6 +38,12 @@ func voteNext(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 
 func voteResult(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	return x_resp.Success(make(map[string]interface{})), nil
+}
+
+func blockHeaders(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	fromHeight := req.MustGetInt64("fromHeight")
+	headers := blockchain_manager.GetMainChain().GetBlockHeaders(fromHeight)
+	return x_resp.Success(headers), nil
 }
 
 func pack(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

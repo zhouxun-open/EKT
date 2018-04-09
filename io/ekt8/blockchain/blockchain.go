@@ -33,6 +33,7 @@ type BlockChain struct {
 	ChainId       []byte
 	Consensus     i_consensus.ConsensusType
 	CurrentBlock  *Block
+	CurrentBody   *BlockBody
 	Locker        sync.RWMutex
 	Status        int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
 	Fee           int64
@@ -58,6 +59,33 @@ func (blockchain *BlockChain) ValidateBlock(block *Block) bool {
 	return false
 }
 
+//返回从指定高度到当前区块的区块头
+func (blockchain *BlockChain) GetBlockHeaders(fromHeight int64) []*Block {
+	headers := make([]*Block, 0)
+	var lastHeight int64 = 0
+	lastBlock, err := blockchain.LastBlock()
+	if err == nil && lastBlock != nil {
+		lastHeight = lastBlock.Height
+	}
+	var block *Block = lastBlock
+	for height := lastHeight; height >= fromHeight; height-- {
+		if block != nil {
+			headers = append(headers, block)
+		}
+		data, err := db.GetDBInst().Get(block.PreviousHash)
+		if err != nil {
+			return headers
+		}
+		var header Block
+		err = json.Unmarshal(data, &header)
+		if err != nil {
+			return headers
+		}
+		block = &header
+	}
+	return headers
+}
+
 func (blockchain *BlockChain) NewBlock(block *Block) error {
 	blockchain.Locker.Lock()
 	defer blockchain.Locker.Unlock()
@@ -65,7 +93,7 @@ func (blockchain *BlockChain) NewBlock(block *Block) error {
 		return err
 	}
 	db.GetDBInst().Set(block.Hash(), block.Bytes())
-	//TODO sync tx and stat
+	// TODO sync tx and stat
 	// TODO refact block的产生和交易模块
 	block.UpdateMPTPlusRoot()
 	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())

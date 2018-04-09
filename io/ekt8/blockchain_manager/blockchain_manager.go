@@ -31,7 +31,7 @@ func Init() {
 		Blockchains: make(map[string]*blockchain.BlockChain),
 		Consensuses: make(map[string]i_consensus.Consensus),
 	}
-	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, nil, sync.RWMutex{},
+	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, nil, nil, sync.RWMutex{},
 		blockchain.BackboneConsensus, 1e6, []byte("FFFFFF"), tx_pool.NewTxPool(), 0}
 	MainBlockChainConsensus = consensus.DPOSConsensus{Blockchain: MainBlockChain}
 	go MainBlockChainConsensus.Run()
