@@ -6,10 +6,11 @@ import (
 )
 
 type Account struct {
-	hexAddress    string `json:"address"`
-	hexPublickKey string `json:"publicKey"`
-	amount        int64  `json:"amount"`
-	nonce         int64  `json:"nonce"`
+	hexAddress    string           `json:"address"`
+	hexPublickKey string           `json:"publicKey"`
+	amount        int64            `json:"amount"`
+	nonce         int64            `json:"nonce"`
+	balances      map[string]int64 `json:"balances"`
 }
 
 func NewAccount(address, pubKey []byte) *Account {

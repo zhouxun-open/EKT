@@ -66,6 +66,17 @@ func (dpos DPOSConsensus) Run() {
 	dpos.SyncBlock(block)
 }
 
+func (dpos DPOSConsensus) pullBlock() {
+	for {
+		peers := dpos.Blockchain.CurrentBlock.Round.Peers
+		for _, peer := range peers {
+			block, _ := CurrentBlock(peer)
+			if dpos.Blockchain.CurrentBlock.Height < block.Height {
+			}
+		}
+	}
+}
+
 //从其他节点得到待验证block header
 func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 	var currentBlock *blockchain.Block = nil
