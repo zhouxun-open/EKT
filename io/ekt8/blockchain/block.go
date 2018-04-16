@@ -11,6 +11,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 )
 
@@ -23,7 +24,7 @@ type Block struct {
 	TotalFee     int64              `json:"totalFee"`
 	PreviousHash []byte             `json:"previousHash"`
 	CurrentHash  []byte             `json:"currentHash"`
-	BlockBody    BlockBody          `json:"-"`
+	BlockBody    *BlockBody         `json:"-"`
 	Body         []byte             `json:"body"`
 	Round        *i_consensus.Round `json:"round"`
 	Locker       sync.RWMutex       `json:"-"`
@@ -37,8 +38,8 @@ type Block struct {
 
 func (block *Block) String() string {
 	block.UpdateMPTPlusRoot()
-	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "nonce": %d, "previousHash": "%s", "round": %s}`,
-		block.Height, block.StatRoot, block.TxRoot, block.EventRoot, block.Nonce, block.PreviousHash, block.Round.String())
+	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "body": "%s", nonce": %d, "previousHash": "%s", "round": %s}`,
+		block.Height, block.StatRoot, block.TxRoot, block.EventRoot, block.Body, block.Nonce, block.PreviousHash, block.Round.String())
 }
 
 func (block *Block) Bytes() []byte {
@@ -114,6 +115,7 @@ func (block *Block) NewTransaction(tx *common.Transaction, fee int64) {
 		block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
 	}
 	txId, _ := hex.DecodeString(tx.TransactionId())
+	block.BlockBody.AddTxResult(*txResult)
 	block.TxTree.MustInsert(txId, txResult.ToBytes())
 	block.UpdateMPTPlusRoot()
 }
@@ -123,4 +125,17 @@ func (block *Block) UpdateMPTPlusRoot() {
 	block.TxRoot = block.TxTree.Root
 	block.EventRoot = block.EventTree.Root
 	block.CaculateHash()
+}
+
+func FromBytes2Block(data []byte) (*Block, error) {
+	var block Block
+	err := json.Unmarshal(data, block)
+	block.EventTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.EventRoot)
+	block.StatTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.StatRoot)
+	block.TxTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.TxRoot)
+	block.Locker = sync.RWMutex{}
+	if err != nil {
+		return nil, err
+	}
+	return &block, nil
 }
