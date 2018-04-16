@@ -23,6 +23,8 @@ type Block struct {
 	TotalFee     int64              `json:"totalFee"`
 	PreviousHash []byte             `json:"previousHash"`
 	CurrentHash  []byte             `json:"currentHash"`
+	BlockBody    BlockBody          `json:"-"`
+	Body         []byte             `json:"body"`
 	Round        *i_consensus.Round `json:"round"`
 	Locker       sync.RWMutex       `json:"-"`
 	StatTree     *MPTPlus.MTP       `json:"-"`
@@ -34,6 +36,7 @@ type Block struct {
 }
 
 func (block *Block) String() string {
+	block.UpdateMPTPlusRoot()
 	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "nonce": %d, "previousHash": "%s", "round": %s}`,
 		block.Height, block.StatRoot, block.TxRoot, block.EventRoot, block.Nonce, block.PreviousHash, block.Round.String())
 }
