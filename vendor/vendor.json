@@ -111,6 +111,12 @@
 			"revisionTime": "2017-02-15T23:32:05Z"
 		},
 		{
+			"checksumSHA1": "z+O5JNjzHISYP1V+1v6SAKkrz7M=",
+			"path": "github.com/mattn/go-sqlite3",
+			"revision": "6c771bb9887719704b210e87e934f08be014bdb1",
+			"revisionTime": "2018-01-12T08:58:26Z"
+		},
+		{
 			"checksumSHA1": "l9hsW4atYllqlNjJUwHb6lyLn+I=",
 			"path": "github.com/syndtr/goleveldb/leveldb",
 			"revision": "34011bf325bce385408353a30b101fe5e923eb6e",
@@ -187,6 +193,12 @@
 			"path": "golang.org/x/crypto/sha3",
 			"revision": "753144271b444787650750f626cc62831f63bc9c",
 			"revisionTime": "2016-01-07T02:14:22Z"
+		},
+		{
+			"checksumSHA1": "UIe56hOIemZKxr+bTxDS5IJklPU=",
+			"path": "xserver/x_http/x_resp",
+			"revision": "b8b34be8ad1f36c1439a9939a8623d3c017862b8",
+			"revisionTime": "2018-01-30T05:04:02Z"
 		},
 		{
 			"checksumSHA1": "96FErk7K9Xwlb4bc4eWqdh+AN+0=",
