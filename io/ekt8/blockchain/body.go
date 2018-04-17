@@ -34,3 +34,7 @@ func (body *BlockBody) AddTxResult(txResult common.TxResult) {
 func (body *BlockBody) AddEventResult(eventResult event.EventResult) {
 	body.EventResults = append(body.EventResults, eventResult)
 }
+
+func (body *BlockBody) Size() int {
+	return len(body.EventResults) + len(body.TxResults)
+}

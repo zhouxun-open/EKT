@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
@@ -34,16 +33,14 @@ type Block struct {
 	TxRoot       []byte             `json:"txRoot"`
 	EventTree    *MPTPlus.MTP       `json:"-"`
 	EventRoot    []byte             `json:"eventRoot"`
-}
-
-func (block *Block) String() string {
-	block.UpdateMPTPlusRoot()
-	return fmt.Sprintf(`{"height": %d, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "body": "%s", nonce": %d, "previousHash": "%s", "round": %s}`,
-		block.Height, block.StatRoot, block.TxRoot, block.EventRoot, block.Body, block.Nonce, block.PreviousHash, block.Round.String())
+	TokenTree    *MPTPlus.MTP       `json:"-"`
+	TokenRoot    []byte             `json:"tokenRoot"`
 }
 
 func (block *Block) Bytes() []byte {
-	return []byte(block.String())
+	block.UpdateMPTPlusRoot()
+	data, _ := json.Marshal(block)
+	return data
 }
 
 func (block *Block) Hash() []byte {
@@ -121,21 +118,26 @@ func (block *Block) NewTransaction(tx *common.Transaction, fee int64) {
 }
 
 func (block *Block) UpdateMPTPlusRoot() {
-	block.StatRoot = block.StatTree.Root
-	block.TxRoot = block.TxTree.Root
-	block.EventRoot = block.EventTree.Root
-	block.CaculateHash()
+	if block.StatTree != nil {
+		block.StatRoot = block.StatTree.Root
+	}
+	if block.TxTree != nil {
+		block.TxRoot = block.TxTree.Root
+	}
+	if block.EventTree != nil {
+		block.EventRoot = block.EventTree.Root
+	}
 }
 
 func FromBytes2Block(data []byte) (*Block, error) {
 	var block Block
 	err := json.Unmarshal(data, block)
+	if err != nil {
+		return nil, err
+	}
 	block.EventTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.EventRoot)
 	block.StatTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.StatRoot)
 	block.TxTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.TxRoot)
 	block.Locker = sync.RWMutex{}
-	if err != nil {
-		return nil, err
-	}
 	return &block, nil
 }

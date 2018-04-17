@@ -15,9 +15,11 @@ import (
 )
 
 var BackboneChainId []byte
+var EKTTokenId []byte
 
 func init() {
 	BackboneChainId, _ = hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000001")
+	EKTTokenId, _ = hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000001")
 }
 
 const (

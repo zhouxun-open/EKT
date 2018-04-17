@@ -9,7 +9,7 @@ import (
 )
 
 func TestBlockBody_AddEventResult(t *testing.T) {
-	body := NewBlockBody()
+	body := NewBlockBody(1)
 	eventResult := event.EventResult{
 		EventId: "123",
 		Success: true,

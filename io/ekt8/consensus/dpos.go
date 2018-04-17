@@ -58,6 +58,9 @@ func (dpos DPOSConsensus) Run() {
 	dpos.Round = i_consensus.Round{CurrentIndex: -1, Peers: peers, Random: -1}
 	//获取当前的待验证block header
 	block := dpos.CurrentBlock()
+	if block == nil {
+		block = &blockchain.Block{}
+	}
 	//验证block是否合法
 	if err := crypto.Validate(block.Bytes(), block.CaculateHash()); err != nil {
 		panic(err)
