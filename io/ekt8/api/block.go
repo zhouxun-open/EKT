@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 
+	"fmt"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -14,9 +15,9 @@ func init() {
 	x_router.Post("/blocks/api/last", lastBlock)
 	x_router.Post("/blocks/api/voteNext", voteNext)
 	x_router.Post("/blocks/api/voteResult", voteResult)
-	x_router.All("/blocks/api/pack", pack)
 	x_router.Get("/blocks/api/blockHeaders", blockHeaders)
 	x_router.Get("/block/api/body", body)
+	x_router.Get("/block/api/blockByHeight", blockByHeight)
 }
 
 func body(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -28,7 +29,7 @@ func body(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	block := blockchain_manager.MainBlockChain.CurrentBlock
+	block := blockchain_manager.MainBlockChain.LastBlockHeader
 	return x_resp.Success(block), x_err.NewXErr(nil)
 }
 
@@ -46,7 +47,12 @@ func blockHeaders(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	return x_resp.Success(headers), nil
 }
 
-func pack(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	blockchain_manager.MainBlockChain.Pack()
+func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	bc := blockchain_manager.MainBlockChain
+	height := req.MustGetInt64("heigth")
+	if bc.CurrentHeight < height {
+		fmt.Printf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight)
+		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight))
+	}
 	return x_resp.Success(make(map[string]interface{})), nil
 }

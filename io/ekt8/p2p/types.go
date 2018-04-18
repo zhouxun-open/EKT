@@ -23,7 +23,7 @@ func (peers Peers) Bytes() []byte {
 }
 
 func (peer Peer) IsAlive() bool {
-	body, err := util.HttpGet(fmt.Sprint(`http://%s:%d/peer/api/ping`, peer.Address, peer.Port))
+	body, err := util.HttpGet(fmt.Sprintf(`http://%s:%d/peer/api/ping`, peer.Address, peer.Port))
 	if err != nil || !bytes.Equal(body, []byte("pong")) {
 		return false
 	}

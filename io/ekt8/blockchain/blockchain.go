@@ -32,16 +32,17 @@ const (
 )
 
 type BlockChain struct {
-	ChainId       []byte
-	Consensus     i_consensus.ConsensusType
-	CurrentBlock  *Block
-	CurrentBody   *BlockBody
-	Locker        sync.RWMutex
-	Status        int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
-	Fee           int64
-	Difficulty    []byte
-	TxPool        *tx_pool.TxPool
-	CurrentHeight int64
+	ChainId         []byte
+	Consensus       i_consensus.ConsensusType
+	CurrentBlock    *Block
+	CurrentBody     *BlockBody
+	Locker          sync.RWMutex
+	Status          int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
+	Fee             int64
+	Difficulty      []byte
+	TxPool          *tx_pool.TxPool
+	CurrentHeight   int64
+	LastBlockHeader *Block
 }
 
 func (blockchain *BlockChain) SyncBlockChain() error {

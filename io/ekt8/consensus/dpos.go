@@ -14,6 +14,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
+	"time"
 )
 
 type DPOSConsensus struct {
@@ -53,10 +54,22 @@ func (dpos DPOSConsensus) BlockBorn(block *blockchain.Block) {
 
 func (dpos DPOSConsensus) Run() {
 	//获取21个节点的集合
+	fmt.Println("detecting alive nodes......")
 	peers := dpos.GetCurrentDPOSPeers()
-	//
+	for {
+		aliveCount := AliveDPoSPeerCount(peers)
+		if aliveCount > len(peers)/2 {
+			fmt.Println()
+			break
+		}
+		fmt.Println("The number of surviving nodes is less than half, waiting for other nodes to restart.")
+		time.Sleep(3 * time.Second)
+	}
+
+	// 同步区块链
+	fmt.Println("Synchronizing blockchain...")
 	dpos.Round = i_consensus.Round{CurrentIndex: -1, Peers: peers, Random: -1}
-	//获取当前的待验证block header
+	//	//获取当前的待验证block header
 	block := dpos.CurrentBlock()
 	if block == nil {
 		block = &blockchain.Block{}
@@ -67,6 +80,18 @@ func (dpos DPOSConsensus) Run() {
 	}
 	//异步在全局添加区块到区块链
 	dpos.SyncBlock(block)
+}
+
+//获取存活的DPOS节点数量
+func AliveDPoSPeerCount(peers p2p.Peers) int {
+	count := 0
+	for _, peer := range peers {
+		if peer.IsAlive() {
+			fmt.Printf(`Peer %s is alive, address: %s`, peer.PeerId, peer.Address)
+			count++
+		}
+	}
+	return count
 }
 
 func (dpos DPOSConsensus) pullBlock() {
@@ -155,9 +180,7 @@ func CurrentBlock(peer p2p.Peer) (*blockchain.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	var block blockchain.Block
-	err = json.Unmarshal(body, &block)
-	return &block, err
+	return blockchain.FromBytes2Block(body)
 }
 
 func getBlockBody(peer p2p.Peer, height int64) (*blockchain.BlockBody, error) {
