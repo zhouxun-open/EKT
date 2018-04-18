@@ -54,5 +54,5 @@ func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		fmt.Printf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight)
 		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight))
 	}
-	return x_resp.Success(make(map[string]interface{})), nil
+	return x_resp.Return(bc.GetBlockByHeight(height))
 }

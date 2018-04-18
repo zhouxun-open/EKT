@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"errors"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
@@ -87,6 +88,22 @@ func (blockchain *BlockChain) GetBlockHeaders(fromHeight int64) []*Block {
 		block = &header
 	}
 	return headers
+}
+
+func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
+	if height > blockchain.CurrentHeight {
+		return nil, errors.New("Invalid height")
+	}
+	key := blockchain.GetBlockByHeightKey(height)
+	data, err := db.GetDBInst().Get(key)
+	if err != nil {
+		return nil, err
+	}
+	return FromBytes2Block(data)
+}
+
+func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
+	return []byte(fmt.Sprint(`GetBlockByHeight_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
 func (blockchain *BlockChain) NewBlock(block *Block) error {
