@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"bytes"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 )
 
@@ -19,6 +20,14 @@ type Peers []Peer
 func (peers Peers) Bytes() []byte {
 	bts, _ := json.Marshal(peers)
 	return bts
+}
+
+func (peer Peer) IsAlive() bool {
+	body, err := util.HttpGet(fmt.Sprint(`http://%s:%d/peer/api/ping`, peer.Address, peer.Port))
+	if err != nil || !bytes.Equal(body, []byte("pong")) {
+		return false
+	}
+	return true
 }
 
 //func (peer Peer) CurrentHeight() (int64, error) {
