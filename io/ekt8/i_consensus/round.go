@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 )
@@ -14,7 +15,7 @@ type Round struct {
 	Random       int        `json:"random"`
 }
 
-func NextRound(round *Round, CurrentHash []byte) *Round {
+func (round *Round) NextRound(CurrentHash []byte) *Round {
 	if round.CurrentIndex == len(round.Peers)-1 {
 		bytes := CurrentHash[22:]
 		Random := util.BytesToInt(bytes)
@@ -27,6 +28,13 @@ func NextRound(round *Round, CurrentHash []byte) *Round {
 		round.CurrentIndex++
 	}
 	return round
+}
+
+func (round Round) IsMyTurn() bool {
+	if round.Peers[round.CurrentIndex+1].Equal(conf.EKTConfig.Node) {
+		return true
+	}
+	return false
 }
 
 func (round Round) Len() int {

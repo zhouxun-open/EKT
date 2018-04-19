@@ -6,11 +6,12 @@ import (
 
 	"bytes"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
+	"strings"
 )
 
 type Peer struct {
 	PeerId         []byte `json:"peerId"`
-	Address        []byte `json:"address"`
+	Address        string `json:"address"`
 	Port           int32  `json:"port"`
 	AddressVersion int    `json:"addressVersion"`
 }
@@ -28,6 +29,13 @@ func (peer Peer) IsAlive() bool {
 		return false
 	}
 	return true
+}
+
+func (peer Peer) Equal(peer_ Peer) bool {
+	if strings.EqualFold(peer.Address, peer_.Address) && peer.Port == peer_.Port && peer.AddressVersion == peer_.AddressVersion {
+		return true
+	}
+	return false
 }
 
 //func (peer Peer) CurrentHeight() (int64, error) {

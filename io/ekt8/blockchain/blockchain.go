@@ -106,6 +106,7 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 	return []byte(fmt.Sprint(`GetBlockByHeight_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
+// 即将废除
 func (blockchain *BlockChain) NewBlock(block *Block) error {
 	blockchain.Locker.Lock()
 	defer blockchain.Locker.Unlock()
@@ -117,6 +118,12 @@ func (blockchain *BlockChain) NewBlock(block *Block) error {
 	// TODO refact block的产生和交易模块
 	block.UpdateMPTPlusRoot()
 	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
+}
+
+func (blockchain *BlockChain) SaveBlock(block *Block) {
+	block.UpdateMPTPlusRoot()
+	db.GetDBInst().Set(block.CaculateHash(), block.Bytes())
+	db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
 }
 
 func (blockchain *BlockChain) LastBlock() (*Block, error) {

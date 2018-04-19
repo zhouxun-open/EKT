@@ -5,12 +5,13 @@ import (
 	"io/ioutil"
 
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
+	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 )
 
 type EKTConf struct {
 	DBPath               string           `json:"dbPath"`
 	LogPath              string           `json:"logPath"`
-	SelfNodeId           string           `json:"nodeId"`
+	Node                 p2p.Peer         `json:"node"`
 	BlockchainManagePwd  string           `json:"blockchainManagePwd"`
 	GenesisBlockAccounts []common.Account `json:"genesisBlock"`
 }

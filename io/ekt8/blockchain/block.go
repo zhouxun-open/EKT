@@ -86,6 +86,14 @@ func (block *Block) CreateAccount(address, pubKey []byte) {
 	}
 }
 
+func (block *Block) InsertAccount(account common.Account) {
+	if !block.ExistAddress(account.Address()) {
+		value, _ := json.Marshal(account)
+		block.StatTree.MustInsert(account.Address(), value)
+		block.UpdateMPTPlusRoot()
+	}
+}
+
 func (block *Block) newAccount(address []byte, pubKey []byte) {
 	account := common.NewAccount(address, pubKey)
 	value, _ := json.Marshal(account)

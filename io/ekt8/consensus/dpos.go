@@ -9,11 +9,14 @@ import (
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
+	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
+	"sync"
 	"time"
 )
 
@@ -65,9 +68,27 @@ func (dpos DPOSConsensus) Run() {
 		fmt.Println("The number of surviving nodes is less than half, waiting for other nodes to restart.")
 		time.Sleep(3 * time.Second)
 	}
+	fmt.Println("Alive node more than half, continue.")
+
+	// 从数据库中恢复当前节点已同步的区块
+	fmt.Println("Recover data from local database.")
+	dpos.RecoverFromDB()
+	fmt.Println("Local data recovered.")
+
+	fmt.Println("Synchronizing blockchain...")
+	interval := 50 * time.Microsecond
+	for height := dpos.Blockchain.CurrentHeight + 1; ; {
+		if !dpos.SyncHeight(height) {
+			fmt.Printf("Synchronize block at height %d failed. \n", height)
+			interval = 3 * time.Second
+		} else {
+			fmt.Printf("Synchronizing block at height %d successed. \n", height)
+			height++
+		}
+		time.Sleep(interval)
+	}
 
 	// 同步区块链
-	fmt.Println("Synchronizing blockchain...")
 	dpos.Round = i_consensus.Round{CurrentIndex: -1, Peers: peers, Random: -1}
 	//	//获取当前的待验证block header
 	block := dpos.CurrentBlock()
@@ -82,6 +103,45 @@ func (dpos DPOSConsensus) Run() {
 	dpos.SyncBlock(block)
 }
 
+func (dpos DPOSConsensus) RecoverFromDB() {
+	block, err := dpos.Blockchain.LastBlock()
+	// 如果是第一次打开
+	if err != nil || block == nil {
+		// 将创世块写入数据库
+		accounts := conf.EKTConfig.GenesisBlockAccounts
+		block = &blockchain.Block{
+			Height:       0,
+			Nonce:        0,
+			Fee:          dpos.Blockchain.Fee,
+			TotalFee:     0,
+			PreviousHash: nil,
+			CurrentHash:  nil,
+			BlockBody:    blockchain.NewBlockBody(0),
+			Body:         nil,
+			Round: &i_consensus.Round{
+				Peers:        p2p.MainChainDPosNode,
+				CurrentIndex: -1,
+			},
+			Locker:    sync.RWMutex{},
+			StatTree:  MPTPlus.NewMTP(db.GetDBInst()),
+			StatRoot:  nil,
+			TxTree:    MPTPlus.NewMTP(db.GetDBInst()),
+			TxRoot:    nil,
+			EventTree: MPTPlus.NewMTP(db.GetDBInst()),
+			EventRoot: nil,
+			TokenRoot: nil,
+			TokenTree: MPTPlus.NewMTP(db.GetDBInst()),
+		}
+		for _, account := range accounts {
+			block.InsertAccount(account)
+		}
+		dpos.Blockchain.SaveBlock(block)
+	}
+	dpos.Blockchain.CurrentHeight = block.Height
+	dpos.Blockchain.CurrentBlock = block
+	dpos.Blockchain.CurrentBody = nil
+}
+
 //获取存活的DPOS节点数量
 func AliveDPoSPeerCount(peers p2p.Peers) int {
 	count := 0
@@ -92,6 +152,12 @@ func AliveDPoSPeerCount(peers p2p.Peers) int {
 		}
 	}
 	return count
+}
+
+func (dpos DPOSConsensus) SyncHeight(height int64) bool {
+	fmt.Printf("Synchronizing block at height %d \n", height)
+	//TODO
+	return false
 }
 
 func (dpos DPOSConsensus) pullBlock() {
@@ -140,7 +206,7 @@ func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 	return mapping[consensusHash]
 }
 
-//同步区块链
+//同步区块链  即将废除
 func (dpos DPOSConsensus) SyncBlockChain() {
 	lastBlock, err := dpos.Blockchain.LastBlock()
 	if err != nil {
@@ -152,7 +218,7 @@ func (dpos DPOSConsensus) SyncBlockChain() {
 	}
 }
 
-//根据区块header同步body
+//根据区块header同步body 即将废除
 func (dpos DPOSConsensus) SyncBlock(block *blockchain.Block) {
 	MPTPlus.SyncDB(block.StatRoot, dpos.Round.Peers, false)
 }
