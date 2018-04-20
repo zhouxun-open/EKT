@@ -102,6 +102,24 @@ func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
 	return FromBytes2Block(data)
 }
 
+func (blockchain *BlockChain) GetBlockBodyByHeight(height int64) (*BlockBody, error) {
+	if height > blockchain.CurrentHeight {
+		return nil, errors.New("Invalid height")
+	}
+	key := blockchain.GetBlockBodyByHeightKey(height)
+	data, err := db.GetDBInst().Get(key)
+	if err != nil {
+		return nil, err
+	}
+	var body BlockBody
+	err = json.Unmarshal(data, &body)
+	return &body, err
+}
+
+func (blockchain *BlockChain) GetBlockBodyByHeightKey(height int64) []byte {
+	return []byte(fmt.Sprint(`GetBlockBodyByHeight_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
+}
+
 func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 	return []byte(fmt.Sprint(`GetBlockByHeight_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
@@ -131,7 +149,11 @@ func (blockchain *BlockChain) LastBlock() (*Block, error) {
 	var block *Block
 	if currentBlock == nil {
 		key := blockchain.CurrentBlockKey()
-		blockValue, err := db.GetDBInst().Get(key)
+		blockHash, err := db.GetDBInst().Get(key)
+		if err != nil {
+			return nil, err
+		}
+		blockValue, err := db.GetDBInst().Get(blockHash)
 		if err == nil {
 			err = json.Unmarshal(blockValue, &block)
 			currentBlock = block

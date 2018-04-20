@@ -29,8 +29,9 @@ func body(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	block := blockchain_manager.MainBlockChain.LastBlockHeader
-	return x_resp.Success(block), x_err.NewXErr(nil)
+	block, err := blockchain_manager.GetMainChain().LastBlock()
+	fmt.Println(block)
+	return x_resp.Return(block, err)
 }
 
 func voteNext(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -55,4 +56,14 @@ func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight))
 	}
 	return x_resp.Return(bc.GetBlockByHeight(height))
+}
+
+func blockBodyByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	bc := blockchain_manager.MainBlockChain
+	height := req.MustGetInt64("heigth")
+	if bc.CurrentHeight < height {
+		fmt.Printf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight)
+		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight))
+	}
+	return x_resp.Return(bc.GetBlockBodyByHeight(height))
 }

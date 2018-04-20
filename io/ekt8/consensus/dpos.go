@@ -11,7 +11,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
-	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
@@ -73,7 +72,7 @@ func (dpos DPOSConsensus) Run() {
 	// 从数据库中恢复当前节点已同步的区块
 	fmt.Println("Recover data from local database.")
 	dpos.RecoverFromDB()
-	fmt.Println("Local data recovered.")
+	fmt.Printf("Local data recovered. Current height is %d.\n", dpos.Blockchain.CurrentHeight)
 
 	fmt.Println("Synchronizing blockchain...")
 	interval := 50 * time.Microsecond
@@ -88,19 +87,19 @@ func (dpos DPOSConsensus) Run() {
 		time.Sleep(interval)
 	}
 
-	// 同步区块链
-	dpos.Round = i_consensus.Round{CurrentIndex: -1, Peers: peers, Random: -1}
-	//	//获取当前的待验证block header
-	block := dpos.CurrentBlock()
-	if block == nil {
-		block = &blockchain.Block{}
-	}
-	//验证block是否合法
-	if err := crypto.Validate(block.Bytes(), block.CaculateHash()); err != nil {
-		panic(err)
-	}
-	//异步在全局添加区块到区块链
-	dpos.SyncBlock(block)
+	//// 同步区块链
+	//dpos.Round = i_consensus.Round{CurrentIndex: -1, Peers: peers, Random: -1}
+	////	//获取当前的待验证block header
+	//block := dpos.CurrentBlock()
+	//if block == nil {
+	//	block = &blockchain.Block{}
+	//}
+	////验证block是否合法
+	//if err := crypto.Validate(block.Bytes(), block.CaculateHash()); err != nil {
+	//	panic(err)
+	//}
+	////异步在全局添加区块到区块链
+	//dpos.SyncBlock(block)
 }
 
 func (dpos DPOSConsensus) RecoverFromDB() {
@@ -156,8 +155,30 @@ func AliveDPoSPeerCount(peers p2p.Peers) int {
 
 func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	fmt.Printf("Synchronizing block at height %d \n", height)
-	//TODO
-	return false
+	var header *blockchain.Block
+	m := make(map[string]int)
+	mapping := make(map[string]*blockchain.Block)
+	for _, peer := range dpos.Round.Peers {
+		block, err := getBlockHeader(peer, height)
+		if err != nil {
+			continue
+		}
+		mapping[hex.EncodeToString(block.Hash())] = block
+		if _, ok := m[hex.EncodeToString(block.Hash())]; ok {
+			m[hex.EncodeToString(block.Hash())]++
+		} else {
+			m[hex.EncodeToString(block.Hash())] = 1
+		}
+		if m[hex.EncodeToString(block.Hash())] > len(dpos.Round.Peers) {
+			header = mapping[hex.EncodeToString(block.Hash())]
+		}
+	}
+	if header == nil {
+		return false
+	}
+
+	fmt.Printf("Block at height %d header: %v \n", height, header)
+	return true
 }
 
 func (dpos DPOSConsensus) pullBlock() {
@@ -247,6 +268,23 @@ func CurrentBlock(peer p2p.Peer) (*blockchain.Block, error) {
 		return nil, err
 	}
 	return blockchain.FromBytes2Block(body)
+}
+
+func getBlockHeader(peer p2p.Peer, height int64) (*blockchain.Block, error) {
+	url := fmt.Sprintf(`http://%s:%d/block/api/blockByHeight?height=%d`, peer.Address, peer.Port, height)
+	body, err := util.HttpGet(url)
+	if err != nil {
+		return nil, err
+	}
+	var resp x_resp.XRespBody
+	err = json.Unmarshal(body, &resp)
+	data, err := json.Marshal(resp.Result)
+	if err == nil {
+		var block blockchain.Block
+		err = json.Unmarshal(data, &block)
+		return &block, err
+	}
+	return nil, err
 }
 
 func getBlockBody(peer p2p.Peer, height int64) (*blockchain.BlockBody, error) {
