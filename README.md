@@ -10,7 +10,9 @@
 
 1. 从GitHub上下载最新源码
 ```
-    cd $GOPATH/src
+    cd $GOPATH
+    mkdir -p src/github.com/EducationEKT
+    cd src/github.com/EducationEKT
     git clone https://github.com/EducationEKT/EKT
     cd github.com/EducationEKT/EKT
 ```
