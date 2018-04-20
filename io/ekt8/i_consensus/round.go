@@ -31,7 +31,7 @@ func (round *Round) NextRound(CurrentHash []byte) *Round {
 }
 
 func (round Round) IsMyTurn() bool {
-	if round.Peers[round.CurrentIndex+1].Equal(conf.EKTConfig.Node) {
+	if round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Equal(conf.EKTConfig.Node) {
 		return true
 	}
 	return false

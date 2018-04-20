@@ -12,7 +12,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
-	"github.com/EducationEKT/EKT/io/ekt8/tx_pool"
+	"github.com/EducationEKT/EKT/io/ekt8/pool"
 )
 
 var BackboneChainId []byte
@@ -29,6 +29,7 @@ const (
 	BackboneBlockInterval = 3
 	InitStatus            = 0
 	OpenStatus            = 100
+	StartPackStatus       = 110
 	CaculateHashStatus    = 150
 )
 
@@ -41,15 +42,18 @@ type BlockChain struct {
 	Status          int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
 	Fee             int64
 	Difficulty      []byte
-	TxPool          *tx_pool.TxPool
+	TxPool          *tx_pool.Pool
 	CurrentHeight   int64
 	LastBlockHeader *Block
 }
 
-func (blockchain *BlockChain) SyncBlockChain() error {
+func (blockchain *BlockChain) PackSignal() error {
 	blockchain.Locker.Lock()
 	defer blockchain.Locker.Unlock()
-	blockchain.Status = OpenStatus
+	if blockchain.Status != StartPackStatus {
+		blockchain.Status = StartPackStatus
+		go blockchain.WaitAndPack()
+	}
 	return nil
 }
 
@@ -57,6 +61,14 @@ func (blockchain *BlockChain) GetStatus() int {
 	blockchain.Locker.RLock()
 	defer blockchain.Locker.RUnlock()
 	return blockchain.Status
+}
+
+func (blockchain *BlockChain) StartPack() {
+	blockchain.Locker.Lock()
+	defer blockchain.Locker.Unlock()
+	if blockchain.Status == 100 {
+
+	}
 }
 
 func (blockchain *BlockChain) ValidateBlock(block *Block) bool {
@@ -140,8 +152,15 @@ func (blockchain *BlockChain) NewBlock(block *Block) error {
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
 	block.UpdateMPTPlusRoot()
-	db.GetDBInst().Set(block.CaculateHash(), block.Bytes())
-	db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
+	fmt.Println(block)
+	err := db.GetDBInst().Set(block.CaculateHash(), block.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	err = db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (blockchain *BlockChain) LastBlock() (*Block, error) {
@@ -171,6 +190,21 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 }
 
 func (blockchain *BlockChain) WaitAndPack() {
+	eventTimeout := time.After(2 * time.Second)
+	block := NewBlock(blockchain.CurrentBlock)
+	//TODO
+	for {
+		select {
+		case <-eventTimeout:
+			blockchain.Pack()
+		default:
+			txs := blockchain.TxPool.Fetch(1)
+			if len(txs) == 1 {
+				block.NewTransaction(txs[0], block.Fee)
+			}
+		}
+	}
+	fmt.Println("Packing transaction and other events.")
 	time.Sleep(BackboneBlockInterval * time.Second)
 	blockchain.Locker.Lock()
 	defer blockchain.Locker.Unlock()
@@ -183,7 +217,7 @@ func (blockchain *BlockChain) NewTransaction(tx *common.Transaction) {
 	if blockchain.Status == OpenStatus {
 		blockchain.CurrentBlock.NewTransaction(tx, blockchain.Fee)
 	} else {
-		blockchain.TxPool.Park(tx, tx_pool.Ready)
+		blockchain.TxPool.ParkTx(tx, tx_pool.Ready)
 	}
 }
 

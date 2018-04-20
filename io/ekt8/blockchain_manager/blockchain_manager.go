@@ -9,7 +9,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
-	"github.com/EducationEKT/EKT/io/ekt8/tx_pool"
+	"github.com/EducationEKT/EKT/io/ekt8/pool"
 )
 
 const (
@@ -32,7 +32,7 @@ func Init() {
 		Consensuses: make(map[string]i_consensus.Consensus),
 	}
 	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, nil, nil, sync.RWMutex{},
-		blockchain.BackboneConsensus, 210000, []byte("FFFFFF"), tx_pool.NewTxPool(), 0, nil}
+		blockchain.BackboneConsensus, 210000, []byte("FFFFFF"), tx_pool.NewPool(), 0, nil}
 	MainBlockChainConsensus = consensus.DPOSConsensus{Blockchain: MainBlockChain}
 	go MainBlockChainConsensus.Run()
 	value, err := db.GetDBInst().Get([]byte(BlockchainManagerDBKey))

@@ -55,9 +55,15 @@ func (dpos DPOSConsensus) BlockBorn(block *blockchain.Block) {
 }
 
 func (dpos DPOSConsensus) Run() {
+	// 从数据库中恢复当前节点已同步的区块
+	fmt.Println("Recover data from local database.")
+	dpos.RecoverFromDB()
+	fmt.Printf("Local data recovered. Current height is %d.\n", dpos.Blockchain.CurrentHeight)
+
 	//获取21个节点的集合
 	fmt.Println("detecting alive nodes......")
 	peers := dpos.GetCurrentDPOSPeers()
+WaitingNodes:
 	for {
 		aliveCount := AliveDPoSPeerCount(peers)
 		if aliveCount > len(peers)/2 {
@@ -69,20 +75,26 @@ func (dpos DPOSConsensus) Run() {
 	}
 	fmt.Println("Alive node more than half, continue.")
 
-	// 从数据库中恢复当前节点已同步的区块
-	fmt.Println("Recover data from local database.")
-	dpos.RecoverFromDB()
-	fmt.Printf("Local data recovered. Current height is %d.\n", dpos.Blockchain.CurrentHeight)
-
 	fmt.Println("Synchronizing blockchain...")
 	interval := 50 * time.Microsecond
+	failCount := 0
 	for height := dpos.Blockchain.CurrentHeight + 1; ; {
 		if !dpos.SyncHeight(height) {
+			if AliveDPoSPeerCount(peers) < len(dpos.Round.Peers) {
+				goto WaitingNodes
+			}
+			failCount++
 			fmt.Printf("Synchronize block at height %d failed. \n", height)
 			interval = 3 * time.Second
 		} else {
 			fmt.Printf("Synchronizing block at height %d successed. \n", height)
 			height++
+		}
+		if failCount >= 3 {
+			if dpos.Blockchain.CurrentBlock.Round.IsMyTurn() {
+				dpos.Pack()
+				time.Sleep(3 * time.Second)
+			}
 		}
 		time.Sleep(interval)
 	}
@@ -100,6 +112,17 @@ func (dpos DPOSConsensus) Run() {
 	//}
 	////异步在全局添加区块到区块链
 	//dpos.SyncBlock(block)
+}
+
+// 共识向blockchain发送signal进行下一个区块的打包
+func (dpos DPOSConsensus) Pack() {
+	bc := dpos.Blockchain
+	bc.PackSignal()
+	//if bc.GetStatus() == blockchain.InitStatus {
+	//	bc.Locker.Lock()
+	//	defer bc.Locker.Unlock()
+	//}
+	//pool := bc.TxPool
 }
 
 func (dpos DPOSConsensus) RecoverFromDB() {
@@ -146,7 +169,7 @@ func AliveDPoSPeerCount(peers p2p.Peers) int {
 	count := 0
 	for _, peer := range peers {
 		if peer.IsAlive() {
-			fmt.Printf(`Peer %s is alive, address: %s`, peer.PeerId, peer.Address)
+			fmt.Printf("Peer %s is alive, address: %s \n", peer.PeerId, peer.Address)
 			count++
 		}
 	}
@@ -176,7 +199,8 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	if header == nil {
 		return false
 	}
-
+	dpos.Blockchain.CurrentBlock = header
+	dpos.Blockchain.CurrentHeight = header.Height
 	fmt.Printf("Block at height %d header: %v \n", height, header)
 	return true
 }

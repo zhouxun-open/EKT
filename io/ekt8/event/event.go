@@ -15,6 +15,7 @@ const (
 type EventParam interface {
 	EventType() string
 	Validate() bool
+	Id() string
 }
 
 type Event struct {
@@ -25,14 +26,14 @@ type Event struct {
 type NewAccountParam struct {
 	Address string
 	PubKey  string
-	Nonce   int
+	Nonce   int64
 	EventId string
 }
 
 type UpdatePublicKeyParam struct {
 	Address   string
 	NewPubKey string
-	Nonce     int
+	Nonce     int64
 	EventId   string
 }
 
@@ -64,6 +65,10 @@ func (newAccountParam NewAccountParam) Validate() bool {
 	return true
 }
 
+func (newAccountParam NewAccountParam) Id() string {
+	return newAccountParam.EventId
+}
+
 func (updatePublicKeyParam UpdatePublicKeyParam) Validate() bool {
 	msg := []byte(fmt.Sprintf(`{"address": "%s", "pubKey": "%s", "nonce": %d}`, updatePublicKeyParam.Address, updatePublicKeyParam.NewPubKey, updatePublicKeyParam.Nonce))
 	msg = crypto.Sha3_256(msg)
@@ -84,6 +89,10 @@ func (updatePublicKeyParam UpdatePublicKeyParam) Validate() bool {
 
 func (updatePublicKeyParam UpdatePublicKeyParam) EventType() string {
 	return UpdatePublicKeyEvent
+}
+
+func (updatePublicKeyParam UpdatePublicKeyParam) Id() string {
+	return updatePublicKeyParam.EventId
 }
 
 func (event Event) ValidateEvent() bool {

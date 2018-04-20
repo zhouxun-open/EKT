@@ -7,7 +7,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
-	"github.com/EducationEKT/EKT/io/ekt8/tx_pool"
+	"github.com/EducationEKT/EKT/io/ekt8/pool"
 	"github.com/EducationEKT/EKT/io/ekt8/validator"
 )
 
@@ -58,7 +58,7 @@ func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transacti
 			if transaction.Nonce <= account.GetNonce() {
 				return
 			} else if transaction.Nonce-account.GetNonce() > 1 {
-				blockChain.TxPool.Park(transaction, tx_pool.Block)
+				blockChain.TxPool.ParkTx(transaction, tx_pool.Block)
 			} else {
 				toAddress, _ := hex.DecodeString(transaction.To)
 				if !block.ExistAddress(toAddress) {

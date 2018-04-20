@@ -127,13 +127,20 @@ func (block *Block) NewTransaction(tx *common.Transaction, fee int64) {
 
 func (block *Block) UpdateMPTPlusRoot() {
 	if block.StatTree != nil {
+		block.StatTree.Lock.RLock()
 		block.StatRoot = block.StatTree.Root
 	}
 	if block.TxTree != nil {
+		block.TxTree.Lock.RLock()
 		block.TxRoot = block.TxTree.Root
 	}
 	if block.EventTree != nil {
+		block.EventTree.Lock.RLock()
 		block.EventRoot = block.EventTree.Root
+	}
+	if block.TokenTree != nil {
+		block.TokenTree.Lock.RLock()
+		block.TokenRoot = block.TokenTree.Root
 	}
 }
 
@@ -148,4 +155,23 @@ func FromBytes2Block(data []byte) (*Block, error) {
 	block.TxTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.TxRoot)
 	block.Locker = sync.RWMutex{}
 	return &block, nil
+}
+
+func NewBlock(last *Block) *Block {
+	return &Block{
+		Height:       last.Height + 1,
+		Nonce:        0,
+		Fee:          last.Fee,
+		TotalFee:     0,
+		PreviousHash: last.Hash(),
+		CurrentHash:  nil,
+		BlockBody:    NewBlockBody(last.Height + 1),
+		Body:         nil,
+		Round:        last.Round.NextRound(last.Hash()),
+		Locker:       sync.RWMutex{},
+		StatTree:     MPTPlus.NewMTP(db.GetDBInst()),
+		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
+		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
+		TokenTree:    MPTPlus.NewMTP(db.GetDBInst()),
+	}
 }
