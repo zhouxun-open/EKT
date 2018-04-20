@@ -14,5 +14,9 @@ func init() {
 
 func GetValue(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	v, err := db.GetDBInst().Get(req.Body)
-	return x_resp.Return(v, err)
+	resp := &x_resp.XRespContainer{
+		HttpCode: 200,
+		Body:     v,
+	}
+	return resp, x_err.NewXErr(err)
 }

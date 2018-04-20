@@ -117,7 +117,7 @@ WaitingNodes:
 // 共识向blockchain发送signal进行下一个区块的打包
 func (dpos DPOSConsensus) Pack() {
 	bc := dpos.Blockchain
-	bc.PackSignal(BlockMinedCallBack)
+	bc.PackSignal()
 	//if bc.GetStatus() == blockchain.InitStatus {
 	//	bc.Locker.Lock()
 	//	defer bc.Locker.Unlock()
@@ -125,8 +125,14 @@ func (dpos DPOSConsensus) Pack() {
 	//pool := bc.Pool
 }
 
-func BlockMinedCallBack(block *blockchain.Block) {
+func (dpos DPOSConsensus) BlockMinedCallBack(block *blockchain.Block) {
 	fmt.Println("Mined block, sending block to other dpos  peer.")
+	fmt.Println(dpos.Blockchain.CurrentBlock.Round)
+	for _, peer := range block.Round.Peers {
+		url := fmt.Sprintf("http://%s:%d/block/api/newBlock", peer.Address, peer.Port)
+		resp, err := util.HttpPost(url, block.Bytes())
+		fmt.Println(string(resp), err)
+	}
 }
 
 func (dpos DPOSConsensus) RecoverFromDB() {

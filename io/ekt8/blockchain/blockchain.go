@@ -48,21 +48,18 @@ type BlockChain struct {
 	Pool            *pool.Pool
 	CurrentHeight   int64
 	LastBlockHeader *Block
+	Cb              func(block *Block)
 }
 
-func (blockchain *BlockChain) PackSignal(cb func(block *Block)) {
+func (blockchain *BlockChain) PackSignal() {
 	blockchain.Locker.Lock()
 	if blockchain.Status != StartPackStatus {
 		blockchain.Status = StartPackStatus
 		block := blockchain.WaitAndPack()
-		db.GetDBInst().Set(block.CaculateHash(), block.Bytes())
-		db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), block.CaculateHash())
+		db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), block.Hash())
 		db.GetDBInst().Set(blockchain.GetBlockBodyByHeightKey(block.Height), block.Body)
-		db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.CaculateHash())
-		blockchain.CurrentBlock = block
-		blockchain.CurrentBody = block.BlockBody
-		blockchain.CurrentHeight = block.Height
-		cb(block)
+		blockchain.Cb(block)
+		blockchain.SaveBlock(block)
 		blockchain.Locker.Unlock()
 	}
 }
@@ -81,7 +78,44 @@ func (blockchain *BlockChain) GetStatus() int {
 //	}
 //}
 
-func (blockchain *BlockChain) ValidateBlock(block *Block) bool {
+func (blockchain *BlockChain) ValidateBlock(block *Block, blockBody *BlockBody) bool {
+	if block.Round.IsMyTurn() {
+		go blockchain.PackSignal()
+	}
+	blockchain.SaveBlock(block)
+	block1 := NewBlock(blockchain.CurrentBlock)
+	for _, txResult := range blockBody.TxResults {
+		tx := blockchain.Pool.Notify(txResult.TxId)
+		if tx == nil {
+			//TODO 从数据库中读取
+			//return false
+		}
+		//txResult_ := block1.NewTransaction(tx, txResult.Fee)
+		//if txResult.Success != txResult_.Success {
+		//	return false
+		//}
+	}
+	for _, evtResult := range blockBody.EventResults {
+		evt := blockchain.Pool.NotifyEvent(evtResult.EventId)
+		if evt == nil {
+			//TODO 从数据库中读取
+			//return false
+		}
+		//if strings.EqualFold(evt.EventType, event.NewAccountEvent) {
+		//	param := evt.EventParam.(event.NewAccountParam)
+		//	address, _ := hex.DecodeString(param.Address)
+		//	pubKey, _ := hex.DecodeString(param.PubKey)
+		//	if block1.InsertAccount(*common.NewAccount(address, pubKey)) {
+		//		block1.BlockBody.AddEventResult(event.EventResult{Success: true, EventId: evt.EventParam.Id()})
+		//	} else {
+		//		block1.BlockBody.AddEventResult(event.EventResult{Success: false, Reason: "address exist", EventId: evt.EventParam.Id()})
+		//	}
+		//}
+	}
+	blockchain.Pack(block1)
+	if bytes.EqualFold(block.Hash(), block1.Hash()) {
+		return true
+	}
 	return false
 }
 
@@ -162,7 +196,7 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
 	block.UpdateMPTPlusRoot()
-	fmt.Println(block)
+	fmt.Println(string(block.Bytes()))
 	err := db.GetDBInst().Set(block.CaculateHash(), block.Bytes())
 	if err != nil {
 		panic(err)
@@ -171,6 +205,9 @@ func (blockchain *BlockChain) SaveBlock(block *Block) {
 	if err != nil {
 		panic(err)
 	}
+	blockchain.CurrentBlock = block
+	blockchain.CurrentBody = block.BlockBody
+	blockchain.CurrentHeight = block.Height
 }
 
 func (blockchain *BlockChain) LastBlock() (*Block, error) {
@@ -202,6 +239,7 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 func (blockchain *BlockChain) WaitAndPack() *Block {
 	eventTimeout := time.After(1 * time.Second)
 	block := NewBlock(blockchain.CurrentBlock)
+	fmt.Println("=========", block.Round.CurrentIndex)
 	fmt.Println("Packing transaction and other events.")
 	for {
 		flag := false
@@ -226,12 +264,12 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 						block.BlockBody.AddEventResult(event.EventResult{Success: false, Reason: "address exist", EventId: evt.EventParam.Id()})
 					}
 				}
-				blockchain.Pool.NotifyEvent(*evt)
+				blockchain.Pool.NotifyEvent(evt.EventParam.Id())
 			} else {
 				tx := blockchain.Pool.FetchTx()
 				if tx != nil {
 					txResult := block.NewTransaction(tx, block.Fee)
-					blockchain.Pool.Notify(tx)
+					blockchain.Pool.Notify(tx.TransactionId())
 					block.BlockBody.AddTxResult(*txResult)
 				}
 			}
@@ -263,11 +301,9 @@ func (blockchain *BlockChain) Pack(block *Block) {
 	block.Body = crypto.Sha3_256(bodyData)
 	db.GetDBInst().Set(block.Body, bodyData)
 	start := time.Now().Nanosecond()
-	fmt.Println(start)
 	fmt.Println("Caculating block hash.")
 	for ; !bytes.HasPrefix(block.CaculateHash(), blockchain.Difficulty); block.NewNonce() {
 	}
 	end := time.Now().Nanosecond()
-	fmt.Println(end)
 	fmt.Printf("Caculated block hash, cost %d ms\n", (end-start+1e9)%1e9/1e6)
 }

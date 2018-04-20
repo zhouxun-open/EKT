@@ -3,12 +3,16 @@ package api
 import (
 	"errors"
 
+	"encoding/json"
 	"fmt"
+	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
+	"github.com/EducationEKT/EKT/io/ekt8/util"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
 	"github.com/EducationEKT/xserver/x_http/x_router"
+	"strings"
 )
 
 func init() {
@@ -18,6 +22,7 @@ func init() {
 	x_router.Get("/blocks/api/blockHeaders", blockHeaders)
 	x_router.Get("/block/api/body", body)
 	x_router.Get("/block/api/blockByHeight", blockByHeight)
+	x_router.Post("/block/api/newBlock", newBlock)
 }
 
 func body(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -29,8 +34,8 @@ func body(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	block, err := blockchain_manager.GetMainChain().LastBlock()
-	return x_resp.Return(block, err)
+	block := blockchain_manager.GetMainChain().CurrentBlock
+	return x_resp.Return(block, nil)
 }
 
 func voteNext(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -65,4 +70,31 @@ func blockBodyByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight))
 	}
 	return x_resp.Return(bc.GetBlockBodyByHeight(height))
+}
+
+func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	var block blockchain.Block
+	err := json.Unmarshal(req.Body, &block)
+	if err != nil {
+		return x_resp.Fail(-1, "error block header", nil), nil
+	}
+	lastBlock := blockchain_manager.GetMainChain().CurrentBlock
+	if lastBlock.Height+1 != block.Height {
+		return x_resp.Fail(-1, "error invalid height", nil), nil
+	}
+	if !strings.EqualFold(req.R.RemoteAddr, lastBlock.Round.Peers[(lastBlock.Round.CurrentIndex+1)%len(lastBlock.Round.Peers)].Address) {
+		return x_resp.Return(nil, errors.New("error invalid address"))
+	}
+	url := fmt.Sprintf("http://%s:%d/db/api/get")
+	body, err := util.HttpPost(url, block.Body)
+	if err != nil {
+		return x_resp.Return(nil, err)
+	}
+	var blockBody blockchain.BlockBody
+	err = json.Unmarshal(body, &blockBody)
+	if err != nil {
+		return x_resp.Return(nil, err)
+	}
+
+	return x_resp.Return(blockchain_manager.GetMainChain().ValidateBlock(&block, &blockBody), nil)
 }

@@ -58,7 +58,11 @@ func (pool Pool) ParkEvent(evt event.Event, reason int) {
 	}
 }
 
-func (pool Pool) NotifyEvent(evt event.Event) {
+func (pool Pool) NotifyEvent(evtId string) *event.Event {
+	evt, exist := pool.eventReady[evtId]
+	if !exist {
+		return nil
+	}
 	delete(pool.eventReady, evt.EventParam.Id())
 	if strings.EqualFold(evt.EventType, event.UpdatePublicKeyEvent) {
 		param := evt.EventParam.(event.UpdatePublicKeyParam)
@@ -87,6 +91,7 @@ func (pool Pool) NotifyEvent(evt event.Event) {
 			}
 		}
 	}
+	return &evt
 }
 
 /*
@@ -107,7 +112,11 @@ func (pool Pool) ParkTx(tx *common.Transaction, reason int) {
 当交易被区块打包后,将交易移出pool
 如果当前用户有Nonce比当前大一的tx在Block队列，则移动至ready队列
 */
-func (pool Pool) Notify(tx *common.Transaction) {
+func (pool Pool) Notify(txId string) *common.Transaction {
+	tx, exist := pool.txReady[txId]
+	if !exist {
+		return nil
+	}
 	delete(pool.txReady, tx.TransactionId())
 
 	address := tx.From
@@ -136,6 +145,7 @@ func (pool Pool) Notify(tx *common.Transaction) {
 			}
 		}
 	}
+	return tx
 }
 
 /*当交易被区块打包后,将交易批量移出pool
@@ -143,7 +153,7 @@ func (pool Pool) Notify(tx *common.Transaction) {
  */
 func (pool Pool) BatchNotify(txs []*common.Transaction) {
 	for _, tx := range txs {
-		pool.Notify(tx)
+		pool.Notify(tx.TransactionId())
 	}
 }
 
