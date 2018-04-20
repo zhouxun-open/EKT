@@ -64,8 +64,7 @@ func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transacti
 				if !block.ExistAddress(toAddress) {
 					return
 				}
-				blockChain.NewTransaction(transaction)
-				//block.NewTransaction(transaction)
+				blockChain.Pool.ParkTx(transaction, pool.Ready)
 			}
 		}
 	}

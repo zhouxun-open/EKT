@@ -83,23 +83,18 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
 	IP := strings.Split(req.R.RemoteAddr, ":")[0]
-	fmt.Println(string(lastBlock.Bytes()))
 	if !strings.EqualFold(IP, lastBlock.Round.Peers[(lastBlock.Round.CurrentIndex+1)%len(lastBlock.Round.Peers)].Address) {
-		fmt.Println(IP)
 		return x_resp.Return("error invalid address", errors.New("error invalid address"))
 	}
-	fmt.Println(IP)
 	url := fmt.Sprintf("http://%s:19951/db/api/get", IP)
 	body, err := util.HttpPost(url, block.Body)
 	if err != nil {
 		return x_resp.Return(err.Error(), err)
 	}
-	fmt.Println(IP)
 	var blockBody blockchain.BlockBody
 	err = json.Unmarshal(body, &blockBody)
 	if err != nil {
 		return x_resp.Return(err.Error(), err)
 	}
-	fmt.Println(IP)
 	return x_resp.Return(blockchain_manager.GetMainChain().ValidateBlock(&block, &blockBody), nil)
 }

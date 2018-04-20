@@ -24,16 +24,16 @@ type DPOSConsensus struct {
 	Blockchain *blockchain.BlockChain
 }
 
-func (dpos DPOSConsensus) ValidateBlock(header *blockchain.Block) {
-	peer := header.Round.Peers[header.Round.CurrentIndex]
-	body, err := getBlockBody(peer, header.Height)
-	if err != nil || body.Height != header.Height {
-		// TODO vote false
-	}
-	// TODO validate body
-
-	//TODO vote true
-}
+//func (dpos DPOSConsensus) ValidateBlock(header *blockchain.Block) {
+//	peer := header.Round.Peers[header.Round.CurrentIndex]
+//	body, err := getBlockBody(peer, header.Height)
+//	if err != nil || body.Height != header.Height {
+//		// TODO vote false
+//	}
+//	// TODO validate body
+//
+//	//TODO vote true
+//}
 
 //从网络层转发过来的交易,进入打包流程
 func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
@@ -98,31 +98,12 @@ WaitingNodes:
 		}
 		time.Sleep(interval)
 	}
-
-	//// 同步区块链
-	//dpos.Round = i_consensus.Round{CurrentIndex: -1, Peers: peers, Random: -1}
-	////	//获取当前的待验证block header
-	//block := dpos.CurrentBlock()
-	//if block == nil {
-	//	block = &blockchain.Block{}
-	//}
-	////验证block是否合法
-	//if err := crypto.Validate(block.Bytes(), block.CaculateHash()); err != nil {
-	//	panic(err)
-	//}
-	////异步在全局添加区块到区块链
-	//dpos.SyncBlock(block)
 }
 
 // 共识向blockchain发送signal进行下一个区块的打包
 func (dpos DPOSConsensus) Pack() {
 	bc := dpos.Blockchain
 	bc.PackSignal()
-	//if bc.GetStatus() == blockchain.InitStatus {
-	//	bc.Locker.Lock()
-	//	defer bc.Locker.Unlock()
-	//}
-	//pool := bc.Pool
 }
 
 func (dpos DPOSConsensus) BlockMinedCallBack(block *blockchain.Block) {
@@ -261,23 +242,6 @@ func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 		}
 	}
 	return mapping[consensusHash]
-}
-
-//同步区块链  即将废除
-//func (dpos DPOSConsensus) SyncBlockChain() {
-//	lastBlock, err := dpos.Blockchain.LastBlock()
-//	if err != nil {
-//		lastBlock = nil
-//	}
-//	peerLast := dpos.CurrentBlock()
-//	if peerLast.Height > lastBlock.Height {
-//		dpos.Blockchain.NewBlock(peerLast)
-//	}
-//}
-
-//根据区块header同步body 即将废除
-func (dpos DPOSConsensus) SyncBlock(block *blockchain.Block) {
-	MPTPlus.SyncDB(block.StatRoot, dpos.Round.Peers, false)
 }
 
 //获取当前的peers

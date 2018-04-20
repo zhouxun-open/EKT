@@ -180,20 +180,6 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 	return []byte(fmt.Sprint(`GetBlockByHeight_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
-// 即将废除
-//func (blockchain *BlockChain) NewBlock(block *Block) error {
-//	blockchain.Locker.Lock()
-//	defer blockchain.Locker.Unlock()
-//	if err := block.Validate(); err != nil {
-//		return err
-//	}
-//	db.GetDBInst().Set(block.Hash(), block.Bytes())
-//	// TODO sync tx and stat
-//	// TODO refact block的产生和交易模块
-//	block.UpdateMPTPlusRoot()
-//	return db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
-//}
-
 func (blockchain *BlockChain) SaveBlock(block *Block) {
 	block.UpdateMPTPlusRoot()
 	fmt.Println(string(block.Bytes()))
@@ -239,7 +225,6 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 func (blockchain *BlockChain) WaitAndPack() *Block {
 	eventTimeout := time.After(1 * time.Second)
 	block := NewBlock(blockchain.CurrentBlock)
-	fmt.Println("=========", block.Round.CurrentIndex)
 	fmt.Println("Packing transaction and other events.")
 	for {
 		flag := false
