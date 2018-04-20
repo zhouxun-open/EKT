@@ -86,12 +86,14 @@ func (block *Block) CreateAccount(address, pubKey []byte) {
 	}
 }
 
-func (block *Block) InsertAccount(account common.Account) {
+func (block *Block) InsertAccount(account common.Account) bool {
 	if !block.ExistAddress(account.Address()) {
 		value, _ := json.Marshal(account)
 		block.StatTree.MustInsert(account.Address(), value)
 		block.UpdateMPTPlusRoot()
+		return true
 	}
+	return false
 }
 
 func (block *Block) newAccount(address []byte, pubKey []byte) {
@@ -101,7 +103,7 @@ func (block *Block) newAccount(address []byte, pubKey []byte) {
 	block.UpdateMPTPlusRoot()
 }
 
-func (block *Block) NewTransaction(tx *common.Transaction, fee int64) {
+func (block *Block) NewTransaction(tx *common.Transaction, fee int64) *common.TxResult {
 	block.Locker.Lock()
 	defer block.Locker.Unlock()
 	fromAddress, _ := hex.DecodeString(tx.From)
@@ -109,7 +111,7 @@ func (block *Block) NewTransaction(tx *common.Transaction, fee int64) {
 	account, _ := block.GetAccount(fromAddress)
 	recieverAccount, _ := block.GetAccount(toAddress)
 	var txResult *common.TxResult
-	if account.GetAmount() < tx.Amount+block.Fee {
+	if account.GetAmount() < tx.Amount+fee {
 		txResult = common.NewTransactionResult(tx, fee, false, "no enough amount")
 	} else {
 		txResult = common.NewTransactionResult(tx, fee, true, "")
@@ -120,9 +122,9 @@ func (block *Block) NewTransaction(tx *common.Transaction, fee int64) {
 		block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
 	}
 	txId, _ := hex.DecodeString(tx.TransactionId())
-	block.BlockBody.AddTxResult(*txResult)
 	block.TxTree.MustInsert(txId, txResult.ToBytes())
 	block.UpdateMPTPlusRoot()
+	return txResult
 }
 
 func (block *Block) UpdateMPTPlusRoot() {
@@ -169,9 +171,9 @@ func NewBlock(last *Block) *Block {
 		Body:         nil,
 		Round:        last.Round.NextRound(last.Hash()),
 		Locker:       sync.RWMutex{},
-		StatTree:     MPTPlus.NewMTP(db.GetDBInst()),
+		StatTree:     last.StatTree,
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
-		TokenTree:    MPTPlus.NewMTP(db.GetDBInst()),
+		TokenTree:    last.TokenTree,
 	}
 }

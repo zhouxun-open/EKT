@@ -30,7 +30,6 @@ func body(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	block, err := blockchain_manager.GetMainChain().LastBlock()
-	fmt.Println(block)
 	return x_resp.Return(block, err)
 }
 

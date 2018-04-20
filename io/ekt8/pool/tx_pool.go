@@ -1,4 +1,4 @@
-package tx_pool
+package pool
 
 import (
 	"sort"
@@ -90,21 +90,21 @@ func (pool Pool) NotifyEvent(evt event.Event) {
 }
 
 /*
-把交易放在 txPool 里等待打包
+把交易放在 pool 里等待打包
 */
-func (txPool Pool) ParkTx(tx *common.Transaction, reason int) {
+func (pool Pool) ParkTx(tx *common.Transaction, reason int) {
 	if reason == Ready {
-		txPool.txReady[tx.TransactionId()] = tx
+		pool.txReady[tx.TransactionId()] = tx
 	} else if reason == Block {
-		txs_slice := txPool.txBlock[tx.From]
+		txs_slice := pool.txBlock[tx.From]
 		txs_slice = append(txs_slice, tx)
 		sort.Sort(txs_slice)
-		txPool.txBlock[tx.From] = txs_slice
+		pool.txBlock[tx.From] = txs_slice
 	}
 }
 
 /*
-当交易被区块打包后,将交易移出txPool
+当交易被区块打包后,将交易移出pool
 如果当前用户有Nonce比当前大一的tx在Block队列，则移动至ready队列
 */
 func (pool Pool) Notify(tx *common.Transaction) {
@@ -138,41 +138,61 @@ func (pool Pool) Notify(tx *common.Transaction) {
 	}
 }
 
-/*当交易被区块打包后,将交易批量移出txPool
+/*当交易被区块打包后,将交易批量移出pool
 
  */
-func (txPool Pool) BatchNotify(txs []*common.Transaction) {
+func (pool Pool) BatchNotify(txs []*common.Transaction) {
 	for _, tx := range txs {
-		txPool.Notify(tx)
+		pool.Notify(tx)
 	}
+}
+
+func (pool Pool) FetchEvent() *event.Event {
+	if len(pool.eventReady) > 0 {
+		for _, evt := range pool.eventReady {
+			delete(pool.eventReady, evt.EventParam.Id())
+			return &evt
+		}
+	}
+	return nil
+}
+
+func (pool Pool) FetchTx() *common.Transaction {
+	if len(pool.txReady) > 0 {
+		for _, tx := range pool.txReady {
+			delete(pool.txReady, tx.TransactionId())
+			return tx
+		}
+	}
+	return nil
 }
 
 /*
 返回能够打包的指定数量的交易
 如果size小于等于0，返回全部
 */
-func (txPool Pool) Fetch(size int32) (result []*common.Transaction) {
+func (pool Pool) Fetch(size int) (result []*common.Transaction) {
 	result = []*common.Transaction{}
 	record := []*common.Transaction{}
-	var count int32 = 0
+	var count int = 0
 	if size < 0 {
 		size = ^(size << 31)
 	}
 	for {
-		for txId, transaction := range txPool.txReady {
-			delete(txPool.txReady, txId)
+		for txId, transaction := range pool.txReady {
+			delete(pool.txReady, txId)
 			result = append(result, transaction)
 			count++
 			record = append(record, transaction)
 			if count >= size { //watch
-				txPool.BatchNotify(record)
+				pool.BatchNotify(record)
 				return
 			}
-			if len(txPool.txReady) == 0 {
-				txPool.BatchNotify(record)
+			if len(pool.txReady) == 0 {
+				pool.BatchNotify(record)
 				record = []*common.Transaction{}
 			}
-			if len(txPool.txReady) == 0 {
+			if len(pool.txReady) == 0 {
 				return
 			}
 		}

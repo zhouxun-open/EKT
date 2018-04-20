@@ -1,4 +1,4 @@
-package tx_pool
+package pool
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var txPool = Pool{txReady: make(map[string]*common.Transaction), txBlock: make(map[string]UserTransactions)}
+var pool = Pool{txReady: make(map[string]*common.Transaction), txBlock: make(map[string]UserTransactions)}
 
 var txarr = [10]common.Transaction{
 	common.Transaction{From: "bob", To: "alice", TimeStamp: 001, Amount: 99, Nonce: 01, Sign: "bob"},
@@ -23,16 +23,16 @@ var txarr = [10]common.Transaction{
 }
 
 func TestTxPool_Fetch(t *testing.T) {
-	//println(txPool.Fetch(0))
-	txPool.Fetch(1)
-	size := len(txPool.txReady)
-	txPool.Fetch(size)
-	txPool.Fetch(size + 1)
+	//println(pool.Fetch(0))
+	pool.Fetch(1)
+	size := len(pool.txReady)
+	pool.Fetch(size)
+	pool.Fetch(size + 1)
 }
 
 func BenchmarkTxPool_Fetch(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		txPool.Fetch(1)
+		pool.Fetch(1)
 	}
 }
 
@@ -53,12 +53,12 @@ func TestUserTransactions_sort(t *testing.T) {
 
 func TestTxPool_Notify(t *testing.T) {
 	fmt.Println("----TestTxPool_Notify----")
-	txPool.ParkTx(&txarr[0], 1) //txReady
-	txPool.ParkTx(&txarr[1], 0) //txBlock
-	txPool.ParkTx(&txarr[2], 0) //txBlock
-	txPool.Notify(&txarr[0])
-	txPool.Notify(&txarr[1])
-	k, e := txPool.txReady[txarr[2].TransactionId()]
+	pool.ParkTx(&txarr[0], 1) //txReady
+	pool.ParkTx(&txarr[1], 0) //txBlock
+	pool.ParkTx(&txarr[2], 0) //txBlock
+	pool.Notify(&txarr[0])
+	pool.Notify(&txarr[1])
+	k, e := pool.txReady[txarr[2].TransactionId()]
 	if e == false {
 		fmt.Println(e)
 		t.Fatal()

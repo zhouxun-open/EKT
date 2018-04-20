@@ -61,11 +61,11 @@ func (dpos DPOSConsensus) Run() {
 	fmt.Printf("Local data recovered. Current height is %d.\n", dpos.Blockchain.CurrentHeight)
 
 	//获取21个节点的集合
-	fmt.Println("detecting alive nodes......")
 	peers := dpos.GetCurrentDPOSPeers()
 WaitingNodes:
 	for {
-		aliveCount := AliveDPoSPeerCount(peers)
+		fmt.Println("detecting alive nodes......")
+		aliveCount := AliveDPoSPeerCount(peers, true)
 		if aliveCount > len(peers)/2 {
 			fmt.Println()
 			break
@@ -80,7 +80,7 @@ WaitingNodes:
 	failCount := 0
 	for height := dpos.Blockchain.CurrentHeight + 1; ; {
 		if !dpos.SyncHeight(height) {
-			if AliveDPoSPeerCount(peers) < len(dpos.Round.Peers) {
+			if AliveDPoSPeerCount(peers, false) < len(dpos.Round.Peers) {
 				goto WaitingNodes
 			}
 			failCount++
@@ -117,12 +117,16 @@ WaitingNodes:
 // 共识向blockchain发送signal进行下一个区块的打包
 func (dpos DPOSConsensus) Pack() {
 	bc := dpos.Blockchain
-	bc.PackSignal()
+	bc.PackSignal(BlockMinedCallBack)
 	//if bc.GetStatus() == blockchain.InitStatus {
 	//	bc.Locker.Lock()
 	//	defer bc.Locker.Unlock()
 	//}
-	//pool := bc.TxPool
+	//pool := bc.Pool
+}
+
+func BlockMinedCallBack(block *blockchain.Block) {
+	fmt.Println("Mined block, sending block to other dpos  peer.")
 }
 
 func (dpos DPOSConsensus) RecoverFromDB() {
@@ -165,11 +169,13 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 }
 
 //获取存活的DPOS节点数量
-func AliveDPoSPeerCount(peers p2p.Peers) int {
+func AliveDPoSPeerCount(peers p2p.Peers, print bool) int {
 	count := 0
 	for _, peer := range peers {
 		if peer.IsAlive() {
-			fmt.Printf("Peer %s is alive, address: %s \n", peer.PeerId, peer.Address)
+			if print {
+				fmt.Printf("Peer %s is alive, address: %s \n", peer.PeerId, peer.Address)
+			}
 			count++
 		}
 	}
@@ -252,16 +258,16 @@ func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 }
 
 //同步区块链  即将废除
-func (dpos DPOSConsensus) SyncBlockChain() {
-	lastBlock, err := dpos.Blockchain.LastBlock()
-	if err != nil {
-		lastBlock = nil
-	}
-	peerLast := dpos.CurrentBlock()
-	if peerLast.Height > lastBlock.Height {
-		dpos.Blockchain.NewBlock(peerLast)
-	}
-}
+//func (dpos DPOSConsensus) SyncBlockChain() {
+//	lastBlock, err := dpos.Blockchain.LastBlock()
+//	if err != nil {
+//		lastBlock = nil
+//	}
+//	peerLast := dpos.CurrentBlock()
+//	if peerLast.Height > lastBlock.Height {
+//		dpos.Blockchain.NewBlock(peerLast)
+//	}
+//}
 
 //根据区块header同步body 即将废除
 func (dpos DPOSConsensus) SyncBlock(block *blockchain.Block) {
