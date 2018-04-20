@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"errors"
+	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
@@ -60,6 +61,7 @@ func (blockchain *BlockChain) PackSignal() {
 		db.GetDBInst().Set(blockchain.GetBlockBodyByHeightKey(block.Height), block.Body)
 		blockchain.Cb(block)
 		blockchain.SaveBlock(block)
+		blockchain.Status = InitStatus
 		blockchain.Locker.Unlock()
 	}
 }
@@ -70,50 +72,48 @@ func (blockchain *BlockChain) GetStatus() int {
 	return blockchain.Status
 }
 
-//func (blockchain *BlockChain) StartPack() {
-//	blockchain.Locker.Lock()
-//	defer blockchain.Locker.Unlock()
-//	if blockchain.Status == 100 {
-//
-//	}
-//}
-
 func (blockchain *BlockChain) ValidateBlock(block *Block, blockBody *BlockBody) bool {
+	fmt.Println("==========", block.Round.IsMyTurn())
 	if block.Round.IsMyTurn() {
+		fmt.Println("=====")
 		go blockchain.PackSignal()
 	}
-	blockchain.SaveBlock(block)
+	if block.Round.Peers[block.Round.CurrentIndex].Equal(conf.EKTConfig.Node) {
+		return true
+	}
+
 	block1 := NewBlock(blockchain.CurrentBlock)
 	for _, txResult := range blockBody.TxResults {
 		tx := blockchain.Pool.Notify(txResult.TxId)
 		if tx == nil {
-			//TODO 从数据库中读取
-			//return false
+			//TODO 从数据库中读取，Pool里面都有，除非有特别大打的延迟
+			return false
 		}
-		//txResult_ := block1.NewTransaction(tx, txResult.Fee)
-		//if txResult.Success != txResult_.Success {
-		//	return false
-		//}
+		txResult_ := block1.NewTransaction(tx, txResult.Fee)
+		if txResult.Success != txResult_.Success {
+			return false
+		}
 	}
 	for _, evtResult := range blockBody.EventResults {
 		evt := blockchain.Pool.NotifyEvent(evtResult.EventId)
 		if evt == nil {
-			//TODO 从数据库中读取
-			//return false
+			//TODO 从数据库中读取，Pool里面都有，除非有特别大打的延迟
+			return false
 		}
-		//if strings.EqualFold(evt.EventType, event.NewAccountEvent) {
-		//	param := evt.EventParam.(event.NewAccountParam)
-		//	address, _ := hex.DecodeString(param.Address)
-		//	pubKey, _ := hex.DecodeString(param.PubKey)
-		//	if block1.InsertAccount(*common.NewAccount(address, pubKey)) {
-		//		block1.BlockBody.AddEventResult(event.EventResult{Success: true, EventId: evt.EventParam.Id()})
-		//	} else {
-		//		block1.BlockBody.AddEventResult(event.EventResult{Success: false, Reason: "address exist", EventId: evt.EventParam.Id()})
-		//	}
-		//}
+		if strings.EqualFold(evt.EventType, event.NewAccountEvent) {
+			param := evt.EventParam.(event.NewAccountParam)
+			address, _ := hex.DecodeString(param.Address)
+			pubKey, _ := hex.DecodeString(param.PubKey)
+			if block1.InsertAccount(*common.NewAccount(address, pubKey)) {
+				block1.BlockBody.AddEventResult(event.EventResult{Success: true, EventId: evt.EventParam.Id()})
+			} else {
+				block1.BlockBody.AddEventResult(event.EventResult{Success: false, Reason: "address exist", EventId: evt.EventParam.Id()})
+			}
+		}
 	}
 	blockchain.Pack(block1)
 	if bytes.EqualFold(block.Hash(), block1.Hash()) {
+		blockchain.SaveBlock(block)
 		return true
 	}
 	return false
