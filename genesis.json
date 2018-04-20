@@ -1,6 +1,6 @@
 {
-    "dbPath": "/data/EKTDB11",
-    "logPath": "/data/EKTLog",
+    "dbPath": "/data/EKT/db",
+    "logPath": "/data/EKT/log",
     "node": {
         "address": "10.0.0.8",
         "port": 19951,
