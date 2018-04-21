@@ -51,7 +51,6 @@ func (account Account) GetAmount() int64 {
 
 func (account Account) AddAmount(amount int64) {
 	account.amount += amount
-	//account.Nonce++
 }
 
 func (account Account) ReduceAmount(amount int64) {

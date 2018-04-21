@@ -73,9 +73,7 @@ func (blockchain *BlockChain) GetStatus() int {
 }
 
 func (blockchain *BlockChain) ValidateBlock(block *Block, blockBody *BlockBody) bool {
-	fmt.Println("==========", block.Round.IsMyTurn())
 	if block.Round.IsMyTurn() {
-		fmt.Println("=====")
 		go blockchain.PackSignal()
 	}
 	if block.Round.Peers[block.Round.CurrentIndex].Equal(conf.EKTConfig.Node) {
@@ -265,17 +263,6 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 	}
 	blockchain.Pack(block)
 	return block
-}
-
-func (blockchain *BlockChain) NewTransaction(tx *common.Transaction) {
-	blockchain.Pool.ParkTx(tx, pool.Ready)
-	//blockchain.Locker.Lock()
-	//defer blockchain.Locker.Unlock()
-	//if blockchain.Status == OpenStatus {
-	//	blockchain.CurrentBlock.NewTransaction(tx, blockchain.Fee)
-	//} else {
-	//	blockchain.Pool.ParkTx(tx, pool.Ready)
-	//}
 }
 
 // consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法

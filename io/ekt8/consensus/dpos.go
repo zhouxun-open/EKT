@@ -24,17 +24,6 @@ type DPOSConsensus struct {
 	Blockchain *blockchain.BlockChain
 }
 
-//func (dpos DPOSConsensus) ValidateBlock(header *blockchain.Block) {
-//	peer := header.Round.Peers[header.Round.CurrentIndex]
-//	body, err := getBlockBody(peer, header.Height)
-//	if err != nil || body.Height != header.Height {
-//		// TODO vote false
-//	}
-//	// TODO validate body
-//
-//	//TODO vote true
-//}
-
 //从网络层转发过来的交易,进入打包流程
 func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
 	dpos.Blockchain.Locker.Lock()
