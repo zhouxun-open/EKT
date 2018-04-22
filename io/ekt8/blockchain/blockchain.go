@@ -84,7 +84,7 @@ func (blockchain *BlockChain) ValidateBlock(block *Block, blockBody *BlockBody) 
 	for _, txResult := range blockBody.TxResults {
 		tx := blockchain.Pool.Notify(txResult.TxId)
 		if tx == nil {
-			//TODO 从数据库中读取，Pool里面都有，除非有特别大打的延迟
+			//TODO 从数据库中读取，Pool里面都有，除非有特别大的延迟
 			return false
 		}
 		txResult_ := block1.NewTransaction(tx, txResult.Fee)

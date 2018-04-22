@@ -76,24 +76,32 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	var block blockchain.Block
 	err := json.Unmarshal(req.Body, &block)
 	if err != nil {
+		fmt.Println("Block header unmarshal failed, return fail to broadcast peer.")
 		return x_resp.Fail(-1, "error block header", nil), nil
 	}
 	lastBlock, err := blockchain_manager.GetMainChain().LastBlock()
 	if lastBlock.Height+1 != block.Height {
+		fmt.Printf("Block height is not right, want %d, get %d, give up voting. \n", lastBlock.Height+1, block.Height)
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
 	IP := strings.Split(req.R.RemoteAddr, ":")[0]
+	if !strings.EqualFold(block.Round.Peers[block.Round.CurrentIndex].Address, IP) {
+		//当前节点是广播节点，不是打包节点
+
+	}
 	if !strings.EqualFold(IP, lastBlock.Round.Peers[(lastBlock.Round.CurrentIndex+1)%len(lastBlock.Round.Peers)].Address) {
 		return x_resp.Return("error invalid address", errors.New("error invalid address"))
 	}
 	url := fmt.Sprintf("http://%s:19951/db/api/get", IP)
 	body, err := util.HttpPost(url, block.Body)
 	if err != nil {
+		fmt.Println("Get block body from peer failed, return fail to broadcast peer.")
 		return x_resp.Return(err.Error(), err)
 	}
 	var blockBody blockchain.BlockBody
 	err = json.Unmarshal(body, &blockBody)
 	if err != nil {
+		fmt.Printf("Block body unmarshal failed, get %s .\n", string(body))
 		return x_resp.Return(err.Error(), err)
 	}
 	return x_resp.Return(blockchain_manager.GetMainChain().ValidateBlock(&block, &blockBody), nil)
