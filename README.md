@@ -10,12 +10,12 @@
 
 1. 安装Golang环境和gcc环境
     1.1 安装gcc环境
-        * centos
+	centos
 		 `yum -y install gcc`
-        * ubuntu
-		 `sudo apt-get install gcc`
+	ubuntu
+		`sudo apt-get install gcc`
 
-        大家也可以自己下载源码进行安装。安装完成之后可以使用`gcc -v`查看是否安装成功。
+	大家也可以自己下载源码进行安装。安装完成之后可以使用`gcc -v`查看是否安装成功。
 
     1.2 安装Golang环境
 	从golang官网下载安装包，解压到/usr/local目录下，解压后的可以加上版本号，软连接成/usr/local/go目录，方便以后更新golang版本。
