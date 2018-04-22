@@ -26,7 +26,6 @@
 export GOROOT=/usr/local/go
 export GOPATH=/opt/gopath
 export PATH=$GOROOT/bin:$PATH:$GOPATH/bin
-```
 
 	如果/opt目录下没有gopath文件夹的话，可以先新建gopath文件夹 `mkdir /opt/gopath`
 
