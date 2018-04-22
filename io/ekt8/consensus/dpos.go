@@ -39,10 +39,6 @@ func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
 	}
 }
 
-//
-func (dpos DPOSConsensus) BlockBorn(block *blockchain.Block) {
-}
-
 func (dpos DPOSConsensus) Run() {
 	// 从数据库中恢复当前节点已同步的区块
 	fmt.Println("Recover data from local database.")
