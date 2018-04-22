@@ -9,6 +9,7 @@
 # 部署
 
 1. 安装Golang环境和gcc环境
+
     1.1 安装gcc环境
 	centos
 		 `yum -y install gcc`
@@ -26,6 +27,7 @@ export GOROOT=/usr/local/go
 export GOPATH=/opt/gopath
 export PATH=$GOROOT/bin:$PATH:$GOPATH/bin
 ```
+
 	如果/opt目录下没有gopath文件夹的话，可以先新建gopath文件夹 `mkdir /opt/gopath`
 	最后让设置生效，执行`source /etc/profile`
 	大家可以使用go version查看go语言是否已经安装成功，也可以通过go env判断go的一些其他配置。
