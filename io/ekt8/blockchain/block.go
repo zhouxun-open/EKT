@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
@@ -18,6 +19,7 @@ var currentBlock *Block = nil
 
 type Block struct {
 	Height       int64              `json:"height"`
+	Timestamp    int                `json:"timestamp"`
 	Nonce        int64              `json:"nonce"`
 	Fee          int64              `json:"fee"`
 	TotalFee     int64              `json:"totalFee"`
@@ -166,6 +168,7 @@ func NewBlock(last *Block) *Block {
 		Fee:          last.Fee,
 		TotalFee:     0,
 		PreviousHash: last.Hash(),
+		Timestamp:    time.Now().Nanosecond() / 1e6,
 		CurrentHash:  nil,
 		BlockBody:    NewBlockBody(last.Height + 1),
 		Body:         nil,

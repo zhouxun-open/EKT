@@ -76,6 +76,7 @@ WaitingNodes:
 			height++
 		}
 		if failCount >= 3 {
+			fmt.Println("Is my turn: ", dpos.Blockchain.CurrentBlock.Round.IsMyTurn())
 			if dpos.Blockchain.CurrentBlock.Round.IsMyTurn() {
 				dpos.Pack()
 				time.Sleep(3 * time.Second)

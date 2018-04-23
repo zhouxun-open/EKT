@@ -2,10 +2,11 @@
     "dbPath": "/data/EKT/db",
     "logPath": "/data/EKT/log",
     "node": {
-        "address": "10.0.0.8",
+        "address": "127.0.0.1",
         "port": 19951,
         "peerId": "f0c85f9820420bc6035fbd6cc8cba4170e05249a600c9a70d0403c6dd87dc66c",
-        "addressVersion": 4
+        "addressVersion": 4,
+        "accountAddress": ""
     },
     "blockchainManagePwd": "helloworld",
     "genesisBlock": [

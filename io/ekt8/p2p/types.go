@@ -14,6 +14,7 @@ type Peer struct {
 	Address        string `json:"address"`
 	Port           int32  `json:"port"`
 	AddressVersion int    `json:"addressVersion"`
+	AccountAddress string `json:"accountAddress"`
 }
 
 type Peers []Peer

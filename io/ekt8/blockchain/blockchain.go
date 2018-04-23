@@ -28,7 +28,7 @@ func init() {
 }
 
 const (
-	CurrentBlockKey       = "CurrentBlock"
+	CurrentBlockKey       = "CurrentBlock:"
 	BackboneConsensus     = i_consensus.DPOS
 	BackboneBlockInterval = 3
 	InitStatus            = 0
@@ -62,8 +62,8 @@ func (blockchain *BlockChain) PackSignal() {
 		blockchain.Cb(block)
 		blockchain.SaveBlock(block)
 		blockchain.Status = InitStatus
-		blockchain.Locker.Unlock()
 	}
+	blockchain.Locker.Unlock()
 }
 
 func (blockchain *BlockChain) GetStatus() int {
@@ -171,11 +171,11 @@ func (blockchain *BlockChain) GetBlockBodyByHeight(height int64) (*BlockBody, er
 }
 
 func (blockchain *BlockChain) GetBlockBodyByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockBodyByHeight_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
+	return []byte(fmt.Sprint(`GetBlockBodyByHeight:%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
 func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockByHeight_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
+	return []byte(fmt.Sprint(`GetBlockByHeight:%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
