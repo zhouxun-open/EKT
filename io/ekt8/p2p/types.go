@@ -24,6 +24,11 @@ func (peers Peers) Bytes() []byte {
 	return bts
 }
 
+func (peer Peer) String() string {
+	data, _ := json.Marshal(peer)
+	return string(data)
+}
+
 func (peer Peer) IsAlive() bool {
 	body, err := util.HttpGet(fmt.Sprintf(`http://%s:%d/peer/api/ping`, peer.Address, peer.Port))
 	if err != nil || !bytes.Equal(body, []byte("pong")) {

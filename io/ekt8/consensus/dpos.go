@@ -76,6 +76,8 @@ WaitingNodes:
 			height++
 		}
 		if failCount >= 3 {
+			fmt.Println("Round: ", dpos.Blockchain.CurrentBlock.Round.String())
+			fmt.Println("My peer info: ", conf.EKTConfig.Node.String())
 			fmt.Println("Is my turn: ", dpos.Blockchain.CurrentBlock.Round.IsMyTurn())
 			if dpos.Blockchain.CurrentBlock.Round.IsMyTurn() {
 				dpos.Pack()
