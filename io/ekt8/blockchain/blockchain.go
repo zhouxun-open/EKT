@@ -28,7 +28,7 @@ func init() {
 }
 
 const (
-	CurrentBlockKey       = "CurrentBlock:"
+	CurrentBlockKey       = "CurrentBlock__"
 	BackboneConsensus     = i_consensus.DPOS
 	BackboneBlockInterval = 3
 	InitStatus            = 0

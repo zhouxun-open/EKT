@@ -120,7 +120,7 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 			BlockBody:    blockchain.NewBlockBody(0),
 			Body:         nil,
 			Round: &i_consensus.Round{
-				Peers:        p2p.MainChainDPosNode,
+				Peers:        dpos.GetCurrentDPOSPeers(),
 				CurrentIndex: -1,
 			},
 			Locker:    sync.RWMutex{},
