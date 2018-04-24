@@ -20,12 +20,12 @@ func (round *Round) NextRound(CurrentHash []byte) *Round {
 		bytes := CurrentHash[22:]
 		Random := util.BytesToInt(bytes)
 		round = &Round{
-			CurrentIndex: 0,
+			CurrentIndex: round.MyIndex(),
 			Peers:        round.Peers,
 			Random:       Random,
 		}
 	} else {
-		round.CurrentIndex++
+		round.CurrentIndex = round.MyIndex()
 	}
 	return round
 }

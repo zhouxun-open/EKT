@@ -29,7 +29,7 @@ func NewBlockchainValidator(block *Block) *BlockValidator {
 }
 
 func (blockValidator BlockValidator) Run() {
-	timeout := time.After(2 * time.Second)
+	timeout := time.After(1 * time.Second)
 	for {
 		select {
 		case <-timeout:
