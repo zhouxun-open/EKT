@@ -39,6 +39,15 @@ func (round Round) IsMyTurn() bool {
 	return false
 }
 
+func (round Round) MyIndex() int {
+	for i, peer := range round.Peers {
+		if peer.Equal(conf.EKTConfig.Node) {
+			return i
+		}
+	}
+	return -1
+}
+
 func (round Round) Len() int {
 	return len(round.Peers)
 }

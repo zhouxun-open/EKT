@@ -38,18 +38,17 @@ const (
 )
 
 type BlockChain struct {
-	ChainId         []byte
-	Consensus       i_consensus.ConsensusType
-	CurrentBlock    *Block
-	CurrentBody     *BlockBody
-	Locker          sync.RWMutex
-	Status          int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
-	Fee             int64
-	Difficulty      []byte
-	Pool            *pool.Pool
-	CurrentHeight   int64
-	LastBlockHeader *Block
-	Cb              func(block *Block)
+	ChainId       []byte
+	Consensus     i_consensus.ConsensusType
+	CurrentBlock  *Block
+	CurrentBody   *BlockBody
+	Locker        sync.RWMutex
+	Status        int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
+	Fee           int64
+	Difficulty    []byte
+	Pool          *pool.Pool
+	CurrentHeight int64
+	Cb            func(block *Block)
 }
 
 func (blockchain *BlockChain) PackSignal() {
@@ -95,7 +94,7 @@ func (blockchain *BlockChain) ValidateBlock(block *Block, blockBody *BlockBody) 
 	for _, evtResult := range blockBody.EventResults {
 		evt := blockchain.Pool.NotifyEvent(evtResult.EventId)
 		if evt == nil {
-			//TODO 从数据库中读取，Pool里面都有，除非有特别大打的延迟
+			//TODO 从数据库中读取，Pool里面都有，除非有特别大的延迟
 			return false
 		}
 		if strings.EqualFold(evt.EventType, event.NewAccountEvent) {

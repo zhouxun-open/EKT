@@ -162,13 +162,13 @@ func FromBytes2Block(data []byte) (*Block, error) {
 }
 
 func NewBlock(last *Block) *Block {
-	return &Block{
+	block := &Block{
 		Height:       last.Height + 1,
 		Nonce:        0,
 		Fee:          last.Fee,
 		TotalFee:     0,
 		PreviousHash: last.Hash(),
-		Timestamp:    time.Now().Nanosecond() / 1e6,
+		Timestamp:    time.Now().Second()*1000 + time.Now().Nanosecond(),
 		CurrentHash:  nil,
 		BlockBody:    NewBlockBody(last.Height + 1),
 		Body:         nil,
@@ -179,4 +179,5 @@ func NewBlock(last *Block) *Block {
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 		TokenTree:    last.TokenTree,
 	}
+	return block
 }

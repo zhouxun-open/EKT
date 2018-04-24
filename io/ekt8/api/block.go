@@ -85,9 +85,14 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
 	IP := strings.Split(req.R.RemoteAddr, ":")[0]
-	if !strings.EqualFold(block.Round.Peers[block.Round.CurrentIndex].Address, IP) {
-		//当前节点是广播节点，不是打包节点
-
+	if strings.EqualFold(block.Round.Peers[block.Round.CurrentIndex].Address, IP) && block.Round.MyIndex() != -1 && (block.Round.MyIndex()-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) < len(block.Round.Peers)/2 {
+		//当前节点是打包节点广播，而且当前节点满足(currentIndex - miningIndex + len(DPoSNodes)) % len(DPoSNodes) < len(DPoSNodes) / 2
+		for i := 0; i < len(block.Round.Peers); i++ {
+			if i == block.Round.CurrentIndex || i == block.Round.MyIndex() {
+				continue
+			}
+			util.HttpPost(fmt.Sprintf(`http://%s:%d/block/api/newBlock`, block.Round.Peers[i].Address, block.Round.Peers[i].Port), req.Body)
+		}
 	}
 	if !strings.EqualFold(IP, lastBlock.Round.Peers[(lastBlock.Round.CurrentIndex+1)%len(lastBlock.Round.Peers)].Address) {
 		return x_resp.Return("error invalid address", errors.New("error invalid address"))
