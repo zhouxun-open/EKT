@@ -1,6 +1,8 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -14,6 +16,10 @@ func init() {
 
 func GetValue(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	v, err := db.GetDBInst().Get(req.Body)
+	if len(v) != 32 {
+		fmt.Println("Remote peer want a db value that len(key) is not 32 byte, return fail.")
+		return x_resp.Fail(-403, "Invalid Key", string(v)), nil
+	}
 	resp := &x_resp.XRespContainer{
 		HttpCode: 200,
 		Body:     v,
