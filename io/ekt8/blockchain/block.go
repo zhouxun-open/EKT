@@ -65,6 +65,21 @@ func (block Block) Validate() error {
 	return nil
 }
 
+func (block Block) Recover() error {
+	if !bytes.Equal(block.Body, block.BlockBody.Bytes()) {
+		peer := block.Round.Peers[block.Round.CurrentIndex]
+		bodyData, err := peer.GetDBValue(block.Body)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(bodyData, block.BlockBody)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (block *Block) GetAccount(address []byte) (*common.Account, error) {
 	value, err := block.StatTree.GetValue(address)
 	if err != nil {
