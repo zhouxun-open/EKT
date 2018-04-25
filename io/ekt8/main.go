@@ -8,6 +8,7 @@ import (
 	_ "github.com/EducationEKT/EKT/io/ekt8/api"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
+	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/xserver/x_http"
@@ -39,12 +40,37 @@ func InitService() error {
 	if err != nil {
 		return err
 	}
+	err = initPeerId()
+	if err != nil {
+		return err
+	}
 	err = initLog()
 	if err != nil {
 		return err
 	}
 	blockchain_manager.Init()
 
+	return nil
+}
+
+func initPeerId() error {
+	peerInfoKey := []byte("peerIdInfo")
+	v, err := db.GetDBInst().Get(peerInfoKey)
+	if err != nil || nil == v || 0 == len(v) {
+		pub, priv := crypto.GenerateKeyPair()
+		conf.EKTConfig.PrivateKey = priv
+		conf.EKTConfig.Node.PeerId = crypto.Sha3_256(pub)
+		return db.GetDBInst().Set(peerInfoKey, priv)
+	} else {
+		conf.EKTConfig.PrivateKey = v
+		data := crypto.Sha3_256(v)
+		cryptoData, err := crypto.Crypto(data, v)
+		if err != nil {
+			return err
+		}
+		pub, err := crypto.RecoverPubKey(data, cryptoData)
+		conf.EKTConfig.Node.PeerId = crypto.Sha3_256(pub)
+	}
 	return nil
 }
 

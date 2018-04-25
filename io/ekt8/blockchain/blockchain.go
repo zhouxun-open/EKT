@@ -16,6 +16,8 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/pool"
+	"github.com/EducationEKT/EKT/io/ekt8/util"
+
 	"strings"
 )
 
@@ -49,6 +51,8 @@ type BlockChain struct {
 	Pool          *pool.Pool
 	CurrentHeight int64
 	Cb            func(block *Block)
+	Validator     *BlockValidator
+	BlockInterval int
 }
 
 func (blockchain *BlockChain) PackSignal() {
@@ -277,4 +281,30 @@ func (blockchain *BlockChain) Pack(block *Block) {
 	}
 	end := time.Now().Nanosecond()
 	fmt.Printf("Caculated block hash, cost %d ms\n", (end-start+1e9)%1e9/1e6)
+}
+
+func (blockchain *BlockChain) BlockFromPeer(block *Block) {
+	if err := block.Validate(); err != nil {
+		fmt.Errorf("Block validate failed.", err)
+		return
+	}
+	if !blockchain.CurrentBlock.ValidateNextBlock(block) {
+		fmt.Println("This block from peer can not recover by last block, abort.")
+		return
+	}
+	// 签名
+	vote := &BlockVote{
+		BlockHash:   block.Hash(),
+		BlockHeight: block.Height,
+		VoteResult:  true,
+		Peer:        conf.EKTConfig.Node,
+	}
+	vote.Sign(conf.EKTConfig.PrivateKey)
+	for i, peer := range block.Round.Peers {
+		if (i-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) < len(block.Round.Peers)/2 {
+			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
+			util.HttpPost(url, vote.Bytes())
+		}
+
+	}
 }

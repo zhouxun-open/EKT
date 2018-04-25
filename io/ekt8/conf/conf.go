@@ -14,6 +14,7 @@ type EKTConf struct {
 	Node                 p2p.Peer         `json:"node"`
 	BlockchainManagePwd  string           `json:"blockchainManagePwd"`
 	GenesisBlockAccounts []common.Account `json:"genesisBlock"`
+	PrivateKey           []byte           `json:"privateKey"`
 }
 
 var EKTConfig EKTConf

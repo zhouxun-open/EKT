@@ -3,6 +3,7 @@ package blockchain
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sort"
 
@@ -13,7 +14,7 @@ import (
 
 type BlockVote struct {
 	BlockHash   []byte   `json:"blockHash"`
-	BlockHeight int      `json:"blockHeight"`
+	BlockHeight int64    `json:"blockHeight"`
 	VoteResult  bool     `json:"voteResult"`
 	Peer        p2p.Peer `json:"peer"`
 	Signature   []byte   `json:"signature"`
@@ -51,6 +52,11 @@ func (vote BlockVote) Sign(PrivKey []byte) error {
 		vote.Signature = signature
 	}
 	return nil
+}
+
+func (vote BlockVote) Bytes() []byte {
+	data, _ := json.Marshal(vote)
+	return data
 }
 
 func (vote VoteResults) Insert(voteResult BlockVote) {
