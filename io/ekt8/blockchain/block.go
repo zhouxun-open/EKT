@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -58,6 +59,7 @@ func (block *Block) NewNonce() {
 	block.Nonce++
 }
 
+// 校验区块头的hash值和其他字段是否匹配
 func (block Block) Validate() error {
 	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
 		return errors.New("Invalid Hash")
@@ -65,6 +67,8 @@ func (block Block) Validate() error {
 	return nil
 }
 
+// 从网络节点过来的区块头，如果区块的body为空，则从打包节点获取
+// 获取之后会对blockBody的Hash进行校验，如果不符合要求则放弃Recover
 func (block Block) Recover() error {
 	if !bytes.Equal(block.Body, block.BlockBody.Bytes()) {
 		peer := block.Round.Peers[block.Round.CurrentIndex]
@@ -75,6 +79,9 @@ func (block Block) Recover() error {
 		err = json.Unmarshal(bodyData, block.BlockBody)
 		if err != nil {
 			return err
+		}
+		if !bytes.Equal(crypto.Sha3_256(block.BlockBody.Bytes()), block.Body) {
+			return errors.New(fmt.Sprintf("Block body is wrong, want hash(body) = %s, get %s", block.Body, crypto.Sha3_256(block.BlockBody.Bytes())))
 		}
 	}
 	return nil
