@@ -203,3 +203,8 @@ func NewBlock(last *Block) *Block {
 	}
 	return block
 }
+
+func (block *Block) ValidateNextBlock(next *Block) bool {
+	//TODO
+	return true
+}
