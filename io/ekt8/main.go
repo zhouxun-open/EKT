@@ -52,7 +52,7 @@ func initConfig() error {
 	var confPath string
 	if len(os.Args) < 2 {
 		confPath = "genesis.json"
-		fmt.Println("No conf file specified, genesis.jsonn will be default one.")
+		fmt.Println("No conf file specified, genesis.json will be default one.")
 	} else {
 		confPath = os.Args[1]
 	}
