@@ -55,6 +55,9 @@ WaitingNodes:
 			fmt.Println()
 			break
 		}
+		if aliveCount == 0 {
+			fmt.Println("There is no node alive.")
+		}
 		fmt.Println("The number of surviving nodes is less than half, waiting for other nodes to restart.")
 		time.Sleep(3 * time.Second)
 	}
