@@ -225,7 +225,7 @@ func (block *Block) ValidateNextBlock(next *Block, interval int) bool {
 		}
 	} else {
 		// 如果前n个节点没有出块，判断当前节点是否拥有打包权限（时间）
-		n := time/interval - 1
+		n := time / interval
 		if n > len(block.Round.Peers) {
 			// 如果已经超过一轮没有出块，则所有节点等放弃出块，等待当前轮下一个节点进行打包
 			if !block.Round.IndexPlus(block.Hash()).Equal(next.Round) {
