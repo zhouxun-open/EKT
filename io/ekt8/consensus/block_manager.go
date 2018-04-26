@@ -6,9 +6,10 @@ type BlockManager struct {
 	Blockchain blockchain.BlockChain
 }
 
+// TODO delte
 func (m *BlockManager) BlockFromPeer(block *blockchain.Block) {
 	//从peer过来的block先对hash进行校验
-	err := block.Validate()
+	err := block.Validate(nil)
 	if err != nil {
 		return
 	}

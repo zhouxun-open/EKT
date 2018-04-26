@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
+	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
@@ -59,10 +60,17 @@ func (block *Block) NewNonce() {
 	block.Nonce++
 }
 
-// 校验区块头的hash值和其他字段是否匹配
-func (block Block) Validate() error {
+// 校验区块头的hash值和其他字段是否匹配，以及签名是否正确
+func (block Block) Validate(sign []byte) error {
 	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
 		return errors.New("Invalid Hash")
+	}
+	pub, err := crypto.RecoverPubKey(block.Hash(), sign)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(crypto.Sha3_256(pub), conf.EKTConfig.Node.PeerId) {
+		return errors.New("Invalid signature")
 	}
 	return nil
 }

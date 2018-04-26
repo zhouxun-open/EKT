@@ -283,8 +283,8 @@ func (blockchain *BlockChain) Pack(block *Block) {
 	fmt.Printf("Caculated block hash, cost %d ms\n", (end-start+1e9)%1e9/1e6)
 }
 
-func (blockchain *BlockChain) BlockFromPeer(block *Block) {
-	if err := block.Validate(); err != nil {
+func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
+	if err := block.Validate(sign); err != nil {
 		fmt.Errorf("Block validate failed, %s. \n", err.Error())
 		return
 	}
