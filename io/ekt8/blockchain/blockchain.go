@@ -285,7 +285,7 @@ func (blockchain *BlockChain) Pack(block *Block) {
 
 func (blockchain *BlockChain) BlockFromPeer(block *Block) {
 	if err := block.Validate(); err != nil {
-		fmt.Errorf("Block validate failed.", err)
+		fmt.Errorf("Block validate failed, %s. \n", err.Error())
 		return
 	}
 	if !blockchain.CurrentBlock.ValidateNextBlock(block) {
@@ -305,6 +305,5 @@ func (blockchain *BlockChain) BlockFromPeer(block *Block) {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
 			util.HttpPost(url, vote.Bytes())
 		}
-
 	}
 }
