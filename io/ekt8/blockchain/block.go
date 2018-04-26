@@ -218,34 +218,27 @@ func (block *Block) ValidateNextBlock(next *Block, interval int) bool {
 	}
 	time := next.Timestamp - block.Timestamp
 	//时间差在下一个区块，说明中间没有错过区块
-	if 0 < time && time <= interval {
-		// 当前节点不是打包节点
+	// 如果前n个节点没有出块，判断当前节点是否拥有打包权限（时间）
+	n := time / interval
+	if n > len(block.Round.Peers) {
+		// 如果已经超过一轮没有出块，则所有节点等放弃出块，等待当前轮下一个节点进行打包
 		if !block.Round.IndexPlus(block.Hash()).Equal(next.Round) {
 			return false
 		}
-	} else {
-		// 如果前n个节点没有出块，判断当前节点是否拥有打包权限（时间）
-		n := time / interval
-		if n > len(block.Round.Peers) {
-			// 如果已经超过一轮没有出块，则所有节点等放弃出块，等待当前轮下一个节点进行打包
-			if !block.Round.IndexPlus(block.Hash()).Equal(next.Round) {
-				return false
-			}
-		}
-		remainder := time % interval
-		if remainder > interval/2 {
-			n++
-		}
-		// 需要计算下一个区块的index
-		if block.Round.CurrentIndex+n >= len(block.Round.Peers) {
-			// 计算当前区块的区块差
-			miningNumber := len(block.Round.Peers) - block.Round.CurrentIndex + next.Round.CurrentIndex
-			if miningNumber != n {
-				return false
-			}
-		} else if block.Round.CurrentIndex+n != next.Round.CurrentIndex {
+	}
+	remainder := time % interval
+	if remainder > interval/2 {
+		n++
+	}
+	// 需要计算下一个区块的index
+	if block.Round.CurrentIndex+n >= len(block.Round.Peers) {
+		// 计算当前区块的区块差
+		miningNumber := len(block.Round.Peers) - block.Round.CurrentIndex + next.Round.CurrentIndex
+		if miningNumber != n {
 			return false
 		}
+	} else if block.Round.CurrentIndex+n != next.Round.CurrentIndex {
+		return false
 	}
 	return block.ValidateBlockStat(next)
 }
