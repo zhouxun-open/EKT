@@ -13,6 +13,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
+	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 )
 
@@ -244,6 +245,7 @@ func (block *Block) ValidateNextBlock(next *Block, interval int) bool {
 }
 
 func (block *Block) ValidateBlockStat(next *Block) bool {
+	// 从打包节点获取body
 	body, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(next.Body)
 	if err != nil {
 		return false
@@ -252,5 +254,68 @@ func (block *Block) ValidateBlockStat(next *Block) bool {
 	if err != nil {
 		return false
 	}
+
+	//根据上一个区块头生成一个新的区块
+	_next := NewBlock(block)
+
+	//让新生成的区块执行peer传过来的body中的events进行计算
+	for _, eventResult := range next.BlockBody.EventResults {
+		evtId, _ := hex.DecodeString(eventResult.EventId)
+		evt := event.GetEvent(evtId)
+		if evt == nil {
+			data, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(evtId)
+			if err != nil {
+				return false
+			}
+			evt = event.FromBytes(data)
+			if evt == nil {
+				return false
+			}
+		}
+		_next.HandlerEvent(evt)
+	}
+
+	//让新生成的区块执行peer传过来的body中的transactions进行计算
+	for _, txResult := range block.BlockBody.TxResults {
+		txId, _ := hex.DecodeString(txResult.TxId)
+		tx := common.GetTransaction(txId)
+		if tx == nil {
+			data, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(txId)
+			if err != nil {
+				return false
+			}
+			tx = common.FromBytes(data)
+			if tx == nil {
+				return false
+			}
+		}
+		_next.NewTransaction(tx, block.Fee)
+	}
+	_next.Nonce = next.Nonce
+	if !bytes.Equal(next.Hash(), _next.CaculateHash()) {
+		return false
+	}
+
 	return true
+}
+
+func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
+	evtResult := event.EventResult{
+		EventId: hex.EncodeToString(evt.EventId()),
+		Success: false,
+		Reason:  "",
+	}
+	if evt.EventType == event.NewAccountEvent {
+		param := evt.EventParam.(event.NewAccountParam)
+		address, _ := hex.DecodeString(param.Address)
+		pubKey, _ := hex.DecodeString(param.PubKey)
+		if !block.ExistAddress(address) {
+			block.newAccount(address, pubKey)
+			evtResult.Success = true
+		} else {
+			evtResult.Reason = "AddressExist"
+		}
+	}
+	block.EventTree.MustInsert(evt.EventId(), evtResult.Bytes())
+	return evtResult
 }

@@ -3,8 +3,10 @@ package event
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/db"
 )
 
 const (
@@ -38,9 +40,36 @@ type UpdatePublicKeyParam struct {
 }
 
 type EventResult struct {
-	EventId string
-	Success bool
-	Reason  string
+	EventId string `json:"eventId"`
+	Success bool   `json:"success"`
+	Reason  string `json:"reason"`
+}
+
+func (evtResult EventResult) Bytes() []byte {
+	data, _ := json.Marshal(evtResult)
+	return data
+}
+
+func (event Event) EventId() []byte {
+	data, _ := json.Marshal(event)
+	return crypto.Sha3_256(data)
+}
+
+func GetEvent(eventId []byte) *Event {
+	data, err := db.GetDBInst().Get(eventId)
+	if err != nil {
+		return nil
+	}
+	return FromBytes(data)
+}
+
+func FromBytes(data []byte) *Event {
+	var event Event
+	err := json.Unmarshal(data, &event)
+	if err != nil {
+		return nil
+	}
+	return &event
 }
 
 func (newAccountParam NewAccountParam) EventType() string {

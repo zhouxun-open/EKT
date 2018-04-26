@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/db"
 )
 
 type Transactions []*Transaction
@@ -36,6 +37,23 @@ func NewTransactionResult(tx *Transaction, fee int64, success bool, failMessage 
 	}
 }
 
+func GetTransaction(txId []byte) *Transaction {
+	txData, err := db.GetDBInst().Get(txId)
+	if err != nil {
+		return nil
+	}
+	return FromBytes(txData)
+}
+
+func FromBytes(data []byte) *Transaction {
+	var tx Transaction
+	err := json.Unmarshal(data, &tx)
+	if err != nil {
+		return nil
+	}
+	return &tx
+}
+
 func (txResult *TxResult) ToBytes() []byte {
 	data, _ := json.Marshal(txResult)
 	return data
@@ -59,10 +77,6 @@ func (transactions Transactions) Swap(i, j int) {
 
 func (tx *Transaction) Bytes() []byte {
 	token := tx.TokenAddress
-	if strings.EqualFold(token, "") {
-		//默认是EKT
-		token = ""
-	}
 	str := fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "nonce": %d, "tokenAddress": "%s"}`,
 		tx.From, tx.To, tx.TimeStamp, tx.Amount, tx.Nonce, token)
 	return []byte(str)
