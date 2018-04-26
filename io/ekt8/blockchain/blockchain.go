@@ -288,7 +288,7 @@ func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
 		fmt.Errorf("Block validate failed, %s. \n", err.Error())
 		return
 	}
-	if !blockchain.CurrentBlock.ValidateNextBlock(block) {
+	if !blockchain.CurrentBlock.ValidateNextBlock(block, blockchain.BlockInterval) {
 		fmt.Println("This block from peer can not recover by last block, abort.")
 		return
 	}

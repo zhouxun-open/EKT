@@ -15,6 +15,32 @@ type Round struct {
 	Random       int        `json:"random"`
 }
 
+func (round1 *Round) Equal(round2 *Round) bool {
+	if round1.CurrentIndex != round2.CurrentIndex || len(round1.Peers) != len(round2.Peers) {
+		return false
+	}
+	for i, peer := range round1.Peers {
+		if !peer.Equal(round2.Peers[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (round *Round) IndexPlus(CurrentHash []byte) *Round {
+	if round.CurrentIndex == len(round.Peers)-1 {
+		Random := util.BytesToInt(CurrentHash[22:])
+		round = &Round{
+			CurrentIndex: 0,
+			Peers:        round.Peers,
+			Random:       Random,
+		}
+	} else {
+		round.CurrentIndex++
+	}
+	return round
+}
+
 func (round *Round) NextRound(CurrentHash []byte) *Round {
 	if round.CurrentIndex == len(round.Peers)-1 {
 		bytes := CurrentHash[22:]

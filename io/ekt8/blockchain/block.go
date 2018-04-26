@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
-	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
@@ -69,7 +68,7 @@ func (block Block) Validate(sign []byte) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(crypto.Sha3_256(pub), conf.EKTConfig.Node.PeerId) {
+	if !bytes.Equal(crypto.Sha3_256(pub), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
 		return errors.New("Invalid signature")
 	}
 	return nil
@@ -198,7 +197,7 @@ func NewBlock(last *Block) *Block {
 		Fee:          last.Fee,
 		TotalFee:     0,
 		PreviousHash: last.Hash(),
-		Timestamp:    time.Now().Second()*1000 + time.Now().Nanosecond(),
+		Timestamp:    time.Now().Second(),
 		CurrentHash:  nil,
 		BlockBody:    NewBlockBody(last.Height + 1),
 		Body:         nil,
@@ -212,7 +211,53 @@ func NewBlock(last *Block) *Block {
 	return block
 }
 
-func (block *Block) ValidateNextBlock(next *Block) bool {
-	//TODO
+func (block *Block) ValidateNextBlock(next *Block, interval int) bool {
+	//如果不是当前的块的下一个区块，则返回false
+	if !bytes.Equal(next.PreviousHash, block.Hash()) || block.Height+1 != next.Height {
+		return false
+	}
+	time := next.Timestamp - block.Timestamp
+	//时间差在下一个区块，说明中间没有错过区块
+	if 0 < time && time <= interval {
+		// 当前节点不是打包节点
+		if !block.Round.IndexPlus(block.Hash()).Equal(next.Round) {
+			return false
+		}
+	} else {
+		// 如果前n个节点没有出块，判断当前节点是否拥有打包权限（时间）
+		n := time/interval - 1
+		if n > len(block.Round.Peers) {
+			// 如果已经超过一轮没有出块，则所有节点等放弃出块，等待当前轮下一个节点进行打包
+			if !block.Round.IndexPlus(block.Hash()).Equal(next.Round) {
+				return false
+			}
+		}
+		remainder := time % interval
+		if remainder > interval/2 {
+			n++
+		}
+		// 需要计算下一个区块的index
+		if block.Round.CurrentIndex+n >= len(block.Round.Peers) {
+			// 计算当前区块的区块差
+			miningNumber := len(block.Round.Peers) - block.Round.CurrentIndex + next.Round.CurrentIndex
+			if miningNumber != n {
+				return false
+			}
+		} else if block.Round.CurrentIndex+n != next.Round.CurrentIndex {
+			return false
+		}
+	}
+	return block.ValidateBlockStat(next)
+}
+
+func (block *Block) ValidateBlockStat(next *Block) bool {
+	body, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(next.Body)
+	if err != nil {
+		return false
+	}
+	next.BlockBody, err = FromBytes(body)
+	if err != nil {
+		return false
+	}
 	return true
 }
