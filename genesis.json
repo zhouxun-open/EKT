@@ -1,4 +1,5 @@
 {
+    "version": "0.1.10",
     "dbPath": "/data/EKT/db",
     "logPath": "/data/EKT/log",
     "node": {
@@ -7,7 +8,6 @@
         "addressVersion": 4
     },
     "blockchainManagePwd": "helloworld",
-    "privKey": "",
     "genesisBlock": [
         {
             "address": "d7190eb194ff9494625514b6d178c87f99c5973e28c398969d2233f2960a573e",

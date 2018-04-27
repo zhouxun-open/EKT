@@ -9,6 +9,7 @@ import (
 )
 
 type EKTConf struct {
+	Version              string           `json:"version"`
 	DBPath               string           `json:"dbPath"`
 	LogPath              string           `json:"logPath"`
 	Node                 p2p.Peer         `json:"node"`
