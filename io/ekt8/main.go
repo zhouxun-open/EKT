@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
@@ -59,17 +60,20 @@ func initPeerId() error {
 	if err != nil || nil == v || 0 == len(v) {
 		pub, priv := crypto.GenerateKeyPair()
 		conf.EKTConfig.PrivateKey = priv
-		conf.EKTConfig.Node.PeerId = crypto.Sha3_256(pub)
+		conf.EKTConfig.Node.PeerId = hex.EncodeToString(crypto.Sha3_256(pub))
+		fmt.Printf("Current peerId is: %s . \n", conf.EKTConfig.Node.PeerId)
 		return db.GetDBInst().Set(peerInfoKey, priv)
 	} else {
 		conf.EKTConfig.PrivateKey = v
 		data := crypto.Sha3_256(v)
 		cryptoData, err := crypto.Crypto(data, v)
 		if err != nil {
+			fmt.Println(err)
 			return err
 		}
 		pub, err := crypto.RecoverPubKey(data, cryptoData)
-		conf.EKTConfig.Node.PeerId = crypto.Sha3_256(pub)
+		conf.EKTConfig.Node.PeerId = hex.EncodeToString(crypto.Sha3_256(pub))
+		fmt.Printf("Current peerId is %s. \n", conf.EKTConfig.Node.PeerId)
 	}
 	return nil
 }
