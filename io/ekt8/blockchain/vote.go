@@ -1,11 +1,11 @@
 package blockchain
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/EducationEKT/EKT/io/ekt8/b_search"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
@@ -13,11 +13,12 @@ import (
 )
 
 type BlockVote struct {
-	BlockHash   []byte   `json:"blockHash"`
-	BlockHeight int64    `json:"blockHeight"`
-	VoteResult  bool     `json:"voteResult"`
-	Peer        p2p.Peer `json:"peer"`
-	Signature   []byte   `json:"signature"`
+	BlockchainId []byte   `json:"blockchainId"`
+	BlockHash    []byte   `json:"blockHash"`
+	BlockHeight  int64    `json:"blockHeight"`
+	VoteResult   bool     `json:"voteResult"`
+	Peer         p2p.Peer `json:"peer"`
+	Signature    []byte   `json:"signature"`
 }
 
 type Votes []BlockVote
@@ -26,9 +27,12 @@ type VoteResults struct {
 	VoteResults Votes
 }
 
-func (vote BlockVote) Validate(pubKey []byte) bool {
+func (vote BlockVote) Validate() bool {
 	pubKey_, err := crypto.RecoverPubKey(vote.Data(), vote.Signature)
-	if err != nil || !bytes.Equal(pubKey_, pubKey) {
+	if err != nil {
+		return false
+	}
+	if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubKey_)), vote.Peer.PeerId) {
 		return false
 	}
 	return true

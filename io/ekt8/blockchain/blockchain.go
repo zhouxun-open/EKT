@@ -294,10 +294,11 @@ func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
 	}
 	// 签名
 	vote := &BlockVote{
-		BlockHash:   block.Hash(),
-		BlockHeight: block.Height,
-		VoteResult:  true,
-		Peer:        conf.EKTConfig.Node,
+		BlockchainId: blockchain.ChainId,
+		BlockHash:    block.Hash(),
+		BlockHeight:  block.Height,
+		VoteResult:   true,
+		Peer:         conf.EKTConfig.Node,
 	}
 	vote.Sign(conf.EKTConfig.PrivateKey)
 	for i, peer := range block.Round.Peers {

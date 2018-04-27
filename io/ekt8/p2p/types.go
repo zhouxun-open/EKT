@@ -10,7 +10,7 @@ import (
 )
 
 type Peer struct {
-	PeerId         []byte `json:"peerId"`
+	PeerId         string `json:"peerId"`
 	Address        string `json:"address"`
 	Port           int32  `json:"port"`
 	AddressVersion int    `json:"addressVersion"`

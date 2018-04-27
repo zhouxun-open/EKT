@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -69,7 +70,7 @@ func (block Block) Validate(sign []byte) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(crypto.Sha3_256(pub), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
+	if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pub)), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
 		return errors.New("Invalid signature")
 	}
 	return nil
