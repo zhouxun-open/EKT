@@ -13,15 +13,17 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
+	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
+
 	"sync"
 	"time"
 )
 
 type DPOSConsensus struct {
-	Round      i_consensus.Round
 	Blockchain *blockchain.BlockChain
+	Locker     sync.RWMutex
 }
 
 //从网络层转发过来的交易,进入打包流程
@@ -43,10 +45,26 @@ func (dpos DPOSConsensus) Run() {
 	for {
 		defer func() {
 			if r := recover(); r != nil {
+				log.GetLogInst().LogDebug(`Consensus occured an unknown error, recovered. %v`, r)
+				log.GetLogInst().LogCrit(`Consensus occured an unknown error, recovered. %v`, r)
 				fmt.Println(r)
 			}
 		}()
 		dpos.RUN()
+	}
+}
+
+func (dpos DPOSConsensus) DPoSRun() {
+	interval := 50 * time.Millisecond
+	for {
+		log.GetLogInst().LogInfo(`Timer tick: is my turn?`)
+		if dpos.Blockchain.CurrentBlock.Round.IsMyTurn() {
+			dpos.Pack(dpos.Blockchain.CurrentHeight)
+			log.GetLogInst().LogInfo("Yes.")
+		} else {
+			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
+			time.Sleep(interval)
+		}
 	}
 }
 
@@ -75,27 +93,28 @@ WaitingNodes:
 	fmt.Println("Alive node more than half, continue.")
 
 	fmt.Println("Synchronizing blockchain...")
-	interval := 50 * time.Microsecond
+	interval := 50 * time.Millisecond
+	flag := false
 	failCount := 0
-	for height := dpos.Blockchain.CurrentHeight + 1; ; {
-		if !dpos.SyncHeight(height) {
-			if AliveDPoSPeerCount(peers, false) < len(dpos.Round.Peers) {
+	for height := dpos.Blockchain.CurrentHeight + 1; flag == false; {
+		if dpos.SyncHeight(height) {
+			fmt.Printf("Synchronizing block at height %d successed. \n", height)
+			height++
+			failCount = 0
+		} else {
+			if AliveDPoSPeerCount(peers, false) <= len(dpos.Blockchain.CurrentBlock.Round.Peers)/2 {
 				goto WaitingNodes
 			}
 			failCount++
-			fmt.Printf("Synchronize block at height %d failed. \n", height)
-			interval = 3 * time.Second
-		} else {
-			fmt.Printf("Synchronizing block at height %d successed. \n", height)
-			height++
-		}
-		if failCount >= 3 {
-			fmt.Println("Round: ", dpos.Blockchain.CurrentBlock.Round.String())
-			fmt.Println("My peer info: ", conf.EKTConfig.Node.String())
-			fmt.Println("Is my turn: ", dpos.Blockchain.CurrentBlock.Round.IsMyTurn())
-			if dpos.Blockchain.CurrentBlock.Round.IsMyTurn() {
-				dpos.Pack()
-				time.Sleep(3 * time.Second)
+			// 如果区块同步失败，会重试三次，三次之后判断当前节点是否是DPoS节点，选择不同的同步策略
+			if failCount >= 3 {
+				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
+				if dpos.Blockchain.CurrentBlock.Round.MyIndex() != -1 {
+					flag = true
+					dpos.DPoSRun()
+				} else {
+					interval = 3 * time.Second
+				}
 			}
 		}
 		time.Sleep(interval)
@@ -103,7 +122,7 @@ WaitingNodes:
 }
 
 // 共识向blockchain发送signal进行下一个区块的打包
-func (dpos DPOSConsensus) Pack() {
+func (dpos DPOSConsensus) Pack(height int64) {
 	bc := dpos.Blockchain
 	bc.PackSignal()
 }
@@ -176,7 +195,7 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	var header *blockchain.Block
 	m := make(map[string]int)
 	mapping := make(map[string]*blockchain.Block)
-	for _, peer := range dpos.Round.Peers {
+	for _, peer := range dpos.Blockchain.CurrentBlock.Round.Peers {
 		block, err := getBlockHeader(peer, height)
 		if err != nil {
 			continue
@@ -187,7 +206,7 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 		} else {
 			m[hex.EncodeToString(block.Hash())] = 1
 		}
-		if m[hex.EncodeToString(block.Hash())] > len(dpos.Round.Peers) {
+		if m[hex.EncodeToString(block.Hash())] > len(dpos.Blockchain.CurrentBlock.Round.Peers) {
 			header = mapping[hex.EncodeToString(block.Hash())]
 		}
 	}
@@ -216,14 +235,14 @@ func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 	var currentBlock *blockchain.Block = nil
 	blocks := make(map[string]int64)
 	mapping := make(map[string]*blockchain.Block)
-	for _, peer := range dpos.Round.Peers {
+	for _, peer := range dpos.Blockchain.CurrentBlock.Round.Peers {
 		block, err := CurrentBlock(peer)
 		if err != nil {
 			continue
 		}
 		mapping[hex.EncodeToString(block.Hash())] = block
 		num, exist := blocks[hex.EncodeToString(block.Hash())]
-		if exist && num+1 >= int64(len(dpos.Round.Peers))/2 {
+		if exist && num+1 >= int64(len(dpos.Blockchain.CurrentBlock.Round.Peers))/2 {
 			currentBlock = block
 			break
 		} else {

@@ -22,7 +22,7 @@ var currentBlock *Block = nil
 
 type Block struct {
 	Height       int64              `json:"height"`
-	Timestamp    int                `json:"timestamp"`
+	Timestamp    int64              `json:"timestamp"`
 	Nonce        int64              `json:"nonce"`
 	Fee          int64              `json:"fee"`
 	TotalFee     int64              `json:"totalFee"`
@@ -199,7 +199,7 @@ func NewBlock(last *Block) *Block {
 		Fee:          last.Fee,
 		TotalFee:     0,
 		PreviousHash: last.Hash(),
-		Timestamp:    time.Now().Second(),
+		Timestamp:    time.Now().UnixNano() / 1e6,
 		CurrentHash:  nil,
 		BlockBody:    NewBlockBody(last.Height + 1),
 		Body:         nil,
@@ -213,23 +213,23 @@ func NewBlock(last *Block) *Block {
 	return block
 }
 
-func (block *Block) ValidateNextBlock(next *Block, interval int) bool {
-	//如果不是当前的块的下一个区块，则返回false
+func (block *Block) ValidateNextBlock(next *Block, interval time.Duration) bool {
+	// 如果不是当前的块的下一个区块，则返回false
 	if !bytes.Equal(next.PreviousHash, block.Hash()) || block.Height+1 != next.Height {
 		return false
 	}
 	time := next.Timestamp - block.Timestamp
-	//时间差在下一个区块，说明中间没有错过区块
+	// 时间差在下一个区块，说明中间没有错过区块
 	// 如果前n个节点没有出块，判断当前节点是否拥有打包权限（时间）
-	n := time / interval
+	n := int(time) / int(interval)
 	if n > len(block.Round.Peers) {
 		// 如果已经超过一轮没有出块，则所有节点等放弃出块，等待当前轮下一个节点进行打包
 		if !block.Round.IndexPlus(block.Hash()).Equal(next.Round) {
 			return false
 		}
 	}
-	remainder := time % interval
-	if remainder > interval/2 {
+	remainder := int(time) % int(interval)
+	if remainder > int(interval)/2 {
 		n++
 	}
 	// 需要计算下一个区块的index
@@ -319,4 +319,9 @@ func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
 	}
 	block.EventTree.MustInsert(evt.EventId(), evtResult.Bytes())
 	return evtResult
+}
+
+func (block *Block) Sign(privKey []byte) string {
+	data, _ := crypto.Crypto(block.Hash(), privKey)
+	return hex.EncodeToString(data)
 }

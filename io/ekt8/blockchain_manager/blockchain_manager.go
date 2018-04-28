@@ -33,7 +33,10 @@ func Init() {
 	}
 	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, nil, nil, sync.RWMutex{},
 		blockchain.BackboneConsensus, 210000, []byte("FF"), pool.NewPool(), 0, nil, nil, blockchain.BackboneBlockInterval}
-	MainBlockChainConsensus = consensus.DPOSConsensus{Blockchain: MainBlockChain}
+	MainBlockChainConsensus = consensus.DPOSConsensus{
+		Blockchain: MainBlockChain,
+		Locker:     sync.RWMutex{},
+	}
 	MainBlockChain.Cb = MainBlockChainConsensus.BlockMinedCallBack
 	go MainBlockChainConsensus.Run()
 	value, err := db.GetDBInst().Get([]byte(BlockchainManagerDBKey))

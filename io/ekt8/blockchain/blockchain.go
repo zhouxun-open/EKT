@@ -32,7 +32,7 @@ func init() {
 const (
 	CurrentBlockKey       = "CurrentBlock__"
 	BackboneConsensus     = i_consensus.DPOS
-	BackboneBlockInterval = 3
+	BackboneBlockInterval = 3 * time.Second
 	InitStatus            = 0
 	OpenStatus            = 100
 	StartPackStatus       = 110
@@ -52,7 +52,7 @@ type BlockChain struct {
 	CurrentHeight int64
 	Cb            func(block *Block)
 	Validator     *BlockValidator
-	BlockInterval int
+	BlockInterval time.Duration
 }
 
 func (blockchain *BlockChain) PackSignal() {
@@ -60,10 +60,11 @@ func (blockchain *BlockChain) PackSignal() {
 	if blockchain.Status != StartPackStatus {
 		blockchain.Status = StartPackStatus
 		block := blockchain.WaitAndPack()
-		db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), block.Hash())
-		db.GetDBInst().Set(blockchain.GetBlockBodyByHeightKey(block.Height), block.Body)
-		blockchain.Cb(block)
-		blockchain.SaveBlock(block)
+		blockchain.broadcastBlock(block)
+		//db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), block.Hash())
+		//db.GetDBInst().Set(blockchain.GetBlockBodyByHeightKey(block.Height), block.Body)
+		//blockchain.Cb(block)
+		//blockchain.SaveBlock(block)
 		blockchain.Status = InitStatus
 	}
 	blockchain.Locker.Unlock()
@@ -181,6 +182,18 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 	return []byte(fmt.Sprint(`GetBlockByHeight:%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
+func (blockchain *BlockChain) broadcastBlock(block *Block) {
+	body := map[string]interface{}{
+		"block": block,
+		"sign":  block.Sign(conf.EKTConfig.PrivateKey),
+	}
+	data, _ := json.Marshal(body)
+	for _, peer := range block.Round.Peers {
+		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
+		util.HttpPost(url, data)
+	}
+}
+
 func (blockchain *BlockChain) SaveBlock(block *Block) {
 	block.UpdateMPTPlusRoot()
 	fmt.Println(string(block.Bytes()))
@@ -224,7 +237,8 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 }
 
 func (blockchain *BlockChain) WaitAndPack() *Block {
-	eventTimeout := time.After(1 * time.Second)
+	// 打包10500个交易大概需要0.95秒
+	eventTimeout := time.After(1200 * time.Millisecond)
 	block := NewBlock(blockchain.CurrentBlock)
 	fmt.Println("Packing transaction and other events.")
 	for {
@@ -284,6 +298,7 @@ func (blockchain *BlockChain) Pack(block *Block) {
 }
 
 func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
+	fmt.Printf("Validating block from peer, block info: %s \n", string(block.Bytes()))
 	if err := block.Validate(sign); err != nil {
 		fmt.Errorf("Block validate failed, %s. \n", err.Error())
 		return
@@ -301,6 +316,7 @@ func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
 		Peer:         conf.EKTConfig.Node,
 	}
 	vote.Sign(conf.EKTConfig.PrivateKey)
+	fmt.Println("Sending block to other peers.")
 	for i, peer := range block.Round.Peers {
 		if (i-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) < len(block.Round.Peers)/2 {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)

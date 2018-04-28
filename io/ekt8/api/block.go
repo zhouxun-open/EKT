@@ -1,12 +1,14 @@
 package api
 
 import (
+	"encoding/hex"
 	"errors"
 
 	"encoding/json"
 	"fmt"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
+	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -44,10 +46,10 @@ func blockHeaders(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 
 func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	bc := blockchain_manager.MainBlockChain
-	height := req.MustGetInt64("heigth")
+	height := req.MustGetInt64("height")
 	if bc.CurrentHeight < height {
-		fmt.Printf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight)
-		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight))
+		fmt.Printf("Heigth %d is heigher than current height, current height is %d \n", height, bc.CurrentHeight)
+		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d \n ", height, bc.CurrentHeight))
 	}
 	return x_resp.Return(bc.GetBlockByHeight(height))
 }
@@ -56,15 +58,21 @@ func blockBodyByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	bc := blockchain_manager.MainBlockChain
 	height := req.MustGetInt64("heigth")
 	if bc.CurrentHeight < height {
-		fmt.Printf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight)
-		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d", height, bc.CurrentHeight))
+		fmt.Printf("Heigth %d is heigher than current height, current height is %d \n", height, bc.CurrentHeight)
+		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d \n", height, bc.CurrentHeight))
 	}
 	return x_resp.Return(bc.GetBlockBodyByHeight(height))
 }
 
 func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	var block blockchain.Block
-	err := json.Unmarshal(req.Body, &block)
+	var sign string
+	data := map[string]interface{}{
+		"block": block,
+		"sign":  sign,
+	}
+	fmt.Printf("Recieved new block and signature: %s", string(req.Body))
+	err := json.Unmarshal(req.Body, &data)
 	if err != nil {
 		fmt.Println("Block header unmarshal failed, return fail to broadcast peer.")
 		return x_resp.Fail(-1, "error block header", nil), nil
@@ -75,7 +83,7 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
 	IP := strings.Split(req.R.RemoteAddr, ":")[0]
-	if strings.EqualFold(block.Round.Peers[block.Round.CurrentIndex].Address, IP) && block.Round.MyIndex() != -1 && (block.Round.MyIndex()-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) < len(block.Round.Peers)/2 {
+	if !strings.EqualFold(IP, conf.EKTConfig.Node.Address) && strings.EqualFold(block.Round.Peers[block.Round.CurrentIndex].Address, IP) && block.Round.MyIndex() != -1 && (block.Round.MyIndex()-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) < len(block.Round.Peers)/2 {
 		//当前节点是打包节点广播，而且当前节点满足(currentIndex - miningIndex + len(DPoSNodes)) % len(DPoSNodes) < len(DPoSNodes) / 2
 		for i := 0; i < len(block.Round.Peers); i++ {
 			if i == block.Round.CurrentIndex || i == block.Round.MyIndex() {
@@ -99,5 +107,12 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		fmt.Printf("Block body unmarshal failed, get %s .\n", string(body))
 		return x_resp.Return(err.Error(), err)
 	}
-	return x_resp.Return(blockchain_manager.GetMainChain().ValidateBlock(&block, &blockBody), nil)
+	signature, err := hex.DecodeString(sign)
+	if err != nil {
+		fmt.Println("Block signature is not hex, validate fail, return.")
+		return x_resp.Return(nil, err)
+	}
+	blockchain_manager.MainBlockChain.BlockFromPeer(&block, signature)
+	return x_resp.Return("recieved", nil)
+	//return x_resp.Return(blockchain_manager.GetMainChain().ValidateBlock(&block, &blockBody), nil)
 }

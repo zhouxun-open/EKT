@@ -57,8 +57,6 @@ func (round *Round) NextRound(CurrentHash []byte) *Round {
 }
 
 func (round Round) IsMyTurn() bool {
-	fmt.Println(round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Address, round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Port, round.Peers[(round.CurrentIndex+1)%len(round.Peers)].AddressVersion)
-	fmt.Println(conf.EKTConfig.Node.Address, conf.EKTConfig.Node.Port, conf.EKTConfig.Node.AddressVersion)
 	if round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Equal(conf.EKTConfig.Node) {
 		return true
 	}
