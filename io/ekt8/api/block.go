@@ -87,7 +87,7 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if !strings.EqualFold(IP, lastBlock.Round.Peers[(lastBlock.Round.CurrentIndex+1)%len(lastBlock.Round.Peers)].Address) {
 		return x_resp.Return("error invalid address", errors.New("error invalid address"))
 	}
-	url := fmt.Sprintf("http://%s:19951/db/api/get", IP)
+	url := fmt.Sprintf("http://%s:%d/db/api/get", block.Round.Peers[block.Round.CurrentIndex].Address, block.Round.Peers[block.Round.CurrentIndex].Port)
 	body, err := util.HttpPost(url, block.Body)
 	if err != nil {
 		fmt.Println("Get block body from peer failed, return fail to broadcast peer.")
