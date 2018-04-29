@@ -237,12 +237,19 @@ func AliveDPoSPeerCount(peers p2p.Peers, print bool) int {
 
 func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	fmt.Printf("Synchronizing block at height %d \n", height)
+	round := &i_consensus.Round{
+		Peers:        p2p.MainChainDPosNode,
+		CurrentIndex: -1,
+	}
+	if dpos.Blockchain.CurrentHeight > 0 {
+		round = dpos.Blockchain.CurrentBlock.Round
+	}
 	var header *blockchain.Block
 	m := make(map[string]int)
 	mapping := make(map[string]*blockchain.Block)
 	peers := p2p.MainChainDPosNode
 	if dpos.Blockchain.CurrentHeight > 0 {
-		peers = dpos.Blockchain.CurrentBlock.Round.Peers
+		peers = round.Peers
 	}
 	for _, peer := range peers {
 		block, err := getBlockHeader(peer, height)

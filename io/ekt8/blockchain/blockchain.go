@@ -32,7 +32,7 @@ func init() {
 }
 
 const (
-	CurrentBlockKey       = "CurrentBlock___"
+	CurrentBlockKey       = "CurrentBlock____"
 	BackboneConsensus     = i_consensus.DPOS
 	BackboneBlockInterval = 3 * time.Second
 	InitStatus            = 0
@@ -147,20 +147,14 @@ func (blockchain *BlockChain) GetBlockHeaders(fromHeight int64) []*Block {
 }
 
 func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
-	fmt.Println("======1")
 	if height > blockchain.CurrentHeight {
-		fmt.Println("======2")
 		return nil, errors.New("Invalid height")
 	}
-	fmt.Println("======3")
 	key := blockchain.GetBlockByHeightKey(height)
-	fmt.Println("======4")
 	data, err := db.GetDBInst().Get(key)
-	fmt.Println("======5")
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("======6")
 	return FromBytes2Block(data)
 }
 
@@ -179,11 +173,11 @@ func (blockchain *BlockChain) GetBlockBodyByHeight(height int64) (*BlockBody, er
 }
 
 func (blockchain *BlockChain) GetBlockBodyByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockBodyByHeight:%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
+	return []byte(fmt.Sprint(`GetBlockBodyByHeight:_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
 func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockByHeight:%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
+	return []byte(fmt.Sprint(`GetBlockByHeight:_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
 func (blockchain *BlockChain) broadcastBlock(block *Block) {
@@ -203,7 +197,7 @@ func (blockchain *BlockChain) broadcastBlock(block *Block) {
 func (blockchain *BlockChain) SaveBlock(block *Block) {
 	fmt.Println("Saving block to database.")
 	db.GetDBInst().Set(block.Hash(), block.Data())
-	db.GetDBInst().Set(blockchain.GetBlockBodyByHeightKey(block.Height), block.Hash())
+	db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), block.Hash())
 	db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
 	blockchain.CurrentBlock = block
 	blockchain.CurrentBody = block.BlockBody
