@@ -15,6 +15,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
+	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/pool"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 
@@ -53,6 +54,7 @@ type BlockChain struct {
 	Cb            func(block *Block)
 	Validator     *BlockValidator
 	BlockInterval time.Duration
+	Police        BlockPolice
 }
 
 func (blockchain *BlockChain) PackSignal() {
@@ -183,6 +185,7 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 }
 
 func (blockchain *BlockChain) broadcastBlock(block *Block) {
+	fmt.Println("Broadcasting block to the other peers.")
 	body := map[string]interface{}{
 		"block": block,
 		"sign":  block.Sign(conf.EKTConfig.PrivateKey),
@@ -195,8 +198,7 @@ func (blockchain *BlockChain) broadcastBlock(block *Block) {
 }
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
-	block.UpdateMPTPlusRoot()
-	fmt.Println(string(block.Bytes()))
+	//block.UpdateMPTPlusRoot()
 	err := db.GetDBInst().Set(block.CaculateHash(), block.Bytes())
 	if err != nil {
 		panic(err)
@@ -238,7 +240,7 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 
 func (blockchain *BlockChain) WaitAndPack() *Block {
 	// 打包10500个交易大概需要0.95秒
-	eventTimeout := time.After(1200 * time.Millisecond)
+	eventTimeout := time.After(950 * time.Millisecond)
 	block := NewBlock(blockchain.CurrentBlock)
 	fmt.Println("Packing transaction and other events.")
 	for {
@@ -299,14 +301,31 @@ func (blockchain *BlockChain) Pack(block *Block) {
 
 func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
 	fmt.Printf("Validating block from peer, block info: %s \n", string(block.Bytes()))
-	if err := block.Validate(sign); err != nil {
-		fmt.Errorf("Block validate failed, %s. \n", err.Error())
+	if err := block.Validate(sign, block.Round.Peers[block.Round.CurrentIndex].PeerId); err != nil {
+		fmt.Printf("Block signature validate failed, %s. \n", err.Error())
 		return
 	}
+	fmt.Println("========================================1")
+	status := blockchain.Police.BlockFromPeer(block)
+	//收到了当前节点的其他区块
+	if status == -1 {
+		evilBlock := blockchain.Police.GetEvilBlock(block)
+		for _, peer := range block.Round.Peers {
+			defer func() {
+				if r := recover(); r != nil {
+					log.GetLogInst().LogCrit("Sending evil block fail, recovered.", r)
+				}
+			}()
+			url := fmt.Sprintf(`http://%s:%d/block/api/evilBlock`, peer.Address, peer.Port)
+			util.HttpPost(url, evilBlock.Bytes())
+		}
+	}
+	fmt.Println("========================================2")
 	if !blockchain.CurrentBlock.ValidateNextBlock(block, blockchain.BlockInterval) {
 		fmt.Println("This block from peer can not recover by last block, abort.")
 		return
 	}
+	fmt.Println("========================================3")
 	// 签名
 	vote := &BlockVote{
 		BlockchainId: blockchain.ChainId,
@@ -315,12 +334,35 @@ func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
 		VoteResult:   true,
 		Peer:         conf.EKTConfig.Node,
 	}
+	fmt.Println("========================================4")
 	vote.Sign(conf.EKTConfig.PrivateKey)
-	fmt.Println("Sending block to other peers.")
+	fmt.Println("Sending vote result to other peers.")
 	for i, peer := range block.Round.Peers {
 		if (i-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) < len(block.Round.Peers)/2 {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
 			util.HttpPost(url, vote.Bytes())
+		}
+	}
+	fmt.Println("========================================5")
+}
+
+func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {
+	VoteResultManager.Locker.Lock()
+	defer VoteResultManager.Locker.Unlock()
+	if !vote.Validate() {
+		fmt.Println("Vote validate failed, abort.")
+		return
+	}
+	if VoteResultManager.Broadcasted(vote.BlockHash) {
+		fmt.Println("This block has voted, return.")
+		return
+	}
+	VoteResultManager.Insert(vote)
+	if VoteResultManager.Number(vote.BlockHash) > len(blockchain.CurrentBlock.Round.Peers)/2 {
+		votes := VoteResultManager.VoteResults[hex.EncodeToString(vote.BlockHash)]
+		for _, peer := range blockchain.CurrentBlock.Round.Peers {
+			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
+			util.HttpPost(url, votes.Bytes())
 		}
 	}
 }

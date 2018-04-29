@@ -62,15 +62,17 @@ func (block *Block) NewNonce() {
 }
 
 // 校验区块头的hash值和其他字段是否匹配，以及签名是否正确
-func (block Block) Validate(sign []byte) error {
+func (block Block) Validate(sign []byte, peerId string) error {
 	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
 		return errors.New("Invalid Hash")
 	}
-	pub, err := crypto.RecoverPubKey(block.Hash(), sign)
+	pub, err := crypto.RecoverPubKey(crypto.Sha3_256(block.Hash()), sign)
 	if err != nil {
+		fmt.Println("Block.Validate: Recover public key failed.")
 		return err
 	}
-	if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pub)), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
+	fmt.Printf("Recovered pubKey=%s, peerId=%s . \n", hex.EncodeToString(pub), hex.EncodeToString(crypto.Sha3_256(pub)))
+	if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pub)), peerId) {
 		return errors.New("Invalid signature")
 	}
 	return nil
