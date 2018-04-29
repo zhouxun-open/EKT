@@ -155,7 +155,14 @@ func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	return FromBytes2Block(data)
+	if len(data) == 0 {
+		return nil, errors.New("Too heigher.")
+	}
+	block, err := FromBytes2Block(data)
+	if block.Height != height {
+		return nil, errors.New("Too heigher.")
+	}
+	return block, err
 }
 
 func (blockchain *BlockChain) GetBlockBodyByHeight(height int64) (*BlockBody, error) {

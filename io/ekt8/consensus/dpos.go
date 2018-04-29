@@ -263,7 +263,7 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 		} else {
 			m[hex.EncodeToString(block.Hash())] = 1
 		}
-		if m[hex.EncodeToString(block.Hash())] > len(peers) {
+		if m[hex.EncodeToString(block.Hash())] >= util.MoreThanHalf(len(peers)) {
 			header = mapping[hex.EncodeToString(block.Hash())]
 		}
 	}
@@ -272,7 +272,7 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	}
 	dpos.Blockchain.CurrentBlock = header
 	dpos.Blockchain.CurrentHeight = header.Height
-	fmt.Printf("Block at height %d header: %v \n", height, header)
+	fmt.Printf("Block at height %d header: %v \n", height, string(header.Bytes()))
 	return true
 }
 
