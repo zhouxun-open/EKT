@@ -16,6 +16,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
+	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/EKT/io/ekt8/pool"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 
@@ -31,13 +32,12 @@ func init() {
 }
 
 const (
-	CurrentBlockKey       = "CurrentBlock__"
+	CurrentBlockKey       = "CurrentBlock___"
 	BackboneConsensus     = i_consensus.DPOS
 	BackboneBlockInterval = 3 * time.Second
 	InitStatus            = 0
 	OpenStatus            = 100
 	StartPackStatus       = 110
-	CaculateHashStatus    = 150
 )
 
 type BlockChain struct {
@@ -63,10 +63,6 @@ func (blockchain *BlockChain) PackSignal() {
 		blockchain.Status = StartPackStatus
 		block := blockchain.WaitAndPack()
 		blockchain.broadcastBlock(block)
-		//db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), block.Hash())
-		//db.GetDBInst().Set(blockchain.GetBlockBodyByHeightKey(block.Height), block.Body)
-		//blockchain.Cb(block)
-		//blockchain.SaveBlock(block)
 		blockchain.Status = InitStatus
 	}
 	blockchain.Locker.Unlock()
@@ -78,50 +74,50 @@ func (blockchain *BlockChain) GetStatus() int {
 	return blockchain.Status
 }
 
-func (blockchain *BlockChain) ValidateBlock(block *Block, blockBody *BlockBody) bool {
-	if block.Round.IsMyTurn() {
-		go blockchain.PackSignal()
-	}
-	if block.Round.Peers[block.Round.CurrentIndex].Equal(conf.EKTConfig.Node) {
-		return true
-	}
-
-	block1 := NewBlock(blockchain.CurrentBlock)
-	for _, txResult := range blockBody.TxResults {
-		tx := blockchain.Pool.Notify(txResult.TxId)
-		if tx == nil {
-			//TODO 从数据库中读取，Pool里面都有，除非有特别大的延迟
-			return false
-		}
-		txResult_ := block1.NewTransaction(tx, txResult.Fee)
-		if txResult.Success != txResult_.Success {
-			return false
-		}
-	}
-	for _, evtResult := range blockBody.EventResults {
-		evt := blockchain.Pool.NotifyEvent(evtResult.EventId)
-		if evt == nil {
-			//TODO 从数据库中读取，Pool里面都有，除非有特别大的延迟
-			return false
-		}
-		if strings.EqualFold(evt.EventType, event.NewAccountEvent) {
-			param := evt.EventParam.(event.NewAccountParam)
-			address, _ := hex.DecodeString(param.Address)
-			pubKey, _ := hex.DecodeString(param.PubKey)
-			if block1.InsertAccount(*common.NewAccount(address, pubKey)) {
-				block1.BlockBody.AddEventResult(event.EventResult{Success: true, EventId: evt.EventParam.Id()})
-			} else {
-				block1.BlockBody.AddEventResult(event.EventResult{Success: false, Reason: "address exist", EventId: evt.EventParam.Id()})
-			}
-		}
-	}
-	blockchain.Pack(block1)
-	if bytes.EqualFold(block.Hash(), block1.Hash()) {
-		blockchain.SaveBlock(block)
-		return true
-	}
-	return false
-}
+//func (blockchain *BlockChain) ValidateBlock(block *Block, blockBody *BlockBody) bool {
+//	if block.Round.IsMyTurn() {
+//		go blockchain.PackSignal()
+//	}
+//	if block.Round.Peers[block.Round.CurrentIndex].Equal(conf.EKTConfig.Node) {
+//		return true
+//	}
+//
+//	block1 := NewBlock(blockchain.CurrentBlock)
+//	for _, txResult := range blockBody.TxResults {
+//		tx := blockchain.Pool.Notify(txResult.TxId)
+//		if tx == nil {
+//			//TODO 从数据库中读取，Pool里面都有，除非有特别大的延迟
+//			return false
+//		}
+//		txResult_ := block1.NewTransaction(tx, txResult.Fee)
+//		if txResult.Success != txResult_.Success {
+//			return false
+//		}
+//	}
+//	for _, evtResult := range blockBody.EventResults {
+//		evt := blockchain.Pool.NotifyEvent(evtResult.EventId)
+//		if evt == nil {
+//			//TODO 从数据库中读取，Pool里面都有，除非有特别大的延迟
+//			return false
+//		}
+//		if strings.EqualFold(evt.EventType, event.NewAccountEvent) {
+//			param := evt.EventParam.(event.NewAccountParam)
+//			address, _ := hex.DecodeString(param.Address)
+//			pubKey, _ := hex.DecodeString(param.PubKey)
+//			if block1.InsertAccount(*common.NewAccount(address, pubKey)) {
+//				block1.BlockBody.AddEventResult(event.EventResult{Success: true, EventId: evt.EventParam.Id()})
+//			} else {
+//				block1.BlockBody.AddEventResult(event.EventResult{Success: false, Reason: "address exist", EventId: evt.EventParam.Id()})
+//			}
+//		}
+//	}
+//	blockchain.Pack(block1)
+//	if bytes.EqualFold(block.Hash(), block1.Hash()) {
+//		blockchain.SaveBlock(block)
+//		return true
+//	}
+//	return false
+//}
 
 //返回从指定高度到当前区块的区块头
 func (blockchain *BlockChain) GetBlockHeaders(fromHeight int64) []*Block {
@@ -151,14 +147,20 @@ func (blockchain *BlockChain) GetBlockHeaders(fromHeight int64) []*Block {
 }
 
 func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
+	fmt.Println("======1")
 	if height > blockchain.CurrentHeight {
+		fmt.Println("======2")
 		return nil, errors.New("Invalid height")
 	}
+	fmt.Println("======3")
 	key := blockchain.GetBlockByHeightKey(height)
+	fmt.Println("======4")
 	data, err := db.GetDBInst().Get(key)
+	fmt.Println("======5")
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("======6")
 	return FromBytes2Block(data)
 }
 
@@ -186,9 +188,10 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 
 func (blockchain *BlockChain) broadcastBlock(block *Block) {
 	fmt.Println("Broadcasting block to the other peers.")
+	sign := block.Sign(conf.EKTConfig.PrivateKey)
 	body := map[string]interface{}{
 		"block": block,
-		"sign":  block.Sign(conf.EKTConfig.PrivateKey),
+		"sign":  sign,
 	}
 	data, _ := json.Marshal(body)
 	for _, peer := range block.Round.Peers {
@@ -198,18 +201,14 @@ func (blockchain *BlockChain) broadcastBlock(block *Block) {
 }
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
-	//block.UpdateMPTPlusRoot()
-	err := db.GetDBInst().Set(block.CaculateHash(), block.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	err = db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
-	if err != nil {
-		panic(err)
-	}
+	fmt.Println("Saving block to database.")
+	db.GetDBInst().Set(block.CaculateHash(), block.Bytes())
+	db.GetDBInst().Set(blockchain.GetBlockBodyByHeightKey(block.Height), block.Hash())
+	db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
 	blockchain.CurrentBlock = block
 	blockchain.CurrentBody = block.BlockBody
 	blockchain.CurrentHeight = block.Height
+	fmt.Println("Save block to database succeed.")
 }
 
 func (blockchain *BlockChain) LastBlock() (*Block, error) {
@@ -293,19 +292,30 @@ func (blockchain *BlockChain) Pack(block *Block) {
 	db.GetDBInst().Set(block.Body, bodyData)
 	start := time.Now().Nanosecond()
 	fmt.Println("Caculating block hash.")
+	block.UpdateMPTPlusRoot()
 	for ; !bytes.HasPrefix(block.CaculateHash(), blockchain.Difficulty); block.NewNonce() {
 	}
 	end := time.Now().Nanosecond()
-	fmt.Printf("Caculated block hash, cost %d ms\n", (end-start+1e9)%1e9/1e6)
+	fmt.Printf("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
 }
 
-func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
-	fmt.Printf("Validating block from peer, block info: %s \n", string(block.Bytes()))
-	if err := block.Validate(sign, block.Round.Peers[block.Round.CurrentIndex].PeerId); err != nil {
+func (blockchain *BlockChain) BlockFromPeer(block Block, sign []byte) {
+	fmt.Printf("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
+	if err := block.Validate(sign); err != nil {
 		fmt.Printf("Block signature validate failed, %s. \n", err.Error())
 		return
 	}
-	fmt.Println("========================================1")
+	pub, err := crypto.RecoverPubKey(crypto.Sha3_256(block.Hash()), sign)
+	if err != nil {
+		fmt.Println("Block.Validate: Recover public key failed.")
+		return
+	}
+	if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pub)), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
+		fmt.Printf("Recovered pubKey=%s \n", hex.EncodeToString(pub))
+		fmt.Printf("Recovered peerId=%s, Packing peer id=%s, Invalid block sign, return.\n",
+			hex.EncodeToString(crypto.Sha3_256(pub)), block.Round.Peers[block.Round.CurrentIndex].PeerId)
+		return
+	}
 	status := blockchain.Police.BlockFromPeer(block)
 	//收到了当前节点的其他区块
 	if status == -1 {
@@ -320,12 +330,12 @@ func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
 			util.HttpPost(url, evilBlock.Bytes())
 		}
 	}
-	fmt.Println("========================================2")
 	if !blockchain.CurrentBlock.ValidateNextBlock(block, blockchain.BlockInterval) {
 		fmt.Println("This block from peer can not recover by last block, abort.")
 		return
 	}
-	fmt.Println("========================================3")
+	BlockRecorder.Blocks[hex.EncodeToString(block.Hash())] = &block
+	BlockRecorder.Signatures[hex.EncodeToString(block.Hash())] = hex.EncodeToString(sign)
 	// 签名
 	vote := &BlockVote{
 		BlockchainId: blockchain.ChainId,
@@ -334,33 +344,40 @@ func (blockchain *BlockChain) BlockFromPeer(block *Block, sign []byte) {
 		VoteResult:   true,
 		Peer:         conf.EKTConfig.Node,
 	}
-	fmt.Println("========================================4")
-	vote.Sign(conf.EKTConfig.PrivateKey)
+	err = vote.Sign(conf.EKTConfig.PrivateKey)
+	if err != nil {
+		log.GetLogInst().LogCrit("Sign vote failed, recorded. %v", err)
+		fmt.Println("Sign vote failed, recorded.")
+		return
+	}
 	fmt.Println("Sending vote result to other peers.")
 	for i, peer := range block.Round.Peers {
-		if (i-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) < len(block.Round.Peers)/2 {
+		if (i-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) <= len(block.Round.Peers)/2 {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
 			util.HttpPost(url, vote.Bytes())
 		}
 	}
-	fmt.Println("========================================5")
 }
 
 func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {
+	fmt.Println("Recieved vote from peer.")
 	VoteResultManager.Locker.Lock()
 	defer VoteResultManager.Locker.Unlock()
-	if !vote.Validate() {
-		fmt.Println("Vote validate failed, abort.")
-		return
-	}
 	if VoteResultManager.Broadcasted(vote.BlockHash) {
 		fmt.Println("This block has voted, return.")
 		return
 	}
 	VoteResultManager.Insert(vote)
-	if VoteResultManager.Number(vote.BlockHash) > len(blockchain.CurrentBlock.Round.Peers)/2 {
+	round := &i_consensus.Round{
+		Peers:        p2p.MainChainDPosNode,
+		CurrentIndex: -1,
+	}
+	if blockchain.CurrentHeight > 0 {
+		round = blockchain.CurrentBlock.Round
+	}
+	if VoteResultManager.Number(vote.BlockHash) > len(round.Peers)/2 {
 		votes := VoteResultManager.VoteResults[hex.EncodeToString(vote.BlockHash)]
-		for _, peer := range blockchain.CurrentBlock.Round.Peers {
+		for _, peer := range round.Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
 			util.HttpPost(url, votes.Bytes())
 		}

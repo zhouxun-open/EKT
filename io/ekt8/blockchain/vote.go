@@ -45,11 +45,13 @@ func NewVoteResults() VoteResults {
 }
 
 func (vote BlockVote) Validate() bool {
-	pubKey_, err := crypto.RecoverPubKey(vote.Data(), vote.Signature)
+	pubKey_, err := crypto.RecoverPubKey(crypto.Sha3_256(vote.Data()), vote.Signature)
 	if err != nil {
+		fmt.Printf("BlockVote.Validate: recover public key failed, return false.")
 		return false
 	}
 	if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubKey_)), vote.Peer.PeerId) {
+		fmt.Printf("Recovered public key: %s", hex.EncodeToString(pubKey_))
 		return false
 	}
 	return true
@@ -65,8 +67,8 @@ func (vote BlockVote) Value() string {
 	return string(vote.Data())
 }
 
-func (vote BlockVote) Sign(PrivKey []byte) error {
-	signature, err := crypto.Crypto(vote.Data(), PrivKey)
+func (vote *BlockVote) Sign(PrivKey []byte) error {
+	signature, err := crypto.Crypto(crypto.Sha3_256(vote.Data()), PrivKey)
 	if err != nil {
 		return err
 	} else {
@@ -129,11 +131,15 @@ func (vote Votes) Bytes() []byte {
 
 func (votes Votes) Validate() bool {
 	if len(votes) == 0 {
+		fmt.Println("Votes.Validate: length of votes is 0, return false.")
 		return false
 	}
-	for _, vote := range votes {
-		if !vote.Validate() || bytes.Equal(vote.Data(), votes[0].Data()) || !vote.VoteResult {
-			return false
+	if len(votes) >= 2 {
+		for i := 1; i < len(votes); i++ {
+			vote := votes[i]
+			if !vote.Validate() || bytes.Equal(vote.Data(), votes[0].Data()) || !vote.VoteResult {
+				return false
+			}
 		}
 	}
 	return true

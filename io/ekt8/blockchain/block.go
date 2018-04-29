@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
+	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 )
 
 var currentBlock *Block = nil
@@ -48,12 +48,21 @@ func (block *Block) Bytes() []byte {
 	return data
 }
 
+func (block *Block) Data() []byte {
+	return []byte(fmt.Sprintf(
+		`{"height": %d, "timestamp": %d, "nonce": %d, "fee": %d, "totalFee": %d, "previousHash": "%s", "body": "%s", "round": %s, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "tokenRoot": "%s"}`,
+		block.Height, block.Timestamp, block.Nonce, block.Fee, block.TotalFee, hex.EncodeToString(block.PreviousHash), hex.EncodeToString(block.Body),
+		block.Round.String(), hex.EncodeToString(block.StatRoot), hex.EncodeToString(block.TxRoot),
+		hex.EncodeToString(block.EventRoot), hex.EncodeToString(block.TokenRoot),
+	))
+}
+
 func (block *Block) Hash() []byte {
 	return block.CurrentHash
 }
 
 func (block *Block) CaculateHash() []byte {
-	block.CurrentHash = crypto.Sha3_256(block.Bytes())
+	block.CurrentHash = crypto.Sha3_256(block.Data())
 	return block.CurrentHash
 }
 
@@ -62,18 +71,9 @@ func (block *Block) NewNonce() {
 }
 
 // 校验区块头的hash值和其他字段是否匹配，以及签名是否正确
-func (block Block) Validate(sign []byte, peerId string) error {
+func (block Block) Validate(sign []byte) error {
 	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
 		return errors.New("Invalid Hash")
-	}
-	pub, err := crypto.RecoverPubKey(crypto.Sha3_256(block.Hash()), sign)
-	if err != nil {
-		fmt.Println("Block.Validate: Recover public key failed.")
-		return err
-	}
-	fmt.Printf("Recovered pubKey=%s, peerId=%s . \n", hex.EncodeToString(pub), hex.EncodeToString(crypto.Sha3_256(pub)))
-	if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pub)), peerId) {
-		return errors.New("Invalid signature")
 	}
 	return nil
 }
@@ -205,17 +205,32 @@ func NewBlock(last *Block) *Block {
 		CurrentHash:  nil,
 		BlockBody:    NewBlockBody(last.Height + 1),
 		Body:         nil,
-		Round:        last.Round.NextRound(last.Hash()),
+		Round:        nil,
 		Locker:       sync.RWMutex{},
 		StatTree:     last.StatTree,
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 		TokenTree:    last.TokenTree,
 	}
+	if last.Height == 0 {
+		block.Round = &i_consensus.Round{
+			Peers:        p2p.MainChainDPosNode,
+			CurrentIndex: 0,
+		}
+	} else {
+		block.Round = last.Round.NextRound(last.Hash())
+	}
 	return block
 }
 
-func (block *Block) ValidateNextBlock(next *Block, interval time.Duration) bool {
+func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
+	round := &i_consensus.Round{
+		Peers:        p2p.MainChainDPosNode,
+		CurrentIndex: -1,
+	}
+	if block.Height > 0 {
+		round = block.Round
+	}
 	// 如果不是当前的块的下一个区块，则返回false
 	if !bytes.Equal(next.PreviousHash, block.Hash()) || block.Height+1 != next.Height {
 		return false
@@ -224,9 +239,9 @@ func (block *Block) ValidateNextBlock(next *Block, interval time.Duration) bool 
 	// 时间差在下一个区块，说明中间没有错过区块
 	// 如果前n个节点没有出块，判断当前节点是否拥有打包权限（时间）
 	n := int(time) / int(interval)
-	if n > len(block.Round.Peers) {
+	if n > len(round.Peers) {
 		// 如果已经超过一轮没有出块，则所有节点等放弃出块，等待当前轮下一个节点进行打包
-		if !block.Round.IndexPlus(block.Hash()).Equal(next.Round) {
+		if !round.IndexPlus(block.Hash()).Equal(next.Round) {
 			return false
 		}
 	}
@@ -235,32 +250,33 @@ func (block *Block) ValidateNextBlock(next *Block, interval time.Duration) bool 
 		n++
 	}
 	// 需要计算下一个区块的index
-	if block.Round.CurrentIndex+n >= len(block.Round.Peers) {
+	if round.CurrentIndex+n >= len(round.Peers) {
 		// 计算当前区块的区块差
-		miningNumber := len(block.Round.Peers) - block.Round.CurrentIndex + next.Round.CurrentIndex
-		if miningNumber != n {
+		miningNumber := (round.CurrentIndex + n) % round.Len()
+		if miningNumber != next.Round.CurrentIndex {
 			return false
 		}
-	} else if block.Round.CurrentIndex+n != next.Round.CurrentIndex {
+	} else if round.CurrentIndex+n != next.Round.CurrentIndex {
 		return false
 	}
 	return block.ValidateBlockStat(next)
 }
 
-func (block *Block) ValidateBlockStat(next *Block) bool {
+func (block *Block) ValidateBlockStat(next Block) bool {
+	fmt.Println("Validating block stat merkler proof.")
 	// 从打包节点获取body
 	body, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(next.Body)
 	if err != nil {
+		fmt.Println("Can not get body from mining node, return false.")
 		return false
 	}
 	next.BlockBody, err = FromBytes(body)
 	if err != nil {
+		fmt.Println("Get an error body, return false.")
 		return false
 	}
-
 	//根据上一个区块头生成一个新的区块
 	_next := NewBlock(block)
-
 	//让新生成的区块执行peer传过来的body中的events进行计算
 	for _, eventResult := range next.BlockBody.EventResults {
 		evtId, _ := hex.DecodeString(eventResult.EventId)
@@ -279,7 +295,7 @@ func (block *Block) ValidateBlockStat(next *Block) bool {
 	}
 
 	//让新生成的区块执行peer传过来的body中的transactions进行计算
-	for _, txResult := range block.BlockBody.TxResults {
+	for _, txResult := range next.BlockBody.TxResults {
 		txId, _ := hex.DecodeString(txResult.TxId)
 		tx := common.GetTransaction(txId)
 		if tx == nil {
@@ -294,8 +310,13 @@ func (block *Block) ValidateBlockStat(next *Block) bool {
 		}
 		_next.NewTransaction(tx, block.Fee)
 	}
-	_next.Nonce = next.Nonce
-	if !bytes.Equal(next.Hash(), _next.CaculateHash()) {
+	_next.UpdateMPTPlusRoot()
+	if !bytes.Equal(next.TxRoot, _next.TxRoot) ||
+		!bytes.Equal(next.EventRoot, _next.EventRoot) ||
+		!bytes.Equal(next.StatRoot, _next.StatRoot) ||
+		!bytes.Equal(next.TokenRoot, _next.TokenRoot) {
+		fmt.Printf("next.Data  = %s, \n_next.Data = %s", next.Data(), block.Data())
+		fmt.Printf("next.Hash  = %s, \n_next.Hash = %s \n", hex.EncodeToString(next.Hash()), hex.EncodeToString(_next.CaculateHash()))
 		return false
 	}
 
@@ -324,6 +345,6 @@ func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
 }
 
 func (block *Block) Sign(privKey []byte) string {
-	data, _ := crypto.Crypto(block.Hash(), privKey)
+	data, _ := crypto.Crypto(crypto.Sha3_256(block.Hash()), privKey)
 	return hex.EncodeToString(data)
 }
