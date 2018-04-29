@@ -9,6 +9,8 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
+	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
+	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -70,13 +72,19 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	blockData, _ := json.Marshal(blockInterface)
 	sign := req.MustGetString("sign")
 	json.Unmarshal(blockData, &block)
-	fmt.Printf("Recieved new block and signature: block=%v, sign=%s \n", string(block.Bytes()), sign)
+	fmt.Printf("Recieved new block and signature: block=%v, sign=%s, blockHash=%s \n", string(block.Bytes()), sign, hex.EncodeToString(block.Hash()))
 	lastBlock := blockchain_manager.GetMainChain().CurrentBlock
 	if lastBlock.Height+1 != block.Height {
 		fmt.Printf("Block height is not right, want %d, get %d, give up voting. \n", lastBlock.Height+1, block.Height)
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
-	fmt.Println("---------------------------------------1")
+	round := &i_consensus.Round{
+		Peers:        p2p.MainChainDPosNode,
+		CurrentIndex: -1,
+	}
+	if lastBlock.Height >= 1 {
+		round = lastBlock.Round
+	}
 	IP := strings.Split(req.R.RemoteAddr, ":")[0]
 	if !strings.EqualFold(IP, conf.EKTConfig.Node.Address) && strings.EqualFold(block.Round.Peers[block.Round.CurrentIndex].Address, IP) && block.Round.MyIndex() != -1 && (block.Round.MyIndex()-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) < len(block.Round.Peers)/2 {
 		//当前节点是打包节点广播，而且当前节点满足(currentIndex - miningIndex + len(DPoSNodes)) % len(DPoSNodes) < len(DPoSNodes) / 2
@@ -89,8 +97,7 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 			}
 		}
 	}
-	fmt.Println("---------------------------------------2")
-	if !strings.EqualFold(IP, lastBlock.Round.Peers[(lastBlock.Round.CurrentIndex+1)%len(lastBlock.Round.Peers)].Address) {
+	if !strings.EqualFold(IP, round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Address) {
 		return x_resp.Return("error invalid address", errors.New("error invalid address"))
 	}
 	url := fmt.Sprintf("http://%s:%d/db/api/get", block.Round.Peers[block.Round.CurrentIndex].Address, block.Round.Peers[block.Round.CurrentIndex].Port)
@@ -99,7 +106,6 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		fmt.Println("Get block body from peer failed, return fail to broadcast peer.")
 		return x_resp.Return(err.Error(), err)
 	}
-	fmt.Println("---------------------------------------3")
 	var blockBody blockchain.BlockBody
 	err = json.Unmarshal(body, &blockBody)
 	if err != nil {
@@ -111,7 +117,6 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		fmt.Println("Block signature is not hex, validate fail, return.")
 		return x_resp.Return(nil, err)
 	}
-	fmt.Println("---------------------------------------4")
-	blockchain_manager.MainBlockChain.BlockFromPeer(&block, signature)
+	blockchain_manager.MainBlockChain.BlockFromPeer(block, signature)
 	return x_resp.Return("recieved", nil)
 }

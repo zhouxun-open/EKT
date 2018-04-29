@@ -24,11 +24,12 @@ func voteBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		fmt.Println("Invalid vote, abort.")
 		return x_resp.Return(nil, err)
 	}
-	fmt.Printf("Recieved a vote %v: ", vote)
+	fmt.Printf("Recieved a vote: %s.\n", string(vote.Bytes()))
 	if !vote.Validate() {
 		fmt.Println("Invalid vote, abort.")
 		return x_resp.Return(false, nil)
 	}
+	blockchain_manager.GetMainChain().VoteFromPeer(vote)
 	return nil, nil
 }
 
@@ -36,11 +37,11 @@ func voteResult(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	var votes blockchain.Votes
 	err := json.Unmarshal(req.Body, &votes)
 	if err != nil {
-		fmt.Println("Invalid vote, abort.")
+		fmt.Println("Invalid vote, unmarshal fail, abort.")
 		return x_resp.Return(nil, err)
 	}
 	if !votes.Validate() {
-		fmt.Println("Validate failed, return")
+		fmt.Println("Vote Results validate failed, return")
 		return x_resp.Return("Validate failed.", nil)
 	}
 	blockchain_manager.GetMainChainConsensus().RecieveVoteResult(votes)
