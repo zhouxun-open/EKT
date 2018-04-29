@@ -202,7 +202,7 @@ func (blockchain *BlockChain) broadcastBlock(block *Block) {
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
 	fmt.Println("Saving block to database.")
-	db.GetDBInst().Set(block.CaculateHash(), block.Bytes())
+	db.GetDBInst().Set(block.Hash(), block.Data())
 	db.GetDBInst().Set(blockchain.GetBlockBodyByHeightKey(block.Height), block.Hash())
 	db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
 	blockchain.CurrentBlock = block
