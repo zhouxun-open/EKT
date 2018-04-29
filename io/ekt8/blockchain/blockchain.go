@@ -32,7 +32,7 @@ func init() {
 }
 
 const (
-	CurrentBlockKey       = "CurrentBlock____"
+	CurrentBlockKey       = "CurrentBlock_____"
 	BackboneConsensus     = i_consensus.DPOS
 	BackboneBlockInterval = 3 * time.Second
 	InitStatus            = 0
@@ -173,11 +173,11 @@ func (blockchain *BlockChain) GetBlockBodyByHeight(height int64) (*BlockBody, er
 }
 
 func (blockchain *BlockChain) GetBlockBodyByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockBodyByHeight:_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
+	return []byte(fmt.Sprint(`GetBlockBodyByHeight: _%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
 func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockByHeight:_%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
+	return []byte(fmt.Sprint(`GetBlockByHeight: _%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
 func (blockchain *BlockChain) broadcastBlock(block *Block) {
@@ -197,8 +197,9 @@ func (blockchain *BlockChain) broadcastBlock(block *Block) {
 func (blockchain *BlockChain) SaveBlock(block *Block) {
 	fmt.Println("Saving block to database.")
 	db.GetDBInst().Set(block.Hash(), block.Data())
-	db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), block.Hash())
-	db.GetDBInst().Set(blockchain.CurrentBlockKey(), block.Hash())
+	data, _ := json.Marshal(block)
+	db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
+	db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
 	blockchain.CurrentBlock = block
 	blockchain.CurrentBody = block.BlockBody
 	blockchain.CurrentHeight = block.Height
@@ -210,16 +211,16 @@ func (blockchain *BlockChain) LastBlock() (*Block, error) {
 	var block *Block
 	if currentBlock == nil {
 		key := blockchain.CurrentBlockKey()
-		blockHash, err := db.GetDBInst().Get(key)
+		data, err := db.GetDBInst().Get(key)
 		if err != nil {
 			return nil, err
 		}
-		blockValue, err := db.GetDBInst().Get(blockHash)
-		if err == nil {
-			err = json.Unmarshal(blockValue, &block)
-			currentBlock = block
-			return block, err
+		err = json.Unmarshal(data, &block)
+		if err != nil {
+			return nil, err
 		}
+		currentBlock = block
+		return block, err
 	}
 	return currentBlock, err
 }

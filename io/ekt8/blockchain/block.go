@@ -187,7 +187,7 @@ func (block *Block) UpdateMPTPlusRoot() {
 
 func FromBytes2Block(data []byte) (*Block, error) {
 	var block Block
-	err := json.Unmarshal(data, block)
+	err := json.Unmarshal(data, &block)
 	if err != nil {
 		return nil, err
 	}
