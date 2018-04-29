@@ -58,14 +58,40 @@ func (dpos DPOSConsensus) DPoSRun() {
 	interval := 50 * time.Millisecond
 	for {
 		log.GetLogInst().LogInfo(`Timer tick: is my turn?`)
-		if dpos.Blockchain.CurrentBlock.Round.IsMyTurn() {
-			dpos.Pack(dpos.Blockchain.CurrentHeight)
+		if dpos.IsMyTurn() {
 			log.GetLogInst().LogInfo("Yes.")
+			dpos.Pack(dpos.Blockchain.CurrentHeight)
+			time.Sleep(2 * dpos.Blockchain.BlockInterval / 3)
 		} else {
 			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
 			time.Sleep(interval)
 		}
 	}
+}
+
+func (dpos DPOSConsensus) IsMyTurn() bool {
+	time, interval := int(time.Now().UnixNano()/1e6-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval)
+	// 如果当前时间与上个区块的打包时间超过一个round，需要等待round的下一个节点进行打包
+	if time > interval*dpos.Blockchain.CurrentBlock.Round.Len() {
+		// 如果当前节点是下一个节点
+		if dpos.Blockchain.CurrentBlock.Round.IndexPlus(dpos.Blockchain.CurrentBlock.Hash()).IsMyTurn() {
+			return true
+		} else {
+			return false
+		}
+	}
+	n := time / interval
+	remainder := int(time) % int(interval)
+	if remainder > int(interval)/2 {
+		n++
+	}
+	currentIndex := (dpos.Blockchain.CurrentBlock.Round.CurrentIndex + n) % dpos.Blockchain.CurrentBlock.Round.Len()
+	round := dpos.Blockchain.CurrentBlock.Round
+	if dpos.Blockchain.CurrentBlock.Round.CurrentIndex+n >= dpos.Blockchain.CurrentBlock.Round.Len() {
+		round = round.NextRound(dpos.Blockchain.CurrentBlock.Hash())
+	}
+	round.CurrentIndex = currentIndex
+	return round.IsMyTurn()
 }
 
 func (dpos DPOSConsensus) RUN() {
@@ -77,18 +103,20 @@ func (dpos DPOSConsensus) RUN() {
 	//获取21个节点的集合
 	peers := dpos.GetCurrentDPOSPeers()
 WaitingNodes:
-	for {
+	loop := true
+	for loop {
 		fmt.Println("detecting alive nodes......")
 		aliveCount := AliveDPoSPeerCount(peers, true)
 		if aliveCount > len(peers)/2 {
-			fmt.Println()
-			break
+			fmt.Printf("Alive node count is %d, starting synchronized block. \n", aliveCount)
+			loop = false
+		} else {
+			if aliveCount == 0 {
+				fmt.Println("There is no node alive.")
+			}
+			fmt.Println("The number of surviving nodes is less than half, waiting for other nodes to restart.")
+			time.Sleep(3 * time.Second)
 		}
-		if aliveCount == 0 {
-			fmt.Println("There is no node alive.")
-		}
-		fmt.Println("The number of surviving nodes is less than half, waiting for other nodes to restart.")
-		time.Sleep(3 * time.Second)
 	}
 	fmt.Println("Alive node more than half, continue.")
 
@@ -102,7 +130,14 @@ WaitingNodes:
 			height++
 			failCount = 0
 		} else {
-			if AliveDPoSPeerCount(peers, false) <= len(dpos.Blockchain.CurrentBlock.Round.Peers)/2 {
+			round := &i_consensus.Round{
+				Peers:        p2p.MainChainDPosNode,
+				CurrentIndex: -1,
+			}
+			if dpos.Blockchain.CurrentHeight > 0 {
+				round = dpos.Blockchain.CurrentBlock.Round
+			}
+			if AliveDPoSPeerCount(peers, false) <= len(round.Peers)/2 {
 				goto WaitingNodes
 			}
 			failCount++
@@ -227,6 +262,17 @@ func (dpos DPOSConsensus) pullBlock() {
 			if dpos.Blockchain.CurrentBlock.Height < block.Height {
 			}
 		}
+	}
+}
+
+func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
+	if votes.Len() <= len(dpos.Blockchain.CurrentBlock.Round.Peers)/2 {
+		return
+	}
+	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; !exist {
+		return
+	} else {
+		dpos.Blockchain.SaveBlock(block)
 	}
 }
 
