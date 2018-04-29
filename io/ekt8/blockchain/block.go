@@ -49,10 +49,14 @@ func (block *Block) Bytes() []byte {
 }
 
 func (block *Block) Data() []byte {
+	round := ""
+	if block.Height > 0 {
+		round = block.Round.String()
+	}
 	return []byte(fmt.Sprintf(
 		`{"height": %d, "timestamp": %d, "nonce": %d, "fee": %d, "totalFee": %d, "previousHash": "%s", "body": "%s", "round": %s, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "tokenRoot": "%s"}`,
 		block.Height, block.Timestamp, block.Nonce, block.Fee, block.TotalFee, hex.EncodeToString(block.PreviousHash), hex.EncodeToString(block.Body),
-		block.Round.String(), hex.EncodeToString(block.StatRoot), hex.EncodeToString(block.TxRoot),
+		round, hex.EncodeToString(block.StatRoot), hex.EncodeToString(block.TxRoot),
 		hex.EncodeToString(block.EventRoot), hex.EncodeToString(block.TokenRoot),
 	))
 }
