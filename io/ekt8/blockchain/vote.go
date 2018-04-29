@@ -1,16 +1,23 @@
 package blockchain
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
+	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/b_search"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 )
+
+var VoteResultManager VoteResults
+
+func init() {
+	VoteResultManager = NewVoteResults()
+}
 
 type BlockVote struct {
 	BlockchainId []byte   `json:"blockchainId"`
@@ -24,7 +31,17 @@ type BlockVote struct {
 type Votes []BlockVote
 
 type VoteResults struct {
-	VoteResults Votes
+	Locker      sync.RWMutex
+	Broadcast   map[string]bool
+	VoteResults map[string]Votes
+}
+
+func NewVoteResults() VoteResults {
+	return VoteResults{
+		Broadcast:   make(map[string]bool),
+		VoteResults: make(map[string]Votes),
+		Locker:      sync.RWMutex{},
+	}
 }
 
 func (vote BlockVote) Validate() bool {
@@ -64,27 +81,67 @@ func (vote BlockVote) Bytes() []byte {
 }
 
 func (vote VoteResults) Insert(voteResult BlockVote) {
-	if -1 == b_search.Search(voteResult, vote) {
-		vote.VoteResults = append(vote.VoteResults, voteResult)
-		sort.Sort(vote)
+	votes, exist := vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)]
+	flag := false
+	if exist {
+		for _, _vote := range votes {
+			if strings.EqualFold(_vote.Value(), voteResult.Value()) {
+				flag = true
+				break
+			}
+		}
+	}
+	if !flag {
+		votes = make([]BlockVote, 0)
+		votes = append(votes, voteResult)
+		vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)] = votes
 	}
 }
 
-func (vote VoteResults) Len() int {
-	return len(vote.VoteResults)
+func (vote VoteResults) Number(blockHash []byte) int {
+	votes, exist := vote.VoteResults[hex.EncodeToString(blockHash)]
+	if !exist {
+		return 0
+	}
+	return len(votes)
 }
 
-func (vote VoteResults) Swap(i, j int) {
-	vote.VoteResults[i], vote.VoteResults[j] = vote.VoteResults[j], vote.VoteResults[i]
+func (vote VoteResults) Broadcasted(blockHash []byte) bool {
+	return vote.Broadcast[hex.EncodeToString(blockHash)]
 }
 
-func (vote VoteResults) Less(i, j int) bool {
-	return vote.VoteResults[i].Peer.String() < vote.VoteResults[j].Peer.String()
+func (vote Votes) Len() int {
+	return len(vote)
 }
 
-func (vote VoteResults) Index(index int) b_search.Interface {
+func (vote Votes) Swap(i, j int) {
+	vote[i], vote[j] = vote[j], vote[i]
+}
+
+func (vote Votes) Less(i, j int) bool {
+	return vote[i].Peer.String() < vote[j].Peer.String()
+}
+
+func (vote Votes) Bytes() []byte {
+	data, _ := json.Marshal(vote)
+	return data
+}
+
+func (votes Votes) Validate() bool {
+	if len(votes) == 0 {
+		return false
+	}
+	for _, vote := range votes {
+		if !vote.Validate() || bytes.Equal(vote.Data(), votes[0].Data()) || !vote.VoteResult {
+			return false
+		}
+	}
+	return true
+}
+
+func (vote Votes) Index(index int) b_search.Interface {
 	if index > vote.Len() || index < 0 {
 		panic("Index out of bound.")
 	}
-	return vote.VoteResults[index]
+	return vote[index]
 }
