@@ -253,7 +253,7 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	}
 	for _, peer := range peers {
 		block, err := getBlockHeader(peer, height)
-		if err != nil {
+		if err != nil || block.Height != height {
 			fmt.Println("Geting block header by height failed.")
 			continue
 		}
