@@ -70,11 +70,19 @@ func (dpos DPOSConsensus) DPoSRun() {
 }
 
 func (dpos DPOSConsensus) IsMyTurn() bool {
+	fmt.Printf("Current block height is %d.\n", dpos.Blockchain.CurrentHeight)
 	time, interval := int(time.Now().UnixNano()/1e6-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval)
 	// 如果当前时间与上个区块的打包时间超过一个round，需要等待round的下一个节点进行打包
-	if time > interval*dpos.Blockchain.CurrentBlock.Round.Len() {
+	round := &i_consensus.Round{
+		Peers:        p2p.MainChainDPosNode,
+		CurrentIndex: -1,
+	}
+	if dpos.Blockchain.CurrentHeight > 0 {
+		round = dpos.Blockchain.CurrentBlock.Round
+	}
+	if time > interval*round.Len() {
 		// 如果当前节点是下一个节点
-		if dpos.Blockchain.CurrentBlock.Round.IndexPlus(dpos.Blockchain.CurrentBlock.Hash()).IsMyTurn() {
+		if round.IndexPlus(dpos.Blockchain.CurrentBlock.Hash()).IsMyTurn() {
 			return true
 		} else {
 			return false
@@ -85,9 +93,8 @@ func (dpos DPOSConsensus) IsMyTurn() bool {
 	if remainder > int(interval)/2 {
 		n++
 	}
-	currentIndex := (dpos.Blockchain.CurrentBlock.Round.CurrentIndex + n) % dpos.Blockchain.CurrentBlock.Round.Len()
-	round := dpos.Blockchain.CurrentBlock.Round
-	if dpos.Blockchain.CurrentBlock.Round.CurrentIndex+n >= dpos.Blockchain.CurrentBlock.Round.Len() {
+	currentIndex := (round.CurrentIndex + n) % round.Len()
+	if round.CurrentIndex+n >= round.Len() {
 		round = round.NextRound(dpos.Blockchain.CurrentBlock.Hash())
 	}
 	round.CurrentIndex = currentIndex
@@ -130,6 +137,7 @@ WaitingNodes:
 			height++
 			failCount = 0
 		} else {
+			fmt.Printf("Synchronizing block at height %d failed. \n", height)
 			round := &i_consensus.Round{
 				Peers:        p2p.MainChainDPosNode,
 				CurrentIndex: -1,
@@ -144,7 +152,7 @@ WaitingNodes:
 			// 如果区块同步失败，会重试三次，三次之后判断当前节点是否是DPoS节点，选择不同的同步策略
 			if failCount >= 3 {
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
-				if dpos.Blockchain.CurrentBlock.Round.MyIndex() != -1 {
+				if round.MyIndex() != -1 {
 					flag = true
 					dpos.DPoSRun()
 				} else {
@@ -187,10 +195,11 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 			CurrentHash:  nil,
 			BlockBody:    blockchain.NewBlockBody(0),
 			Body:         nil,
-			Round: &i_consensus.Round{
-				Peers:        dpos.GetCurrentDPOSPeers(),
-				CurrentIndex: -1,
-			},
+			Round:        nil,
+			//Round: &i_consensus.Round{
+			//	Peers:        dpos.GetCurrentDPOSPeers(),
+			//	CurrentIndex: -1,
+			//},
 			Locker:    sync.RWMutex{},
 			StatTree:  MPTPlus.NewMTP(db.GetDBInst()),
 			StatRoot:  nil,
@@ -204,6 +213,7 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 		for _, account := range accounts {
 			block.InsertAccount(account)
 		}
+		block.UpdateMPTPlusRoot()
 		dpos.Blockchain.SaveBlock(block)
 	}
 	dpos.Blockchain.CurrentHeight = block.Height
@@ -230,7 +240,11 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	var header *blockchain.Block
 	m := make(map[string]int)
 	mapping := make(map[string]*blockchain.Block)
-	for _, peer := range dpos.Blockchain.CurrentBlock.Round.Peers {
+	peers := p2p.MainChainDPosNode
+	if dpos.Blockchain.CurrentHeight > 0 {
+		peers = dpos.Blockchain.CurrentBlock.Round.Peers
+	}
+	for _, peer := range peers {
 		block, err := getBlockHeader(peer, height)
 		if err != nil {
 			continue
@@ -241,7 +255,7 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 		} else {
 			m[hex.EncodeToString(block.Hash())] = 1
 		}
-		if m[hex.EncodeToString(block.Hash())] > len(dpos.Blockchain.CurrentBlock.Round.Peers) {
+		if m[hex.EncodeToString(block.Hash())] > len(peers) {
 			header = mapping[hex.EncodeToString(block.Hash())]
 		}
 	}
@@ -266,7 +280,14 @@ func (dpos DPOSConsensus) pullBlock() {
 }
 
 func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
-	if votes.Len() <= len(dpos.Blockchain.CurrentBlock.Round.Peers)/2 {
+	round := &i_consensus.Round{
+		Peers:        p2p.MainChainDPosNode,
+		CurrentIndex: -1,
+	}
+	if dpos.Blockchain.CurrentHeight > 0 {
+		round = dpos.Blockchain.CurrentBlock.Round
+	}
+	if votes.Len() <= len(round.Peers)/2 {
 		return
 	}
 	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; !exist {

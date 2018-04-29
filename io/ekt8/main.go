@@ -76,6 +76,7 @@ func initPeerId() error {
 		conf.EKTConfig.Node.PeerId = hex.EncodeToString(crypto.Sha3_256(pub))
 		fmt.Printf("Current peerId is %s. \n", conf.EKTConfig.Node.PeerId)
 	}
+
 	return nil
 }
 
