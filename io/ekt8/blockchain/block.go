@@ -15,7 +15,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
-	"github.com/EducationEKT/EKT/io/ekt8/p2p"
+	"github.com/EducationEKT/EKT/io/ekt8/param"
 )
 
 var currentBlock *Block = nil
@@ -218,7 +218,7 @@ func NewBlock(last *Block) *Block {
 	}
 	if last.Height == 0 {
 		block.Round = &i_consensus.Round{
-			Peers:        p2p.MainChainDPosNode,
+			Peers:        param.MainChainDPosNode,
 			CurrentIndex: 0,
 		}
 	} else {
@@ -229,7 +229,7 @@ func NewBlock(last *Block) *Block {
 
 func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 	round := &i_consensus.Round{
-		Peers:        p2p.MainChainDPosNode,
+		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
 	if block.Height > 0 {

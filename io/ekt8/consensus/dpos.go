@@ -15,6 +15,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
+	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 
 	"sync"
@@ -74,7 +75,7 @@ func (dpos DPOSConsensus) IsMyTurn() bool {
 	time, interval := int(time.Now().UnixNano()/1e6-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval)
 	// 如果当前时间与上个区块的打包时间超过一个round，需要等待round的下一个节点进行打包
 	round := &i_consensus.Round{
-		Peers:        p2p.MainChainDPosNode,
+		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
 	if dpos.Blockchain.CurrentHeight > 0 {
@@ -139,7 +140,7 @@ WaitingNodes:
 		} else {
 			fmt.Printf("Synchronizing block at height %d failed. \n", height)
 			round := &i_consensus.Round{
-				Peers:        p2p.MainChainDPosNode,
+				Peers:        param.MainChainDPosNode,
 				CurrentIndex: -1,
 			}
 			if dpos.Blockchain.CurrentHeight > 0 {
@@ -238,7 +239,7 @@ func AliveDPoSPeerCount(peers p2p.Peers, print bool) int {
 func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	fmt.Printf("Synchronizing block at height %d \n", height)
 	round := &i_consensus.Round{
-		Peers:        p2p.MainChainDPosNode,
+		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
 	if dpos.Blockchain.CurrentHeight > 0 {
@@ -247,7 +248,7 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	var header *blockchain.Block
 	m := make(map[string]int)
 	mapping := make(map[string]*blockchain.Block)
-	peers := p2p.MainChainDPosNode
+	peers := param.MainChainDPosNode
 	if dpos.Blockchain.CurrentHeight > 0 {
 		peers = round.Peers
 	}
@@ -289,7 +290,7 @@ func (dpos DPOSConsensus) pullBlock() {
 
 func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
 	round := &i_consensus.Round{
-		Peers:        p2p.MainChainDPosNode,
+		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
 	if dpos.Blockchain.CurrentHeight > 0 {
@@ -342,7 +343,7 @@ func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 
 //获取当前的peers
 func (dpos DPOSConsensus) GetCurrentDPOSPeers() p2p.Peers {
-	return p2p.MainChainDPosNode
+	return param.MainChainDPosNode
 }
 
 func CurrentHeight(peer p2p.Peer) (int64, error) {

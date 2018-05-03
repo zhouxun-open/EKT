@@ -5,7 +5,6 @@ import (
 
 	"github.com/EducationEKT/EKT/io/ekt8/dispatcher"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
-	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -24,8 +23,9 @@ func NewAccount(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	}
 	evt := &event.Event{EventParam: account, EventType: event.NewAccountEvent}
 	dispatcher.GetDisPatcher().NewEvent(evt)
-	if !p2p.IsDPosPeer(req.R.RemoteAddr) {
-		p2p.BroadcastRequest(req.Path, req.Body)
-	}
+	// 根据mainchain的记录进行转发
+	//if !p2p.IsDPosPeer(req.R.RemoteAddr) {
+	//	p2p.BroadcastRequest(req.Path, req.Body)
+	//}
 	return x_resp.Success("success"), nil
 }

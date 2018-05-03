@@ -16,6 +16,7 @@ type EKTConf struct {
 	BlockchainManagePwd  string           `json:"blockchainManagePwd"`
 	GenesisBlockAccounts []common.Account `json:"genesisBlock"`
 	PrivateKey           []byte           `json:"privateKey"`
+	Env                  string           `json:"env"`
 }
 
 var EKTConfig EKTConf

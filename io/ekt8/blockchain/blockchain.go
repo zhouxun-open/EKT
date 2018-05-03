@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"errors"
+
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
@@ -16,7 +17,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
-	"github.com/EducationEKT/EKT/io/ekt8/p2p"
+	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/EKT/io/ekt8/pool"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 
@@ -202,6 +203,7 @@ func (blockchain *BlockChain) broadcastBlock(block *Block) {
 }
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
+	block.CaculateHash()
 	fmt.Println("Saving block to database.")
 	db.GetDBInst().Set(block.Hash(), block.Data())
 	data, _ := json.Marshal(block)
@@ -371,7 +373,7 @@ func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {
 	}
 	VoteResultManager.Insert(vote)
 	round := &i_consensus.Round{
-		Peers:        p2p.MainChainDPosNode,
+		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
 	if blockchain.CurrentHeight > 0 {

@@ -12,6 +12,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
+	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/xserver/x_http"
 )
 
@@ -50,6 +51,7 @@ func InitService() error {
 	if err != nil {
 		return err
 	}
+	param.InitBootNodes()
 	blockchain_manager.Init()
 
 	return nil

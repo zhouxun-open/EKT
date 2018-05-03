@@ -2,6 +2,7 @@
     "version": "0.2",
     "dbPath": "/data/EKT/db",
     "logPath": "/data/EKT/log",
+    "env": "testnet",
     "node": {
         "address": "127.0.0.1",
         "port": 19951,

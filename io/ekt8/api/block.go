@@ -6,17 +6,18 @@ import (
 
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
-	"github.com/EducationEKT/EKT/io/ekt8/p2p"
+	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
 	"github.com/EducationEKT/xserver/x_http/x_router"
-	"strings"
 )
 
 func init() {
@@ -79,7 +80,7 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
 	round := &i_consensus.Round{
-		Peers:        p2p.MainChainDPosNode,
+		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
 	if lastBlock.Height >= 1 {
