@@ -23,8 +23,9 @@ import (
 )
 
 type DPOSConsensus struct {
-	Blockchain *blockchain.BlockChain
-	Locker     sync.RWMutex
+	Blockchain    *blockchain.BlockChain
+	Locker        sync.RWMutex
+	DPOSRunLocker sync.RWMutex
 }
 
 //从网络层转发过来的交易,进入打包流程
@@ -57,7 +58,14 @@ func (dpos DPOSConsensus) Run() {
 
 func (dpos DPOSConsensus) DPoSRun() {
 	interval := 50 * time.Millisecond
+	dpos.DPOSRunLocker.Lock()
+	defer dpos.DPOSRunLocker.Unlock()
 	for {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Panic occured.", r)
+			}
+		}()
 		log.GetLogInst().LogInfo(`Timer tick: is my turn?`)
 		if dpos.IsMyTurn() {
 			log.GetLogInst().LogInfo("Yes.")
@@ -137,9 +145,8 @@ WaitingNodes:
 
 	fmt.Println("Synchronizing blockchain...")
 	interval := 50 * time.Millisecond
-	flag := false
 	failCount := 0
-	for height := dpos.Blockchain.CurrentHeight + 1; flag == false; {
+	for height := dpos.Blockchain.CurrentHeight + 1; ; {
 		if dpos.SyncHeight(height) {
 			fmt.Printf("Synchronizing block at height %d successed. \n", height)
 			height++
@@ -161,8 +168,7 @@ WaitingNodes:
 			if failCount >= 3 {
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
 				if round.MyIndex() != -1 {
-					flag = true
-					dpos.DPoSRun()
+					go dpos.DPoSRun()
 				} else {
 					interval = 3 * time.Second
 				}
