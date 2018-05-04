@@ -204,6 +204,7 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 			BlockBody:    blockchain.NewBlockBody(0),
 			Body:         nil,
 			Round:        nil,
+			Timestamp:    0,
 			//Round: &i_consensus.Round{
 			//	Peers:        dpos.GetCurrentDPOSPeers(),
 			//	CurrentIndex: -1,

@@ -241,9 +241,10 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 		return false
 	}
 	time := next.Timestamp - block.Timestamp
+	fmt.Printf("block.Timestamp=%d, next.Timestamp=%d, time=%d\n", block.Timestamp, next.Timestamp, time)
 	// 时间差在下一个区块，说明中间没有错过区块
 	// 如果前n个节点没有出块，判断当前节点是否拥有打包权限（时间）
-	n := int(time) / int(interval)
+	n := int(int64(time) / int64(interval))
 	if n > len(round.Peers) {
 		// 如果已经超过一轮没有出块，则所有节点等放弃出块，等待当前轮下一个节点进行打包
 		if !round.IndexPlus(block.Hash()).Equal(next.Round) {
@@ -265,7 +266,7 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 			return false
 		}
 	} else if round.CurrentIndex+n != next.Round.CurrentIndex {
-		fmt.Printf("Round: %s, n:%d, next.Round.CurrentIndex:%d current node is not the next block candidate, validate false.", round.String(), n, next.Round.CurrentIndex)
+		fmt.Printf("Round: %s, n:%d, next.Round.CurrentIndex:%d current node is not the next block candidate, validate false. \n", round.String(), n, next.Round.CurrentIndex)
 		return false
 	}
 	return block.ValidateBlockStat(next)
