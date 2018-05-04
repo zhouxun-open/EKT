@@ -253,10 +253,6 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			flag = true
 			break
 		default:
-			if block.BlockBody.Size() >= 3500*3 {
-				flag = true
-				break
-			}
 			evt := blockchain.Pool.FetchEvent()
 			if evt != nil {
 				if strings.EqualFold(evt.EventType, event.NewAccountEvent) {
