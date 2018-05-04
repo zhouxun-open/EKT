@@ -265,7 +265,7 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 			return false
 		}
 	} else if round.CurrentIndex+n != next.Round.CurrentIndex {
-		fmt.Println("Current node is not the next block candidate, validate false.")
+		fmt.Printf("Round: %s, current node is not the next block candidate, validate false.", round.String())
 		return false
 	}
 	return block.ValidateBlockStat(next)
