@@ -86,16 +86,19 @@ func (vote VoteResults) Insert(voteResult BlockVote) {
 	vote.Locker.Lock()
 	defer vote.Locker.Unlock()
 	votes, exist := vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)]
-	flag := false
-	if exist {
+	if exist || len(votes) > 0 {
+		flag := false
 		for _, _vote := range votes {
 			if strings.EqualFold(_vote.Value(), voteResult.Value()) {
 				flag = true
 				break
 			}
 		}
-	}
-	if !flag {
+		if !flag {
+			votes = append(votes, voteResult)
+			vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)] = votes
+		}
+	} else {
 		votes = make([]BlockVote, 0)
 		votes = append(votes, voteResult)
 		vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)] = votes

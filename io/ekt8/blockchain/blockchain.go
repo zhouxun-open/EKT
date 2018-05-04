@@ -380,6 +380,8 @@ func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {
 	fmt.Println("Is current vote number more than half node?")
 	if VoteResultManager.Number(vote.BlockHash) > len(round.Peers)/2 {
 		fmt.Println("Vote number more than half node, sending vote result to other nodes.")
+		VoteResultManager.Locker.RLock()
+		defer VoteResultManager.Locker.RUnlock()
 		votes := VoteResultManager.VoteResults[hex.EncodeToString(vote.BlockHash)]
 		for _, peer := range round.Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
@@ -387,6 +389,6 @@ func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {
 		}
 	} else {
 		fmt.Printf("Current vote results: %s", string(VoteResultManager.VoteResults[hex.EncodeToString(vote.BlockHash)].Bytes()))
-		fmt.Printf("Vote number is %s, less than %d, waiting for vote. \n", VoteResultManager.Number(vote.BlockHash), len(round.Peers)/2)
+		fmt.Printf("Vote number is %d, less than %d, waiting for vote. \n", VoteResultManager.Number(vote.BlockHash), len(round.Peers)/2+1)
 	}
 }
