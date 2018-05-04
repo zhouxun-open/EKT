@@ -52,7 +52,6 @@ type BlockChain struct {
 	Difficulty    []byte
 	Pool          *pool.Pool
 	CurrentHeight int64
-	Cb            func(block *Block)
 	Validator     *BlockValidator
 	BlockInterval time.Duration
 	Police        BlockPolice

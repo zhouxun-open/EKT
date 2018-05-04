@@ -32,13 +32,12 @@ func Init() {
 		Consensuses: make(map[string]i_consensus.Consensus),
 	}
 	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, nil, nil, sync.RWMutex{},
-		blockchain.BackboneConsensus, 210000, []byte("F"), pool.NewPool(), 0, nil, nil, blockchain.BackboneBlockInterval, blockchain.NewBlockPolice()}
+		blockchain.BackboneConsensus, 210000, []byte("F"), pool.NewPool(), 0, nil, blockchain.BackboneBlockInterval, blockchain.NewBlockPolice()}
 	MainBlockChainConsensus = consensus.DPOSConsensus{
 		Blockchain:    MainBlockChain,
 		Locker:        sync.RWMutex{},
 		DPOSRunLocker: sync.RWMutex{},
 	}
-	MainBlockChain.Cb = MainBlockChainConsensus.BlockMinedCallBack
 	go MainBlockChainConsensus.Run()
 	value, err := db.GetDBInst().Get([]byte(BlockchainManagerDBKey))
 	if err != nil {
