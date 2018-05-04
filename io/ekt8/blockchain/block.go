@@ -237,6 +237,7 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 	}
 	// 如果不是当前的块的下一个区块，则返回false
 	if !bytes.Equal(next.PreviousHash, block.Hash()) || block.Height+1 != next.Height {
+		fmt.Printf("This block's previous hash is unexpected, want %s, get %s. \n", hex.EncodeToString(block.Hash()), hex.EncodeToString(next.PreviousHash))
 		return false
 	}
 	time := next.Timestamp - block.Timestamp
@@ -246,6 +247,8 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 	if n > len(round.Peers) {
 		// 如果已经超过一轮没有出块，则所有节点等放弃出块，等待当前轮下一个节点进行打包
 		if !round.IndexPlus(block.Hash()).Equal(next.Round) {
+			// 如果当前节点不是下一个节点，返回错误
+			fmt.Println("Time goes more than a round interval, and current node is not the next node, validate false.")
 			return false
 		}
 	}
@@ -258,9 +261,11 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 		// 计算当前区块的区块差
 		miningNumber := (round.CurrentIndex + n) % round.Len()
 		if miningNumber != next.Round.CurrentIndex {
+			fmt.Println("Current peer is not the next block candidate, validate false.")
 			return false
 		}
 	} else if round.CurrentIndex+n != next.Round.CurrentIndex {
+		fmt.Println("Current node is not the next block candidate, validate false.")
 		return false
 	}
 	return block.ValidateBlockStat(next)
@@ -288,10 +293,12 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 		if evt == nil {
 			data, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(evtId)
 			if err != nil {
+				fmt.Println("Can not get this event, validate false.")
 				return false
 			}
 			evt = event.FromBytes(data)
 			if evt == nil {
+				fmt.Println("Can not get this event, validate false.")
 				return false
 			}
 		}
@@ -305,10 +312,12 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 		if tx == nil {
 			data, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(txId)
 			if err != nil {
+				fmt.Println("Can not get this transaction, validate false.")
 				return false
 			}
 			tx = common.FromBytes(data)
 			if tx == nil {
+				fmt.Println("Can not get this transaction, validate false.")
 				return false
 			}
 		}
