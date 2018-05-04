@@ -244,7 +244,7 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 	fmt.Printf("block.Timestamp=%d, next.Timestamp=%d, time=%d\n", block.Timestamp, next.Timestamp, time)
 	// 时间差在下一个区块，说明中间没有错过区块
 	// 如果前n个节点没有出块，判断当前节点是否拥有打包权限（时间）
-	n := int(int64(time) / int64(interval))
+	n := int(int64(time) / int64(interval/1e6))
 	if n > len(round.Peers) {
 		// 如果已经超过一轮没有出块，则所有节点等放弃出块，等待当前轮下一个节点进行打包
 		if !round.IndexPlus(block.Hash()).Equal(next.Round) {
