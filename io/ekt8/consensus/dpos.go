@@ -60,21 +60,33 @@ func (dpos DPOSConsensus) DPoSRun() {
 	interval := 50 * time.Millisecond
 	dpos.DPOSRunLocker.Lock()
 	defer dpos.DPOSRunLocker.Unlock()
+	fmt.Println("DPoS running.")
 	for {
 		defer func() {
 			if r := recover(); r != nil {
 				fmt.Println("Panic occured.", r)
 			}
 		}()
+		time.Sleep(interval)
+		round := &i_consensus.Round{Peers: param.MainChainDPosNode, CurrentIndex: -1}
+		if dpos.Blockchain.CurrentHeight > 0 {
+			round = dpos.Blockchain.CurrentBlock.Round
+		}
+		if AliveDPoSPeerCount(round.Peers, false) <= len(round.Peers)/2 {
+			fmt.Println("Alive node is less than half, waiting for other DPoS node restart.")
+			interval = 3 * time.Second
+			continue
+		}
 		log.GetLogInst().LogInfo(`Timer tick: is my turn?`)
 		if dpos.IsMyTurn() {
 			log.GetLogInst().LogInfo("Yes.")
 			dpos.Pack(dpos.Blockchain.CurrentHeight)
-			time.Sleep(2 * dpos.Blockchain.BlockInterval / 3)
+			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)/2)))
 		} else {
 			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
 			time.Sleep(interval)
 		}
+
 	}
 }
 
@@ -144,8 +156,7 @@ WaitingNodes:
 	fmt.Println("Alive node more than half, continue.")
 
 	fmt.Println("Synchronizing blockchain...")
-	interval := 50 * time.Millisecond
-	failCount := 0
+	interval, failCount, flag := 50*time.Millisecond, 0, false
 	for height := dpos.Blockchain.CurrentHeight + 1; ; {
 		if dpos.SyncHeight(height) {
 			fmt.Printf("Synchronizing block at height %d successed. \n", height)
@@ -168,7 +179,10 @@ WaitingNodes:
 			if failCount >= 3 {
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
 				if round.MyIndex() != -1 {
-					go dpos.DPoSRun()
+					flag = true
+					if flag == false {
+						go dpos.DPoSRun()
+					}
 				} else {
 					interval = 3 * time.Second
 				}
@@ -211,19 +225,15 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 			Body:         nil,
 			Round:        nil,
 			Timestamp:    0,
-			//Round: &i_consensus.Round{
-			//	Peers:        dpos.GetCurrentDPOSPeers(),
-			//	CurrentIndex: -1,
-			//},
-			Locker:    sync.RWMutex{},
-			StatTree:  MPTPlus.NewMTP(db.GetDBInst()),
-			StatRoot:  nil,
-			TxTree:    MPTPlus.NewMTP(db.GetDBInst()),
-			TxRoot:    nil,
-			EventTree: MPTPlus.NewMTP(db.GetDBInst()),
-			EventRoot: nil,
-			TokenRoot: nil,
-			TokenTree: MPTPlus.NewMTP(db.GetDBInst()),
+			Locker:       sync.RWMutex{},
+			StatTree:     MPTPlus.NewMTP(db.GetDBInst()),
+			StatRoot:     nil,
+			TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
+			TxRoot:       nil,
+			EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
+			EventRoot:    nil,
+			TokenTree:    MPTPlus.NewMTP(db.GetDBInst()),
+			TokenRoot:    nil,
 		}
 		for _, account := range accounts {
 			block.InsertAccount(account)
@@ -396,23 +406,6 @@ func getBlockHeader(peer p2p.Peer, height int64) (*blockchain.Block, error) {
 		var block blockchain.Block
 		err = json.Unmarshal(data, &block)
 		return &block, err
-	}
-	return nil, err
-}
-
-func getBlockBody(peer p2p.Peer, height int64) (*blockchain.BlockBody, error) {
-	url := fmt.Sprintf(`http://%s:%d/block/api/body?height=%d`, peer.Address, peer.Port, height)
-	body, err := util.HttpGet(url)
-	if err != nil {
-		return nil, err
-	}
-	var resp x_resp.XRespBody
-	err = json.Unmarshal(body, &resp)
-	data, err := json.Marshal(resp.Result)
-	if err == nil {
-		var blockBody blockchain.BlockBody
-		err = json.Unmarshal(data, &blockBody)
-		return &blockBody, err
 	}
 	return nil, err
 }
