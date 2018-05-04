@@ -83,6 +83,8 @@ func (vote BlockVote) Bytes() []byte {
 }
 
 func (vote VoteResults) Insert(voteResult BlockVote) {
+	vote.Locker.Lock()
+	defer vote.Locker.Unlock()
 	votes, exist := vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)]
 	flag := false
 	if exist {
