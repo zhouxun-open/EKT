@@ -103,6 +103,8 @@ func (vote VoteResults) Insert(voteResult BlockVote) {
 }
 
 func (vote VoteResults) Number(blockHash []byte) int {
+	vote.Locker.RLock()
+	defer vote.Locker.RUnlock()
 	votes, exist := vote.VoteResults[hex.EncodeToString(blockHash)]
 	if !exist {
 		return 0
@@ -111,6 +113,8 @@ func (vote VoteResults) Number(blockHash []byte) int {
 }
 
 func (vote VoteResults) Broadcasted(blockHash []byte) bool {
+	vote.Locker.RLock()
+	vote.Locker.RUnlock()
 	return vote.Broadcast[hex.EncodeToString(blockHash)]
 }
 

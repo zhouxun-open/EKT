@@ -365,8 +365,6 @@ func (blockchain *BlockChain) BlockFromPeer(block Block, sign []byte) {
 
 func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {
 	fmt.Println("Recieved vote from peer.")
-	VoteResultManager.Locker.Lock()
-	defer VoteResultManager.Locker.Unlock()
 	if VoteResultManager.Broadcasted(vote.BlockHash) {
 		fmt.Println("This block has voted, return.")
 		return
