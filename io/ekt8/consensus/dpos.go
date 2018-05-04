@@ -80,6 +80,13 @@ func (dpos DPOSConsensus) IsMyTurn() bool {
 	}
 	if dpos.Blockchain.CurrentHeight > 0 {
 		round = dpos.Blockchain.CurrentBlock.Round
+	} else {
+		// 如果是第一个区块，需要第一个节点来打包
+		if conf.EKTConfig.Node.Equal(round.Peers[0]) {
+			return true
+		} else {
+			return false
+		}
 	}
 	if time > interval*round.Len() {
 		// 如果当前节点是下一个节点
