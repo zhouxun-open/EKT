@@ -211,7 +211,7 @@ func NewBlock(last *Block) *Block {
 		Body:         nil,
 		Round:        nil,
 		Locker:       sync.RWMutex{},
-		StatTree:     last.StatTree,
+		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), last.StatRoot),
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 		TokenTree:    last.TokenTree,

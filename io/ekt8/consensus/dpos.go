@@ -156,7 +156,7 @@ WaitingNodes:
 	fmt.Println("Alive node more than half, continue.")
 
 	fmt.Println("Synchronizing blockchain...")
-	interval, failCount, flag := 50*time.Millisecond, 0, false
+	interval, failCount := 50*time.Millisecond, 0
 	for height := dpos.Blockchain.CurrentHeight + 1; ; {
 		if dpos.SyncHeight(height) {
 			fmt.Printf("Synchronizing block at height %d successed. \n", height)
@@ -177,13 +177,13 @@ WaitingNodes:
 			failCount++
 			// 如果区块同步失败，会重试三次，三次之后判断当前节点是否是DPoS节点，选择不同的同步策略
 			if failCount >= 3 {
+				fmt.Println("Fail count more than 3 times.")
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
 				if round.MyIndex() != -1 {
-					flag = true
-					if flag == false {
-						go dpos.DPoSRun()
-					}
+					fmt.Println("This peer is DPoS node, start DPoS thread.")
+					go dpos.DPoSRun()
 				} else {
+					fmt.Println("Change interval to 3 second.")
 					interval = 3 * time.Second
 				}
 			}
