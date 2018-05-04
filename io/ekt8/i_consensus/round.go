@@ -41,12 +41,17 @@ func (round *Round) IndexPlus(CurrentHash []byte) *Round {
 	return round
 }
 
+func (round *Round) NewRandom(CurrentHash []byte) *Round {
+	round.Random = util.BytesToInt(CurrentHash[22:])
+	return round
+}
+
 func (round *Round) NextRound(CurrentHash []byte) *Round {
 	if round.CurrentIndex == len(round.Peers)-1 {
 		bytes := CurrentHash[22:]
 		Random := util.BytesToInt(bytes)
 		round = &Round{
-			CurrentIndex: round.MyIndex(),
+			CurrentIndex: 0,
 			Peers:        round.Peers,
 			Random:       Random,
 		}

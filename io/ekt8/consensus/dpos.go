@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"xserver/x_http/x_resp"
 
@@ -92,7 +93,7 @@ func (dpos DPOSConsensus) DPoSRun() {
 
 func (dpos DPOSConsensus) IsMyTurn() bool {
 	fmt.Printf("Current block height is %d.\n", dpos.Blockchain.CurrentHeight)
-	time, interval := int(time.Now().UnixNano()/1e6-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval)
+	time, interval := int(time.Now().UnixNano()/1e6-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval/1e6)
 	// 如果当前时间与上个区块的打包时间超过一个round，需要等待round的下一个节点进行打包
 	round := &i_consensus.Round{
 		Peers:        param.MainChainDPosNode,
@@ -121,12 +122,16 @@ func (dpos DPOSConsensus) IsMyTurn() bool {
 	if remainder > int(interval)/2 {
 		n++
 	}
-	currentIndex := (round.CurrentIndex + n) % round.Len()
 	if round.CurrentIndex+n >= round.Len() {
-		round = round.NextRound(dpos.Blockchain.CurrentBlock.Hash())
+		round = round.NewRandom(dpos.Blockchain.CurrentBlock.CurrentHash)
+		sort.Sort(round)
 	}
-	round.CurrentIndex = currentIndex
-	return round.IsMyTurn()
+	currentIndex := (round.CurrentIndex + n) % round.Len()
+	if round.Peers[currentIndex].Equal(conf.EKTConfig.Node) {
+		return true
+	} else {
+		return false
+	}
 }
 
 func (dpos DPOSConsensus) RUN() {
