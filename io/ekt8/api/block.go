@@ -103,7 +103,7 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 
 	// 如果当前节点既不是打包节点，又不是转发，则返回错误
 	if !strings.EqualFold(IP, round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Address) && !forward {
-		fmt.Println("Neither current node is minging node nor a forward node.")
+		fmt.Printf("Neither current node %s is minging node %s nor a forward node. \n", IP, round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Address))
 		return x_resp.Return("error invalid address", errors.New("error invalid address"))
 	}
 	url := fmt.Sprintf("http://%s:%d/db/api/get", block.Round.Peers[block.Round.CurrentIndex].Address, block.Round.Peers[block.Round.CurrentIndex].Port)
