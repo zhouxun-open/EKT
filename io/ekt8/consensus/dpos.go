@@ -300,8 +300,10 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
 		return
 	}
 	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; !exist {
+		fmt.Println("Recieve vote result but current node does not have this block, waiting for synchronized block.")
 		return
 	} else {
+		fmt.Println("Recieve vote result and get this block, saving block.")
 		dpos.Blockchain.SaveBlock(block)
 	}
 }

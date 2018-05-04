@@ -87,9 +87,10 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		round = lastBlock.Round
 	}
 	IP := strings.Split(req.R.RemoteAddr, ":")[0]
+	_, forward := req.Query["forward"]
 	if !strings.EqualFold(IP, conf.EKTConfig.Node.Address) && strings.EqualFold(block.Round.Peers[block.Round.CurrentIndex].Address, IP) && block.Round.MyIndex() != -1 && (block.Round.MyIndex()-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) < len(block.Round.Peers)/2 {
 		//当前节点是打包节点广播，而且当前节点满足(currentIndex - miningIndex + len(DPoSNodes)) % len(DPoSNodes) < len(DPoSNodes) / 2
-		if req.Query != nil {
+		if !forward {
 			for i := 0; i < len(block.Round.Peers); i++ {
 				if i == block.Round.CurrentIndex || i == block.Round.MyIndex() {
 					continue
@@ -98,7 +99,11 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 			}
 		}
 	}
-	if !strings.EqualFold(IP, round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Address) {
+	fmt.Println("Forward block to other succeed.")
+
+	// 如果当前节点既不是打包节点，又不是转发，则返回错误
+	if !strings.EqualFold(IP, round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Address) && !forward {
+		fmt.Println("Neither current node is minging node nor a forward node.")
 		return x_resp.Return("error invalid address", errors.New("error invalid address"))
 	}
 	url := fmt.Sprintf("http://%s:%d/db/api/get", block.Round.Peers[block.Round.CurrentIndex].Address, block.Round.Peers[block.Round.CurrentIndex].Port)
