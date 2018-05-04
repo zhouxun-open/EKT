@@ -253,8 +253,8 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 			return false
 		}
 	}
-	remainder := int(time) % int(interval)
-	if remainder > int(interval)/2 {
+	remainder := int(time) % int(interval/1e6)
+	if remainder > int(interval/1e6)/2 {
 		n++
 	}
 	// 需要计算下一个区块的index
