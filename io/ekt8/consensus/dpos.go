@@ -82,12 +82,11 @@ func (dpos DPOSConsensus) DPoSRun() {
 		if dpos.IsMyTurn() {
 			log.GetLogInst().LogInfo("Yes.")
 			dpos.Pack(dpos.Blockchain.CurrentHeight)
-			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)/2)))
+			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)*1e6/2)))
 		} else {
 			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
 			time.Sleep(interval)
 		}
-
 	}
 }
 
