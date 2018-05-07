@@ -9,7 +9,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
-	"github.com/EducationEKT/EKT/io/ekt8/pool"
 )
 
 const (
@@ -31,8 +30,7 @@ func Init() {
 		Blockchains: make(map[string]*blockchain.BlockChain),
 		Consensuses: make(map[string]i_consensus.Consensus),
 	}
-	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, nil, nil, sync.RWMutex{},
-		blockchain.BackboneConsensus, 210000, []byte("F"), pool.NewPool(), 0, nil, blockchain.BackboneBlockInterval, blockchain.NewBlockPolice()}
+	MainBlockChain = blockchain.NewBlockChain(blockchain.BackboneChainId, blockchain.BackboneConsensus, blockchain.BackboneChainFee, blockchain.BackboneChainDifficulty, blockchain.BackboneBlockInterval)
 	MainBlockChainConsensus = consensus.DPOSConsensus{
 		Blockchain:    MainBlockChain,
 		Locker:        sync.RWMutex{},

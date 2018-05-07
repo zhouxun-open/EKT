@@ -25,29 +25,33 @@ import (
 )
 
 var BackboneChainId []byte
+var BackboneChainDifficulty []byte
 var EKTTokenId []byte
 
 func init() {
 	BackboneChainId, _ = hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000001")
+	BackboneChainDifficulty = []byte("F")
 	EKTTokenId, _ = hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000001")
 }
 
 const (
-	CurrentBlockKey       = "CurrentBlockKey"
 	BackboneConsensus     = i_consensus.DPOS
 	BackboneBlockInterval = 3 * time.Second
-	InitStatus            = 0
-	OpenStatus            = 100
-	StartPackStatus       = 110
+	BackboneChainFee      = 210000
+)
+
+const (
+	CurrentBlockKey = "CurrentBlockKey"
+	InitStatus      = 0
+	StartPackStatus = 100
 )
 
 type BlockChain struct {
 	ChainId       []byte
 	Consensus     i_consensus.ConsensusType
 	CurrentBlock  *Block
-	CurrentBody   *BlockBody
 	Locker        sync.RWMutex
-	Status        int // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
+	Status        int
 	Fee           int64
 	Difficulty    []byte
 	Pool          *pool.Pool
@@ -55,6 +59,23 @@ type BlockChain struct {
 	Validator     *BlockValidator
 	BlockInterval time.Duration
 	Police        BlockPolice
+}
+
+func NewBlockChain(chainId []byte, consensusType i_consensus.ConsensusType, fee int64, difficulty []byte, interval time.Duration) *BlockChain {
+	return &BlockChain{
+		ChainId:       chainId,
+		Consensus:     consensusType,
+		CurrentBlock:  nil,
+		Locker:        sync.RWMutex{},
+		Status:        InitStatus, // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
+		Fee:           fee,
+		Difficulty:    difficulty,
+		Pool:          pool.NewPool(),
+		CurrentHeight: 0,
+		Validator:     nil,
+		BlockInterval: interval,
+		Police:        NewBlockPolice(),
+	}
 }
 
 func (blockchain *BlockChain) PackSignal(height int64) {
@@ -137,7 +158,6 @@ func (blockchain *BlockChain) SaveBlock(block *Block) {
 	db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
 	db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
 	blockchain.CurrentBlock = block
-	blockchain.CurrentBody = block.BlockBody
 	blockchain.CurrentHeight = block.Height
 	fmt.Println("Save block to database succeed.")
 }
