@@ -33,7 +33,7 @@ func init() {
 }
 
 const (
-	CurrentBlockKey       = "CurrentBlock_____"
+	CurrentBlockKey       = "CurrentBlockKey"
 	BackboneConsensus     = i_consensus.DPOS
 	BackboneBlockInterval = 3 * time.Second
 	InitStatus            = 0
@@ -72,78 +72,6 @@ func (blockchain *BlockChain) GetStatus() int {
 	blockchain.Locker.RLock()
 	defer blockchain.Locker.RUnlock()
 	return blockchain.Status
-}
-
-//func (blockchain *BlockChain) ValidateBlock(block *Block, blockBody *BlockBody) bool {
-//	if block.Round.IsMyTurn() {
-//		go blockchain.PackSignal()
-//	}
-//	if block.Round.Peers[block.Round.CurrentIndex].Equal(conf.EKTConfig.Node) {
-//		return true
-//	}
-//
-//	block1 := NewBlock(blockchain.CurrentBlock)
-//	for _, txResult := range blockBody.TxResults {
-//		tx := blockchain.Pool.Notify(txResult.TxId)
-//		if tx == nil {
-//			//TODO 从数据库中读取，Pool里面都有，除非有特别大的延迟
-//			return false
-//		}
-//		txResult_ := block1.NewTransaction(tx, txResult.Fee)
-//		if txResult.Success != txResult_.Success {
-//			return false
-//		}
-//	}
-//	for _, evtResult := range blockBody.EventResults {
-//		evt := blockchain.Pool.NotifyEvent(evtResult.EventId)
-//		if evt == nil {
-//			//TODO 从数据库中读取，Pool里面都有，除非有特别大的延迟
-//			return false
-//		}
-//		if strings.EqualFold(evt.EventType, event.NewAccountEvent) {
-//			param := evt.EventParam.(event.NewAccountParam)
-//			address, _ := hex.DecodeString(param.Address)
-//			pubKey, _ := hex.DecodeString(param.PubKey)
-//			if block1.InsertAccount(*common.NewAccount(address, pubKey)) {
-//				block1.BlockBody.AddEventResult(event.EventResult{Success: true, EventId: evt.EventParam.Id()})
-//			} else {
-//				block1.BlockBody.AddEventResult(event.EventResult{Success: false, Reason: "address exist", EventId: evt.EventParam.Id()})
-//			}
-//		}
-//	}
-//	blockchain.Pack(block1)
-//	if bytes.EqualFold(block.Hash(), block1.Hash()) {
-//		blockchain.SaveBlock(block)
-//		return true
-//	}
-//	return false
-//}
-
-//返回从指定高度到当前区块的区块头
-func (blockchain *BlockChain) GetBlockHeaders(fromHeight int64) []*Block {
-	headers := make([]*Block, 0)
-	var lastHeight int64 = 0
-	lastBlock, err := blockchain.LastBlock()
-	if err == nil && lastBlock != nil {
-		lastHeight = lastBlock.Height
-	}
-	var block *Block = lastBlock
-	for height := lastHeight; height >= fromHeight; height-- {
-		if block != nil {
-			headers = append(headers, block)
-		}
-		data, err := db.GetDBInst().Get(block.PreviousHash)
-		if err != nil {
-			return headers
-		}
-		var header Block
-		err = json.Unmarshal(data, &header)
-		if err != nil {
-			return headers
-		}
-		block = &header
-	}
-	return headers
 }
 
 func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {

@@ -11,7 +11,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
-	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
@@ -30,19 +29,19 @@ type DPOSConsensus struct {
 }
 
 //从网络层转发过来的交易,进入打包流程
-func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
-	dpos.Blockchain.Locker.Lock()
-	defer dpos.Blockchain.Locker.Unlock()
-	lastBlock, _ := dpos.Blockchain.LastBlock()
-	if dpos.Blockchain.Status == blockchain.OpenStatus {
-		var account common.Account
-		address, _ := hex.DecodeString(tx.From)
-		if err := lastBlock.StatTree.GetInterfaceValue(address, &account); err != nil {
-			if account.GetNonce()+1 < tx.Nonce {
-			}
-		}
-	}
-}
+//func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
+//	dpos.Blockchain.Locker.Lock()
+//	defer dpos.Blockchain.Locker.Unlock()
+//	lastBlock, _ := dpos.Blockchain.LastBlock()
+//	if dpos.Blockchain.Status == blockchain.OpenStatus {
+//		var account common.Account
+//		address, _ := hex.DecodeString(tx.From)
+//		if err := lastBlock.StatTree.GetInterfaceValue(address, &account); err != nil {
+//			if account.GetNonce()+1 < tx.Nonce {
+//			}
+//		}
+//	}
+//}
 
 func (dpos DPOSConsensus) Run() {
 	for {
@@ -299,8 +298,9 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	if header == nil {
 		return false
 	}
-	dpos.Blockchain.CurrentBlock = header
-	dpos.Blockchain.CurrentHeight = header.Height
+	dpos.Blockchain.SaveBlock(header)
+	//dpos.Blockchain.CurrentBlock = header
+	//dpos.Blockchain.CurrentHeight = header.Height
 	fmt.Printf("Block at height %d header: %v \n", height, string(header.Bytes()))
 	return true
 }

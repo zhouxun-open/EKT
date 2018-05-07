@@ -17,7 +17,9 @@ func init() {
 }
 
 func NewTransaction(transaction common.Transaction) {
-	blockchain_manager.MainBlockChainConsensus.NewTransaction(transaction)
+	// TODO to be refact
+	// TODO 从network层过来的transaction直接进入blockchain的tx_pool,不经过共识层
+	//blockchain_manager.MainBlockChainConsensus.NewTransaction(transaction)
 }
 
 type IDispatcher interface {

@@ -23,8 +23,5 @@ func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	}
 	dispatcher.GetDisPatcher().NewTransaction(&tx)
 	// TODO 根据mainchain的记录进行转发
-	//if !p2p.IsDPosPeer(req.R.RemoteAddr) {
-	//	p2p.BroadcastRequest(req.Path, req.Body)
-	//}
 	return x_resp.Success("success"), nil
 }

@@ -2,8 +2,6 @@ package api
 
 import (
 	"encoding/hex"
-	"errors"
-
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -20,29 +18,13 @@ import (
 
 func init() {
 	x_router.Post("/blocks/api/last", lastBlock)
-	x_router.Get("/blocks/api/blockHeaders", blockHeaders)
-	x_router.Get("/block/api/body", body)
 	x_router.Get("/block/api/blockByHeight", blockByHeight)
 	x_router.Post("/block/api/newBlock", newBlock)
-}
-
-func body(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	consensus := blockchain_manager.MainBlockChainConsensus
-	if consensus.CurrentBlock().Height == consensus.Blockchain.CurrentBody.Height {
-		return x_resp.Success(consensus.Blockchain.CurrentBody), nil
-	}
-	return nil, x_err.NewXErr(errors.New("can not get body"))
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	block := blockchain_manager.GetMainChain().CurrentBlock
 	return x_resp.Return(block, nil)
-}
-
-func blockHeaders(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	fromHeight := req.MustGetInt64("fromHeight")
-	headers := blockchain_manager.GetMainChain().GetBlockHeaders(fromHeight)
-	return x_resp.Success(headers), nil
 }
 
 func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
