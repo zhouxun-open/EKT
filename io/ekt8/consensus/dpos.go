@@ -298,9 +298,8 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	if header == nil {
 		return false
 	}
+	// TODO 同步区块体
 	dpos.Blockchain.SaveBlock(header)
-	//dpos.Blockchain.CurrentBlock = header
-	//dpos.Blockchain.CurrentHeight = header.Height
 	fmt.Printf("Block at height %d header: %v \n", height, string(header.Bytes()))
 	return true
 }
@@ -332,6 +331,7 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
 		return
 	} else {
 		fmt.Println("Recieve vote result and get this block, saving block.")
+		// TODO，判断当前的区块body是否已经同步
 		dpos.Blockchain.SaveBlock(block)
 	}
 }
