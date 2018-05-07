@@ -8,7 +8,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/pool"
-	"github.com/EducationEKT/EKT/io/ekt8/validator"
 )
 
 var dispatcher DefaultDispatcher
@@ -46,9 +45,6 @@ func (dispacher DefaultDispatcher) GetBackBoneBlockChain() *blockchain.BlockChai
 }
 
 func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transaction) {
-	if !validator.ValidateTx(transaction) {
-		return
-	}
 	blockChain := dispatcher.GetBackBoneBlockChain()
 	// TODO 把不同blockchain的transaction分开
 	if blockChain.GetStatus() == 100 {
