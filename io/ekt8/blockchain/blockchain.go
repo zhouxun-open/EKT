@@ -59,6 +59,8 @@ type BlockChain struct {
 	Validator     *BlockValidator
 	BlockInterval time.Duration
 	Police        BlockPolice
+	BlockManager  *BlockManager
+	PackLock      sync.RWMutex
 }
 
 func NewBlockChain(chainId []byte, consensusType i_consensus.ConsensusType, fee int64, difficulty []byte, interval time.Duration) *BlockChain {
@@ -75,18 +77,38 @@ func NewBlockChain(chainId []byte, consensusType i_consensus.ConsensusType, fee 
 		Validator:     nil,
 		BlockInterval: interval,
 		Police:        NewBlockPolice(),
+		BlockManager:  NewBlockManager(),
+		PackLock:      sync.RWMutex{},
 	}
 }
 
 func (blockchain *BlockChain) PackSignal(height int64) {
-	blockchain.Locker.Lock()
+	blockchain.PackLock.Lock()
 	if blockchain.Status != StartPackStatus {
 		blockchain.Status = StartPackStatus
 		block := blockchain.WaitAndPack()
+		hash := hex.EncodeToString(block.CurrentHash)
+		blockchain.BlockManager.Lock()
+		blockchain.BlockManager.Blocks[hash] = block
+		blockchain.BlockManager.BlockStatus[hash] = BODY_SAVED
+		blockchain.BlockManager.HeightManager[block.Height] = block.Timestamp
+		blockchain.BlockManager.Unlock()
 		blockchain.broadcastBlock(block)
 		blockchain.Status = InitStatus
 	}
-	blockchain.Locker.Unlock()
+	blockchain.PackLock.Unlock()
+}
+
+func (blockchain *BlockChain) PackHeightValidate(height int64) bool {
+	if blockchain.CurrentHeight+1 != height {
+		return false
+	}
+	blockchain.BlockManager.RLock()
+	defer blockchain.BlockManager.RUnlock()
+	if !blockchain.BlockManager.GetBlockStatusByHeight(height, int64(blockchain.BlockInterval)) {
+		return false
+	}
+	return true
 }
 
 func (blockchain *BlockChain) GetStatus() int {
@@ -109,27 +131,9 @@ func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
 	}
 	block, err := FromBytes2Block(data)
 	if block.Height != height {
-		return nil, errors.New("Too heigher.")
+		return nil, errors.New("Can not get block from db.")
 	}
 	return block, err
-}
-
-func (blockchain *BlockChain) GetBlockBodyByHeight(height int64) (*BlockBody, error) {
-	if height > blockchain.CurrentHeight {
-		return nil, errors.New("Invalid height")
-	}
-	key := blockchain.GetBlockBodyByHeightKey(height)
-	data, err := db.GetDBInst().Get(key)
-	if err != nil {
-		return nil, err
-	}
-	var body BlockBody
-	err = json.Unmarshal(data, &body)
-	return &body, err
-}
-
-func (blockchain *BlockChain) GetBlockBodyByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockBodyByHeight: _%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
 func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
