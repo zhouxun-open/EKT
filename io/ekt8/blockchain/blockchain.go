@@ -57,7 +57,7 @@ type BlockChain struct {
 	Police        BlockPolice
 }
 
-func (blockchain *BlockChain) PackSignal() {
+func (blockchain *BlockChain) PackSignal(height int64) {
 	blockchain.Locker.Lock()
 	if blockchain.Status != StartPackStatus {
 		blockchain.Status = StartPackStatus

@@ -198,7 +198,7 @@ WaitingNodes:
 // 共识向blockchain发送signal进行下一个区块的打包
 func (dpos DPOSConsensus) Pack(height int64) {
 	bc := dpos.Blockchain
-	bc.PackSignal()
+	bc.PackSignal(height)
 }
 
 func (dpos DPOSConsensus) BlockMinedCallBack(block *blockchain.Block) {
