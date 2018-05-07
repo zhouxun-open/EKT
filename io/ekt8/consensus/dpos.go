@@ -75,7 +75,7 @@ func (dpos DPOSConsensus) DPoSRun() {
 		}
 		if AliveDPoSPeerCount(round.Peers, false) <= len(round.Peers)/2 {
 			fmt.Println("Alive node is less than half, waiting for other DPoS node restart.")
-			interval = 3 * time.Second
+			time.Sleep(3 * time.Second)
 			continue
 		}
 		log.GetLogInst().LogInfo(`Timer tick: is my turn?`)
@@ -374,17 +374,6 @@ func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
 //获取当前的peers
 func (dpos DPOSConsensus) GetCurrentDPOSPeers() p2p.Peers {
 	return param.MainChainDPosNode
-}
-
-func CurrentHeight(peer p2p.Peer) (int64, error) {
-	url := fmt.Sprintf(`http://%s:%d/blocks/api/last`, peer.Address, peer.Port)
-	body, err := util.HttpGet(url)
-	if err != nil {
-		return -1, err
-	}
-	var block blockchain.Block
-	err = json.Unmarshal(body, &block)
-	return block.Height, err
 }
 
 //向指定节点获取最新区块
