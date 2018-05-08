@@ -185,7 +185,7 @@ func (block *Block) UpdateMPTPlusRoot() {
 	if block.TokenTree != nil {
 		block.TokenTree.Lock.RLock()
 		block.TokenRoot = block.TokenTree.Root
-		block.EventTree.Lock.RUnlock()
+		block.TokenTree.Lock.RUnlock()
 	}
 }
 
