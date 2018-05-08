@@ -120,14 +120,18 @@ func (dpos DPOSConsensus) IsMyTurn() bool {
 	if remainder > int(interval)/2 {
 		n++
 	}
+	fmt.Printf("Current round is %s \n", round.String())
 	if round.CurrentIndex+n >= round.Len() {
 		round = round.NewRandom(dpos.Blockchain.CurrentBlock.CurrentHash)
+		fmt.Printf("Next round is %s, is my turn? \n", round.String())
 		sort.Sort(round)
 	}
 	currentIndex := (round.CurrentIndex + n) % round.Len()
 	if round.Peers[currentIndex].Equal(conf.EKTConfig.Node) {
+		fmt.Println("Yes.")
 		return true
 	} else {
+		fmt.Println("No.")
 		return false
 	}
 }
