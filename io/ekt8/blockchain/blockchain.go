@@ -111,12 +111,6 @@ func (blockchain *BlockChain) PackHeightValidate(height int64) bool {
 	return true
 }
 
-func (blockchain *BlockChain) GetStatus() int {
-	blockchain.Locker.RLock()
-	defer blockchain.Locker.RUnlock()
-	return blockchain.Status
-}
-
 func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
 	if height > blockchain.CurrentHeight {
 		return nil, errors.New("Invalid height")
@@ -155,7 +149,6 @@ func (blockchain *BlockChain) broadcastBlock(block *Block) {
 }
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
-	block.CaculateHash()
 	fmt.Println("Saving block to database.")
 	db.GetDBInst().Set(block.Hash(), block.Data())
 	data, _ := json.Marshal(block)

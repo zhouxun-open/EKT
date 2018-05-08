@@ -242,6 +242,7 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 			block.InsertAccount(account)
 		}
 		block.UpdateMPTPlusRoot()
+		block.CaculateHash()
 		dpos.Blockchain.SaveBlock(block)
 	}
 	dpos.Blockchain.CurrentHeight = block.Height

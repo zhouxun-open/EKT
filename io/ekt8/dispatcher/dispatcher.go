@@ -7,7 +7,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
-	"github.com/EducationEKT/EKT/io/ekt8/pool"
 )
 
 var dispatcher DefaultDispatcher
@@ -47,25 +46,26 @@ func (dispacher DefaultDispatcher) GetBackBoneBlockChain() *blockchain.BlockChai
 }
 
 func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transaction) {
-	blockChain := dispatcher.GetBackBoneBlockChain()
-	// TODO 把不同blockchain的transaction分开
-	if blockChain.GetStatus() == 100 {
-		if block := blockChain.CurrentBlock; block != nil {
-			address, _ := hex.DecodeString(transaction.From)
-			account, _ := block.GetAccount(address)
-			if transaction.Nonce <= account.GetNonce() {
-				return
-			} else if transaction.Nonce-account.GetNonce() > 1 {
-				blockChain.Pool.ParkTx(transaction, pool.Block)
-			} else {
-				toAddress, _ := hex.DecodeString(transaction.To)
-				if !block.ExistAddress(toAddress) {
-					return
-				}
-				blockChain.Pool.ParkTx(transaction, pool.Ready)
-			}
-		}
-	}
+	// TODO
+	//blockChain := dispatcher.GetBackBoneBlockChain()
+	//// TODO 把不同blockchain的transaction分开
+	//if blockChain.GetStatus() == 100 {
+	//	if block := blockChain.CurrentBlock; block != nil {
+	//		address, _ := hex.DecodeString(transaction.From)
+	//		account, _ := block.GetAccount(address)
+	//		if transaction.Nonce <= account.GetNonce() {
+	//			return
+	//		} else if transaction.Nonce-account.GetNonce() > 1 {
+	//			blockChain.Pool.ParkTx(transaction, pool.Block)
+	//		} else {
+	//			toAddress, _ := hex.DecodeString(transaction.To)
+	//			if !block.ExistAddress(toAddress) {
+	//				return
+	//			}
+	//			blockChain.Pool.ParkTx(transaction, pool.Ready)
+	//		}
+	//	}
+	//}
 }
 
 func (dispatcher DefaultDispatcher) NewEvent(evt *event.Event) {

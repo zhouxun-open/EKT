@@ -170,18 +170,22 @@ func (block *Block) UpdateMPTPlusRoot() {
 	if block.StatTree != nil {
 		block.StatTree.Lock.RLock()
 		block.StatRoot = block.StatTree.Root
+		block.StatTree.Lock.RUnlock()
 	}
 	if block.TxTree != nil {
 		block.TxTree.Lock.RLock()
 		block.TxRoot = block.TxTree.Root
+		block.TxTree.Lock.RUnlock()
 	}
 	if block.EventTree != nil {
 		block.EventTree.Lock.RLock()
 		block.EventRoot = block.EventTree.Root
+		block.EventTree.Lock.RUnlock()
 	}
 	if block.TokenTree != nil {
 		block.TokenTree.Lock.RLock()
 		block.TokenRoot = block.TokenTree.Root
+		block.EventTree.Lock.RUnlock()
 	}
 }
 
