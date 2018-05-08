@@ -26,8 +26,8 @@ func init() {
 }
 
 func main() {
-	fmt.Println("server listen on :19951")
-	err := http.ListenAndServe(":19951", nil)
+	fmt.Printf("server listen on :%d", conf.EKTConfig.Node.Port)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", conf.EKTConfig.Node.Port), nil)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
