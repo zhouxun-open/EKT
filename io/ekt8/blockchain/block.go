@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -226,8 +227,21 @@ func NewBlock(last *Block) *Block {
 			CurrentIndex: 0,
 		}
 	} else {
-		block.Round = last.Round.NewRandom(last.CurrentHash)
-		block.Round.CurrentIndex = block.Round.MyIndex()
+		lastIndex := last.Round.CurrentIndex
+		fmt.Printf("My round index is %d, lastIndex is %d \n", block.Round.MyIndex(), lastIndex)
+		if block.Round.CurrentIndex > block.Round.MyIndex() {
+			fmt.Println("Current round is over, turn to next round.")
+			block.Round = block.Round.NewRandom(last.CurrentHash)
+			sort.Sort(block.Round)
+			if block.Round.Len()-lastIndex+block.Round.MyIndex() >= block.Round.Len() {
+				panic("Invalid round, return.")
+			} else {
+				block.Round.CurrentIndex = block.Round.MyIndex()
+			}
+		} else {
+			block.Round = last.Round
+			block.Round.CurrentIndex = block.Round.MyIndex()
+		}
 	}
 	return block
 }

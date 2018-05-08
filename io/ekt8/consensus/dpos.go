@@ -107,7 +107,7 @@ func (dpos DPOSConsensus) IsMyTurn() bool {
 			return false
 		}
 	}
-	if time > interval*round.Len() {
+	if time >= interval*round.Len() {
 		// 如果当前节点是下一个节点
 		if round.IndexPlus(dpos.Blockchain.CurrentBlock.Hash()).IsMyTurn() {
 			return true
