@@ -381,5 +381,5 @@ func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
 }
 
 func (block *Block) Sign() {
-	block.Signutare, _ = crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.PrivateKey)
+	block.Signature, _ = crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.PrivateKey)
 }
