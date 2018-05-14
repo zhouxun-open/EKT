@@ -3,6 +3,7 @@ package i_consensus
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
@@ -30,11 +31,13 @@ func (round1 *Round) Equal(round2 *Round) bool {
 func (round *Round) IndexPlus(CurrentHash []byte) *Round {
 	if round.CurrentIndex == len(round.Peers)-1 {
 		Random := util.BytesToInt(CurrentHash[22:])
-		round = &Round{
+		round_ := &Round{
 			CurrentIndex: 0,
 			Peers:        round.Peers,
 			Random:       Random,
 		}
+		sort.Sort(round_)
+		return round_
 	} else {
 		round.CurrentIndex++
 	}
@@ -70,6 +73,18 @@ func (round Round) IsMyTurn() bool {
 		return true
 	}
 	return false
+}
+
+func (round Round) NextPeerRight(peer p2p.Peer, hash []byte) bool {
+	if round.CurrentIndex < round.Len()-1 {
+		if round.Peers[round.CurrentIndex+1].Equal(peer) {
+			return true
+		}
+		return false
+	} else {
+		_round := round.NewRandom(hash)
+		return _round.Peers[0].Equal(peer)
+	}
 }
 
 func (round Round) MyIndex() int {

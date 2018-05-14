@@ -274,6 +274,10 @@ func (blockchain *BlockChain) BlockFromPeer(block Block, sign []byte) {
 			util.HttpPost(url, evilBlock.Bytes())
 		}
 	}
+	if time.Now().UnixNano()/1e6-block.Timestamp > int64(blockchain.BlockInterval/3e6) {
+		fmt.Println("Block timestamp is more than 1/3 block interval, abort vote.")
+		return
+	}
 	if !blockchain.CurrentBlock.ValidateNextBlock(block, blockchain.BlockInterval) {
 		fmt.Println("This block from peer can not recover by last block, abort.")
 		return

@@ -28,21 +28,6 @@ type DPOSConsensus struct {
 	DPOSRunLocker sync.RWMutex
 }
 
-//从网络层转发过来的交易,进入打包流程
-//func (dpos DPOSConsensus) NewTransaction(tx common.Transaction) {
-//	dpos.Blockchain.Locker.Lock()
-//	defer dpos.Blockchain.Locker.Unlock()
-//	lastBlock, _ := dpos.Blockchain.LastBlock()
-//	if dpos.Blockchain.Status == blockchain.OpenStatus {
-//		var account common.Account
-//		address, _ := hex.DecodeString(tx.From)
-//		if err := lastBlock.StatTree.GetInterfaceValue(address, &account); err != nil {
-//			if account.GetNonce()+1 < tx.Nonce {
-//			}
-//		}
-//	}
-//}
-
 func (dpos DPOSConsensus) Run() {
 	for {
 		defer func() {
@@ -79,6 +64,7 @@ func (dpos DPOSConsensus) DPoSRun() {
 		}
 		log.GetLogInst().LogInfo(`Timer tick: is my turn?`)
 		if dpos.IsMyTurn() {
+			fmt.Printf("This is my turn, current heigth is %d. \n", dpos.Blockchain.CurrentHeight)
 			log.GetLogInst().LogInfo("Yes.")
 			dpos.Pack(dpos.Blockchain.CurrentHeight)
 			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)*1e6/2)))
@@ -89,51 +75,106 @@ func (dpos DPOSConsensus) DPoSRun() {
 	}
 }
 
-func (dpos DPOSConsensus) IsMyTurn() bool {
-	fmt.Printf("Current block height is %d.\n", dpos.Blockchain.CurrentHeight)
-	time, interval := int(time.Now().UnixNano()/1e6-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval/1e6)
-	// 如果当前时间与上个区块的打包时间超过一个round，需要等待round的下一个节点进行打包
+func (dpos DPOSConsensus) PeerTurn(packTime int64, peer p2p.Peer) bool {
+	fmt.Println("Validating peer has the right to pack block.")
 	round := &i_consensus.Round{
 		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
+	dpos.Blockchain.Locker.RLock()
+	defer dpos.Blockchain.Locker.RUnlock()
 	if dpos.Blockchain.CurrentHeight > 0 {
 		round = dpos.Blockchain.CurrentBlock.Round
 	} else {
-		// 如果是第一个区块，需要第一个节点来打包
-		if conf.EKTConfig.Node.Equal(round.Peers[0]) {
+		fmt.Println("Current height is 0, waiting for the first node pack block.")
+		if round.Peers[0].Equal(peer) {
+			fmt.Println("This is the first node, return true.")
 			return true
 		} else {
+			fmt.Println("This is not the first node, return true.")
 			return false
 		}
 	}
+	time, interval := int(packTime-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval/1e6)
 	if time >= interval*round.Len() {
-		// 如果当前节点是下一个节点
-		if round.IndexPlus(dpos.Blockchain.CurrentBlock.Hash()).IsMyTurn() {
+		fmt.Println("More than a round time, waiting for the next node pack block.")
+		if round.NextPeerRight(conf.EKTConfig.Node, dpos.Blockchain.CurrentBlock.CurrentHash) {
+			fmt.Println("This is the next node, return true.")
 			return true
 		} else {
+			fmt.Println("This is not the next node, return false.")
+			return false
+		}
+	} else {
+		n := time / interval
+		remainder := int(time) % int(interval)
+		if remainder > int(interval)/2 {
+			n++
+		}
+		fmt.Printf("Current round is %s \n", round.String())
+		if round.CurrentIndex+n >= round.Len() {
+			fmt.Printf("Next round is %s, is my turn? \n", round.String())
+			round = round.NewRandom(dpos.Blockchain.CurrentBlock.CurrentHash)
+			sort.Sort(round)
+		}
+		currentIndex := (round.CurrentIndex + n) % round.Len()
+		if round.Peers[currentIndex].Equal(peer) {
+			fmt.Println("This is the next node, return true.")
+			return true
+		} else {
+			fmt.Println("This is the next node, return false.")
 			return false
 		}
 	}
-	n := time / interval
-	remainder := int(time) % int(interval)
-	if remainder > int(interval)/2 {
-		n++
-	}
-	fmt.Printf("Current round is %s \n", round.String())
-	if round.CurrentIndex+n >= round.Len() {
-		round = round.NewRandom(dpos.Blockchain.CurrentBlock.CurrentHash)
-		fmt.Printf("Next round is %s, is my turn? \n", round.String())
-		sort.Sort(round)
-	}
-	currentIndex := (round.CurrentIndex + n) % round.Len()
-	if round.Peers[currentIndex].Equal(conf.EKTConfig.Node) {
-		fmt.Println("Yes.")
-		return true
-	} else {
-		fmt.Println("No.")
-		return false
-	}
+	return false
+}
+
+func (dpos DPOSConsensus) IsMyTurn() bool {
+	return dpos.PeerTurn(time.Now().UnixNano()/1e6, conf.EKTConfig.Node)
+	//fmt.Printf("Current block height is %d.\n", dpos.Blockchain.CurrentHeight)
+	//time, interval := int(time.Now().UnixNano()/1e6-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval/1e6)
+	//// 如果当前时间与上个区块的打包时间超过一个round，需要等待round的下一个节点进行打包
+	//round := &i_consensus.Round{
+	//	Peers:        param.MainChainDPosNode,
+	//	CurrentIndex: -1,
+	//}
+	//if dpos.Blockchain.CurrentHeight > 0 {
+	//	round = dpos.Blockchain.CurrentBlock.Round
+	//} else {
+	//	// 如果是第一个区块，需要第一个节点来打包
+	//	if conf.EKTConfig.Node.Equal(round.Peers[0]) {
+	//		return true
+	//	} else {
+	//		return false
+	//	}
+	//}
+	//if time >= interval*round.Len() {
+	//	// 如果当前节点是下一个节点
+	//	if round.IndexPlus(dpos.Blockchain.CurrentBlock.Hash()).IsMyTurn() {
+	//		return true
+	//	} else {
+	//		return false
+	//	}
+	//}
+	//n := time / interval
+	//remainder := int(time) % int(interval)
+	//if remainder > int(interval)/2 {
+	//	n++
+	//}
+	//fmt.Printf("Current round is %s \n", round.String())
+	//if round.CurrentIndex+n >= round.Len() {
+	//	round = round.NewRandom(dpos.Blockchain.CurrentBlock.CurrentHash)
+	//	fmt.Printf("Next round is %s, is my turn? \n", round.String())
+	//	sort.Sort(round)
+	//}
+	//currentIndex := (round.CurrentIndex + n) % round.Len()
+	//if round.Peers[currentIndex].Equal(conf.EKTConfig.Node) {
+	//	fmt.Println("Yes.")
+	//	return true
+	//} else {
+	//	fmt.Println("No.")
+	//	return false
+	//}
 }
 
 func (dpos DPOSConsensus) RUN() {
