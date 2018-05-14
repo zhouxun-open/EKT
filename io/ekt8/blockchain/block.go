@@ -30,7 +30,7 @@ type Block struct {
 	TotalFee     int64              `json:"totalFee"`
 	PreviousHash []byte             `json:"previousHash"`
 	CurrentHash  []byte             `json:"currentHash"`
-	Signutare    []byte             `json:"signutare"`
+	Signature    []byte             `json:"signature"`
 	BlockBody    *BlockBody         `json:"-"`
 	Body         []byte             `json:"body"`
 	Round        *i_consensus.Round `json:"round"`
