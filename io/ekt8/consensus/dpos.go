@@ -24,8 +24,36 @@ import (
 
 type DPOSConsensus struct {
 	Blockchain    *blockchain.BlockChain
+	Block         chan blockchain.Block
+	Vote          chan blockchain.BlockVote
+	VoteResults   chan blockchain.VoteResults
 	Locker        sync.RWMutex
 	DPOSRunLocker sync.RWMutex
+}
+
+func NewDPoSConsensus(Blockchain *blockchain.BlockChain) DPOSConsensus {
+	return DPOSConsensus{
+		Blockchain:    Blockchain,
+		Block:         make(chan blockchain.Block),
+		Vote:          make(chan blockchain.BlockVote),
+		VoteResults:   make(chan blockchain.VoteResults),
+		Locker:        sync.RWMutex{},
+		DPOSRunLocker: sync.RWMutex{},
+	}
+}
+
+func (dpos DPOSConsensus) Start() {
+	for {
+		select {
+		case block := <-dpos.Block:
+			dpos.BlockFromPeer(block)
+			//case
+		}
+	}
+}
+
+func (dpos DPOSConsensus) BlockFromPeer(block blockchain.Block) {
+	dpos.Blockchain.BlockFromPeer(block, nil)
 }
 
 func (dpos DPOSConsensus) Run() {

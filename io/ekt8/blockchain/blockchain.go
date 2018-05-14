@@ -136,15 +136,11 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 
 func (blockchain *BlockChain) broadcastBlock(block *Block) {
 	fmt.Println("Broadcasting block to the other peers.")
-	sign := block.Sign(conf.EKTConfig.PrivateKey)
-	body := map[string]interface{}{
-		"block": block,
-		"sign":  sign,
-	}
-	data, _ := json.Marshal(body)
+	block.Sign()
+	data, _ := json.Marshal(block)
 	for _, peer := range block.Round.Peers {
 		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
-		util.HttpPost(url, data)
+		go util.HttpPost(url, data)
 	}
 }
 

@@ -39,11 +39,8 @@ func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 
 func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	var block blockchain.Block
-	blockInterface, _ := req.GetParam("block")
-	blockData, _ := json.Marshal(blockInterface)
-	sign := req.MustGetString("sign")
-	json.Unmarshal(blockData, &block)
-	fmt.Printf("Recieved new block and signature: block=%v, sign=%s, blockHash=%s \n", string(block.Bytes()), sign, hex.EncodeToString(block.Hash()))
+	json.Unmarshal(req.Body, &block)
+	fmt.Printf("Recieved new block : block=%v, blockHash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
 	lastBlock := blockchain_manager.GetMainChain().CurrentBlock
 	if lastBlock.Height+1 != block.Height {
 		fmt.Printf("Block height is not right, want %d, get %d, give up voting. \n", lastBlock.Height+1, block.Height)
@@ -62,12 +59,8 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 			fmt.Println("Forward block to other succeed.")
 		}
 	}
-
-	signature, err := hex.DecodeString(sign)
-	if err != nil {
-		fmt.Println("Block signature is not hex, validate fail, return.")
-		return x_resp.Return(nil, err)
-	}
-	blockchain_manager.MainBlockChain.BlockFromPeer(block, signature)
+	go func() {
+		blockchain_manager.MainBlockChainConsensus.Block <- block
+	}()
 	return x_resp.Return("recieved", nil)
 }

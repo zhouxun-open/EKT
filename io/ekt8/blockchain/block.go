@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
+	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
@@ -29,6 +30,7 @@ type Block struct {
 	TotalFee     int64              `json:"totalFee"`
 	PreviousHash []byte             `json:"previousHash"`
 	CurrentHash  []byte             `json:"currentHash"`
+	Signutare    []byte             `json:"signutare"`
 	BlockBody    *BlockBody         `json:"-"`
 	Body         []byte             `json:"body"`
 	Round        *i_consensus.Round `json:"round"`
@@ -378,7 +380,6 @@ func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
 	return evtResult
 }
 
-func (block *Block) Sign(privKey []byte) string {
-	data, _ := crypto.Crypto(crypto.Sha3_256(block.Hash()), privKey)
-	return hex.EncodeToString(data)
+func (block *Block) Sign() {
+	block.Signutare, _ = crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.PrivateKey)
 }
