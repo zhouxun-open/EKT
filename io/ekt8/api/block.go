@@ -60,7 +60,8 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		}
 	}
 	go func() {
-		blockchain_manager.MainBlockChainConsensus.Block <- block
+		blockchain_manager.MainBlockChainConsensus.BlockFromPeer(block)
+		//blockchain_manager.MainBlockChainConsensus.Block <- block
 	}()
 	return x_resp.Return("recieved", nil)
 }
