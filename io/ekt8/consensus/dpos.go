@@ -53,6 +53,8 @@ func (dpos DPOSConsensus) Start() {
 }
 
 func (dpos DPOSConsensus) BlockFromPeer(block blockchain.Block) {
+	dpos.Locker.Lock()
+	defer dpos.Locker.Unlock()
 	dpos.Blockchain.BlockFromPeer(block, nil)
 }
 
