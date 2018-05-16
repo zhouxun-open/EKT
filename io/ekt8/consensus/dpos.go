@@ -79,16 +79,16 @@ func (dpos DPOSConsensus) Run() {
 }
 
 func (dpos DPOSConsensus) DPoSRun() {
-	interval := 50 * time.Millisecond
+	interval := 500 * time.Millisecond
 	dpos.DPOSRunLocker.Lock()
 	defer dpos.DPOSRunLocker.Unlock()
 	fmt.Println("DPoS running.")
 	for {
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Println("Panic occured.", r)
-			}
-		}()
+		//defer func() {
+		//	if r := recover(); r != nil {
+		//		fmt.Println("Panic occured.", r)
+		//	}
+		//}()
 		time.Sleep(interval)
 		round := &i_consensus.Round{Peers: param.MainChainDPosNode, CurrentIndex: -1}
 		if dpos.Blockchain.CurrentHeight > 0 {

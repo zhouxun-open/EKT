@@ -53,6 +53,16 @@ func (round *Round) NewRandom(CurrentHash []byte) *Round {
 	return round1
 }
 
+func (round *Round) MyRound(CurrentHash []byte) *Round {
+	_round := round
+	if round.CurrentIndex == round.Len()-1 {
+		_round = round.NewRandom(CurrentHash)
+		sort.Sort(_round)
+	}
+	_round.CurrentIndex = _round.MyIndex()
+	return _round
+}
+
 func (round *Round) NextRound(CurrentHash []byte) *Round {
 	if round.CurrentIndex == len(round.Peers)-1 {
 		bytes := CurrentHash[22:]
