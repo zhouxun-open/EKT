@@ -6,8 +6,7 @@ var BlockRecorder *BlockRecord
 
 func init() {
 	BlockRecorder = &BlockRecord{
-		Blocks:     make(map[string]*Block),
-		Signatures: make(map[string]string),
+		Blocks: make(map[string]*Block),
 	}
 }
 

@@ -137,7 +137,7 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 func (blockchain *BlockChain) broadcastBlock(block *Block) {
 	fmt.Println("Broadcasting block to the other peers.")
 	block.Sign()
-	data, _ := json.Marshal(block)
+	data := block.Bytes()
 	for _, peer := range block.Round.Peers {
 		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
 		go util.HttpPost(url, data)
@@ -268,7 +268,6 @@ func (blockchain *BlockChain) BlockFromPeer(block Block) {
 		return
 	}
 	BlockRecorder.Blocks[hex.EncodeToString(block.Hash())] = &block
-	BlockRecorder.Signatures[hex.EncodeToString(block.Hash())] = hex.EncodeToString(block.Signature)
 	// 签名
 	vote := &BlockVote{
 		BlockchainId: blockchain.ChainId,

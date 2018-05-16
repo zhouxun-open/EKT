@@ -31,7 +31,7 @@ type Block struct {
 	TotalFee     int64              `json:"totalFee"`
 	PreviousHash []byte             `json:"previousHash"`
 	CurrentHash  []byte             `json:"currentHash"`
-	Signature    []byte             `json:"signature"`
+	Signature    string             `json:"signature"`
 	BlockBody    *BlockBody         `json:"-"`
 	Body         []byte             `json:"body"`
 	Round        *i_consensus.Round `json:"round"`
@@ -83,7 +83,11 @@ func (block Block) Validate() error {
 	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
 		return errors.New("Invalid Hash")
 	}
-	if pubkey, err := crypto.RecoverPubKey(block.Signature, block.CurrentHash); err != nil {
+	sign, err := hex.DecodeString(block.Signature)
+	if err != nil {
+		return err
+	}
+	if pubkey, err := crypto.RecoverPubKey(sign, block.CurrentHash); err != nil {
 		return err
 	} else {
 		if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubkey)), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
@@ -333,5 +337,6 @@ func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
 }
 
 func (block *Block) Sign() {
-	block.Signature, _ = crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.PrivateKey)
+	Signature, _ := crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.PrivateKey)
+	block.Signature = hex.EncodeToString(Signature)
 }
