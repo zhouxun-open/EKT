@@ -209,7 +209,7 @@ func NewBlock(last *Block) *Block {
 		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), last.StatRoot),
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
-		TokenTree:    last.TokenTree,
+		TokenTree:    MPTPlus.MTP_Tree(db.GetDBInst(), last.TokenRoot),
 	}
 	if last.Height == 0 {
 		block.Round = &i_consensus.Round{
