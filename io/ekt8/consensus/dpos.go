@@ -134,7 +134,7 @@ func (dpos DPOSConsensus) PeerTurn(packTime int64, peer p2p.Peer) bool {
 	time, interval := int(packTime-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval/1e6)
 	if time >= interval*round.Len() {
 		fmt.Println("More than a round time, waiting for the next node pack block.")
-		if round.NextPeerRight(conf.EKTConfig.Node, dpos.Blockchain.CurrentBlock.CurrentHash) {
+		if round.NextPeerRight(peer, dpos.Blockchain.CurrentBlock.CurrentHash) {
 			fmt.Println("This is the next node, return true.")
 			return true
 		} else {
