@@ -78,25 +78,6 @@ func (block *Block) NewNonce() {
 	block.Nonce++
 }
 
-// 校验区块头的hash值和其他字段是否匹配，以及签名是否正确
-func (block Block) Validate() error {
-	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
-		return errors.New("Invalid Hash")
-	}
-	sign, err := hex.DecodeString(block.Signature)
-	if err != nil {
-		return err
-	}
-	if pubkey, err := crypto.RecoverPubKey(sign, block.CurrentHash); err != nil {
-		return err
-	} else {
-		if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubkey)), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
-			return errors.New("Invalid signature")
-		}
-	}
-	return nil
-}
-
 func (block *Block) GetAccount(address []byte) (*common.Account, error) {
 	value, err := block.StatTree.GetValue(address)
 	if err != nil {
@@ -336,7 +317,28 @@ func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
 	return evtResult
 }
 
-func (block *Block) Sign() {
-	Signature, _ := crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.PrivateKey)
+func (block *Block) Sign() error {
+	Signature, err := crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.PrivateKey)
 	block.Signature = hex.EncodeToString(Signature)
+	return err
+}
+
+// 校验区块头的hash值和其他字段是否匹配，以及签名是否正确
+func (block Block) Validate() error {
+	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
+		return errors.New("Invalid Hash")
+	}
+	sign, err := hex.DecodeString(block.Signature)
+	if err != nil {
+		return err
+	}
+	if pubkey, err := crypto.RecoverPubKey(crypto.Sha3_256(block.CurrentHash), sign); err != nil {
+		fmt.Println("Recover public key failed.", err)
+		return err
+	} else {
+		if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubkey)), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
+			return errors.New("Invalid signature")
+		}
+	}
+	return nil
 }

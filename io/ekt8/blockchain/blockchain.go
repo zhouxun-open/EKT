@@ -84,6 +84,7 @@ func NewBlockChain(chainId []byte, consensusType i_consensus.ConsensusType, fee 
 
 func (blockchain *BlockChain) PackSignal(height int64) {
 	blockchain.PackLock.Lock()
+	defer blockchain.PackLock.Unlock()
 	if blockchain.Status != StartPackStatus {
 		blockchain.Status = StartPackStatus
 		block := blockchain.WaitAndPack()
@@ -93,10 +94,15 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 		blockchain.BlockManager.BlockStatus[hash] = BODY_SAVED
 		blockchain.BlockManager.HeightManager[block.Height] = block.Timestamp
 		blockchain.BlockManager.Unlock()
-		blockchain.broadcastBlock(block)
+		if err := block.Sign(); err != nil {
+			fmt.Println("Sign block failed.", err)
+			return
+		}
+		if err := blockchain.broadcastBlock(block); err != nil {
+			fmt.Println("Broadcast block failed, reason: ", err)
+		}
 		blockchain.Status = InitStatus
 	}
-	blockchain.PackLock.Unlock()
 }
 
 func (blockchain *BlockChain) PackHeightValidate(height int64) bool {
@@ -134,14 +140,14 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 	return []byte(fmt.Sprint(`GetBlockByHeight: _%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
-func (blockchain *BlockChain) broadcastBlock(block *Block) {
+func (blockchain *BlockChain) broadcastBlock(block *Block) error {
 	fmt.Println("Broadcasting block to the other peers.")
-	block.Sign()
 	data := block.Bytes()
 	for _, peer := range block.Round.Peers {
 		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
 		go util.HttpPost(url, data)
 	}
+	return nil
 }
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {

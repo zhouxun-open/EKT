@@ -143,23 +143,23 @@ func (dpos DPOSConsensus) PeerTurn(packTime int64, peer p2p.Peer) bool {
 			return false
 		}
 	} else {
-		n := time / interval
+		n := int(time) / int(interval)
 		remainder := int(time) % int(interval)
 		if remainder > int(interval)/2 {
 			n++
 		}
 		fmt.Printf("Current round is %s \n", round.String())
 		if round.CurrentIndex+n >= round.Len() {
-			fmt.Printf("Next round is %s, is my turn? \n", round.String())
 			round = round.NewRandom(dpos.Blockchain.CurrentBlock.CurrentHash)
 			sort.Sort(round)
 		}
-		currentIndex := (round.CurrentIndex + n) % round.Len()
-		if round.Peers[currentIndex].Equal(peer) {
+		round.CurrentIndex = (round.CurrentIndex + n) % round.Len()
+		fmt.Printf("Next round is %s, is my turn? \n", round.String())
+		if round.Peers[round.CurrentIndex].Equal(peer) {
 			fmt.Println("This is the next node, return true.")
 			return true
 		} else {
-			fmt.Println("This is the next node, return false.")
+			fmt.Println("This is not the next node, return false.")
 			return false
 		}
 	}
