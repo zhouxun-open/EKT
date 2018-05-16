@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
-	"github.com/EducationEKT/EKT/io/ekt8/param"
 )
 
 var currentBlock *Block = nil
@@ -178,7 +176,7 @@ func FromBytes2Block(data []byte) (*Block, error) {
 	return &block, nil
 }
 
-func NewBlock(last *Block) *Block {
+func NewBlock(last *Block, newRound *i_consensus.Round) *Block {
 	block := &Block{
 		Height:       last.Height + 1,
 		Nonce:        0,
@@ -189,34 +187,12 @@ func NewBlock(last *Block) *Block {
 		CurrentHash:  nil,
 		BlockBody:    NewBlockBody(last.Height + 1),
 		Body:         nil,
-		Round:        nil,
+		Round:        newRound,
 		Locker:       sync.RWMutex{},
 		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), last.StatRoot),
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
 		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 		TokenTree:    MPTPlus.MTP_Tree(db.GetDBInst(), last.TokenRoot),
-	}
-	if last.Height == 0 {
-		block.Round = &i_consensus.Round{
-			Peers:        param.MainChainDPosNode,
-			CurrentIndex: 0,
-		}
-	} else {
-		lastIndex := last.Round.CurrentIndex
-		fmt.Printf("My round index is %d, lastIndex is %d \n", block.Round.MyIndex(), lastIndex)
-		if block.Round.CurrentIndex > block.Round.MyIndex() {
-			fmt.Println("Current round is over, turn to next round.")
-			block.Round = block.Round.NewRandom(last.CurrentHash)
-			sort.Sort(block.Round)
-			if block.Round.Len()-lastIndex+block.Round.MyIndex() >= block.Round.Len() {
-				panic("Invalid round, return.")
-			} else {
-				block.Round.CurrentIndex = block.Round.MyIndex()
-			}
-		} else {
-			block.Round = last.Round
-			block.Round.CurrentIndex = block.Round.MyIndex()
-		}
 	}
 	return block
 }
@@ -244,7 +220,7 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 		return false
 	}
 	//根据上一个区块头生成一个新的区块
-	_next := NewBlock(block)
+	_next := NewBlock(block, next.Round)
 	_next.Round = next.Round
 	//让新生成的区块执行peer传过来的body中的events进行计算
 	for _, eventResult := range next.BlockBody.EventResults {
