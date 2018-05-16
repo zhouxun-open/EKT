@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -78,28 +79,15 @@ func (block *Block) NewNonce() {
 }
 
 // 校验区块头的hash值和其他字段是否匹配，以及签名是否正确
-func (block Block) Validate(sign []byte) error {
+func (block Block) Validate() error {
 	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
 		return errors.New("Invalid Hash")
 	}
-	return nil
-}
-
-// 从网络节点过来的区块头，如果区块的body为空，则从打包节点获取
-// 获取之后会对blockBody的Hash进行校验，如果不符合要求则放弃Recover
-func (block Block) Recover() error {
-	if !bytes.Equal(block.Body, block.BlockBody.Bytes()) {
-		peer := block.Round.Peers[block.Round.CurrentIndex]
-		bodyData, err := peer.GetDBValue(block.Body)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(bodyData, block.BlockBody)
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(crypto.Sha3_256(block.BlockBody.Bytes()), block.Body) {
-			return errors.New(fmt.Sprintf("Block body is wrong, want hash(body) = %s, get %s", block.Body, crypto.Sha3_256(block.BlockBody.Bytes())))
+	if pubkey, err := crypto.RecoverPubKey(block.Signature, block.CurrentHash); err != nil {
+		return err
+	} else {
+		if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubkey)), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
+			return errors.New("Invalid signature")
 		}
 	}
 	return nil

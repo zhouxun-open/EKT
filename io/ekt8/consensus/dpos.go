@@ -55,13 +55,14 @@ func (dpos DPOSConsensus) Start() {
 func (dpos DPOSConsensus) BlockFromPeer(block blockchain.Block) {
 	dpos.Locker.Lock()
 	defer dpos.Locker.Unlock()
-	if time.Now().UnixNano()/1e6-block.Timestamp > 1 {
+	if int(time.Now().UnixNano()/1e6-block.Timestamp) > int(dpos.Blockchain.BlockInterval/1e6) {
+		fmt.Println(time.Now().UnixNano()/1e6, block.Timestamp, dpos.Blockchain.BlockInterval/1e6)
 		fmt.Println("Recieved a block packed before 1 second, return.")
 	}
 	if !dpos.PeerTurn(block.Timestamp, block.Round.Peers[block.Round.CurrentIndex]) {
 		fmt.Println("This is not the right node, return false.")
 	}
-	dpos.Blockchain.BlockFromPeer(block, nil)
+	dpos.Blockchain.BlockFromPeer(block)
 }
 
 func (dpos DPOSConsensus) Run() {

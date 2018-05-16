@@ -239,21 +239,10 @@ func (blockchain *BlockChain) Pack(block *Block) {
 	fmt.Printf("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
 }
 
-func (blockchain *BlockChain) BlockFromPeer(block Block, sign []byte) {
+func (blockchain *BlockChain) BlockFromPeer(block Block) {
 	fmt.Printf("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
-	if err := block.Validate(sign); err != nil {
-		fmt.Printf("Block signature validate failed, %s. \n", err.Error())
-		return
-	}
-	pub, err := crypto.RecoverPubKey(crypto.Sha3_256(block.Hash()), sign)
-	if err != nil {
-		fmt.Println("Block.Validate: Recover public key failed.")
-		return
-	}
-	if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pub)), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
-		fmt.Printf("Recovered pubKey=%s \n", hex.EncodeToString(pub))
-		fmt.Printf("Recovered peerId=%s, Packing peer id=%s, Invalid block sign, return.\n",
-			hex.EncodeToString(crypto.Sha3_256(pub)), block.Round.Peers[block.Round.CurrentIndex].PeerId)
+	if err := block.Validate(); err != nil {
+		fmt.Printf("Block validate failed, %s. \n", err.Error())
 		return
 	}
 	status := blockchain.Police.BlockFromPeer(block)
@@ -279,7 +268,7 @@ func (blockchain *BlockChain) BlockFromPeer(block Block, sign []byte) {
 		return
 	}
 	BlockRecorder.Blocks[hex.EncodeToString(block.Hash())] = &block
-	BlockRecorder.Signatures[hex.EncodeToString(block.Hash())] = hex.EncodeToString(sign)
+	BlockRecorder.Signatures[hex.EncodeToString(block.Hash())] = hex.EncodeToString(block.Signature)
 	// 签名
 	vote := &BlockVote{
 		BlockchainId: blockchain.ChainId,
@@ -288,7 +277,7 @@ func (blockchain *BlockChain) BlockFromPeer(block Block, sign []byte) {
 		VoteResult:   true,
 		Peer:         conf.EKTConfig.Node,
 	}
-	err = vote.Sign(conf.EKTConfig.PrivateKey)
+	err := vote.Sign(conf.EKTConfig.PrivateKey)
 	if err != nil {
 		log.GetLogInst().LogCrit("Sign vote failed, recorded. %v", err)
 		fmt.Println("Sign vote failed, recorded.")
