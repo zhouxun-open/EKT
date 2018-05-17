@@ -12,6 +12,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
+	"github.com/EducationEKT/EKT/io/ekt8/exceptions"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
@@ -23,22 +24,24 @@ import (
 )
 
 type DPOSConsensus struct {
-	Blockchain    *blockchain.BlockChain
-	Block         chan blockchain.Block
-	Vote          chan blockchain.BlockVote
-	VoteResults   chan blockchain.VoteResults
-	Locker        sync.RWMutex
-	DPOSRunLocker sync.RWMutex
+	Blockchain       *blockchain.BlockChain
+	Block            chan blockchain.Block
+	Vote             chan blockchain.BlockVote
+	VoteResults      chan blockchain.VoteResults
+	Locker           sync.RWMutex
+	DPoSStatus       int // 0 未开始   100 正在进行中
+	DPOSStatusLocker sync.RWMutex
 }
 
 func NewDPoSConsensus(Blockchain *blockchain.BlockChain) DPOSConsensus {
 	return DPOSConsensus{
-		Blockchain:    Blockchain,
-		Block:         make(chan blockchain.Block),
-		Vote:          make(chan blockchain.BlockVote),
-		VoteResults:   make(chan blockchain.VoteResults),
-		Locker:        sync.RWMutex{},
-		DPOSRunLocker: sync.RWMutex{},
+		Blockchain:       Blockchain,
+		Block:            make(chan blockchain.Block),
+		Vote:             make(chan blockchain.BlockVote),
+		VoteResults:      make(chan blockchain.VoteResults),
+		Locker:           sync.RWMutex{},
+		DPoSStatus:       0,
+		DPOSStatusLocker: sync.RWMutex{},
 	}
 }
 
@@ -80,15 +83,23 @@ func (dpos DPOSConsensus) Run() {
 
 func (dpos DPOSConsensus) DPoSRun() {
 	interval := 500 * time.Millisecond
-	dpos.DPOSRunLocker.Lock()
-	defer dpos.DPOSRunLocker.Unlock()
+	dpos.DPOSStatusLocker.RLock()
+	if dpos.DPoSStatus == 100 {
+		dpos.DPOSStatusLocker.RUnlock()
+		return
+	} else {
+		dpos.DPOSStatusLocker.RUnlock()
+		dpos.DPOSStatusLocker.Lock()
+		dpos.DPoSStatus = 100
+		dpos.DPOSStatusLocker.Unlock()
+	}
 	fmt.Println("DPoS running.")
 	for {
-		//defer func() {
-		//	if r := recover(); r != nil {
-		//		fmt.Println("Panic occured.", r)
-		//	}
-		//}()
+		defer func() {
+			if r := recover(); r != nil {
+				exceptions.PanicTrace()
+			}
+		}()
 		time.Sleep(interval)
 		round := &i_consensus.Round{Peers: param.MainChainDPosNode, CurrentIndex: -1}
 		if dpos.Blockchain.CurrentHeight > 0 {
@@ -168,50 +179,6 @@ func (dpos DPOSConsensus) PeerTurn(packTime int64, peer p2p.Peer) bool {
 
 func (dpos DPOSConsensus) IsMyTurn() bool {
 	return dpos.PeerTurn(time.Now().UnixNano()/1e6, conf.EKTConfig.Node)
-	//fmt.Printf("Current block height is %d.\n", dpos.Blockchain.CurrentHeight)
-	//time, interval := int(time.Now().UnixNano()/1e6-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval/1e6)
-	//// 如果当前时间与上个区块的打包时间超过一个round，需要等待round的下一个节点进行打包
-	//round := &i_consensus.Round{
-	//	Peers:        param.MainChainDPosNode,
-	//	CurrentIndex: -1,
-	//}
-	//if dpos.Blockchain.CurrentHeight > 0 {
-	//	round = dpos.Blockchain.CurrentBlock.Round
-	//} else {
-	//	// 如果是第一个区块，需要第一个节点来打包
-	//	if conf.EKTConfig.Node.Equal(round.Peers[0]) {
-	//		return true
-	//	} else {
-	//		return false
-	//	}
-	//}
-	//if time >= interval*round.Len() {
-	//	// 如果当前节点是下一个节点
-	//	if round.IndexPlus(dpos.Blockchain.CurrentBlock.Hash()).IsMyTurn() {
-	//		return true
-	//	} else {
-	//		return false
-	//	}
-	//}
-	//n := time / interval
-	//remainder := int(time) % int(interval)
-	//if remainder > int(interval)/2 {
-	//	n++
-	//}
-	//fmt.Printf("Current round is %s \n", round.String())
-	//if round.CurrentIndex+n >= round.Len() {
-	//	round = round.NewRandom(dpos.Blockchain.CurrentBlock.CurrentHash)
-	//	fmt.Printf("Next round is %s, is my turn? \n", round.String())
-	//	sort.Sort(round)
-	//}
-	//currentIndex := (round.CurrentIndex + n) % round.Len()
-	//if round.Peers[currentIndex].Equal(conf.EKTConfig.Node) {
-	//	fmt.Println("Yes.")
-	//	return true
-	//} else {
-	//	fmt.Println("No.")
-	//	return false
-	//}
 }
 
 func (dpos DPOSConsensus) RUN() {
