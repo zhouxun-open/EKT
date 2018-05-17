@@ -82,7 +82,7 @@ func (dpos DPOSConsensus) Run() {
 }
 
 func (dpos DPOSConsensus) DPoSRun() {
-	interval := 500 * time.Millisecond
+	interval := dpos.Blockchain.BlockInterval / 2
 	dpos.DPOSStatusLocker.RLock()
 	if dpos.DPoSStatus == 100 {
 		dpos.DPOSStatusLocker.RUnlock()
@@ -232,6 +232,11 @@ WaitingNodes:
 				fmt.Println("Fail count more than 3 times.")
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
 				if round.MyIndex() != -1 {
+					defer func() {
+						if r := recover(); r != nil {
+							fmt.Println(r)
+						}
+					}()
 					fmt.Println("This peer is DPoS node, start DPoS thread.")
 					go dpos.DPoSRun()
 				} else {
