@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"runtime/debug"
 	"sort"
 
 	"xserver/x_http/x_resp"
@@ -13,6 +12,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
+	"github.com/EducationEKT/EKT/io/ekt8/exceptions"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
@@ -24,22 +24,24 @@ import (
 )
 
 type DPOSConsensus struct {
-	Blockchain    *blockchain.BlockChain
-	Block         chan blockchain.Block
-	Vote          chan blockchain.BlockVote
-	VoteResults   chan blockchain.VoteResults
-	Locker        sync.RWMutex
-	DPOSRunLocker sync.RWMutex
+	Blockchain       *blockchain.BlockChain
+	Block            chan blockchain.Block
+	Vote             chan blockchain.BlockVote
+	VoteResults      chan blockchain.VoteResults
+	Locker           sync.RWMutex
+	DPoSStatus       int // 0 未开始   100 正在进行中
+	DPOSStatusLocker sync.RWMutex
 }
 
 func NewDPoSConsensus(Blockchain *blockchain.BlockChain) DPOSConsensus {
 	return DPOSConsensus{
-		Blockchain:    Blockchain,
-		Block:         make(chan blockchain.Block),
-		Vote:          make(chan blockchain.BlockVote),
-		VoteResults:   make(chan blockchain.VoteResults),
-		Locker:        sync.RWMutex{},
-		DPOSRunLocker: sync.RWMutex{},
+		Blockchain:       Blockchain,
+		Block:            make(chan blockchain.Block),
+		Vote:             make(chan blockchain.BlockVote),
+		VoteResults:      make(chan blockchain.VoteResults),
+		Locker:           sync.RWMutex{},
+		DPoSStatus:       0,
+		DPOSStatusLocker: sync.RWMutex{},
 	}
 }
 
@@ -81,13 +83,21 @@ func (dpos DPOSConsensus) Run() {
 
 func (dpos DPOSConsensus) DPoSRun() {
 	interval := 500 * time.Millisecond
-	dpos.DPOSRunLocker.Lock()
-	defer dpos.DPOSRunLocker.Unlock()
+	dpos.DPOSStatusLocker.RLock()
+	if dpos.DPoSStatus == 100 {
+		dpos.DPOSStatusLocker.RUnlock()
+		return
+	} else {
+		dpos.DPOSStatusLocker.RUnlock()
+		dpos.DPOSStatusLocker.Lock()
+		dpos.DPoSStatus = 100
+		dpos.DPOSStatusLocker.Unlock()
+	}
 	fmt.Println("DPoS running.")
 	for {
 		defer func() {
 			if r := recover(); r != nil {
-				debug.PrintStack()
+				exceptions.PanicTrace()
 			}
 		}()
 		time.Sleep(interval)

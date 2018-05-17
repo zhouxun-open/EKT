@@ -3,7 +3,6 @@ package blockchain_manager
 import (
 	"encoding/hex"
 	"encoding/json"
-	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/consensus"
@@ -47,19 +46,11 @@ func Init() {
 		blockchainManager.Blockchains[chainId] = blockchain
 		switch blockchain.Consensus {
 		case i_consensus.DPOS:
-			consensus := consensus.DPOSConsensus{
-				Blockchain:    blockchain,
-				Locker:        sync.RWMutex{},
-				DPOSRunLocker: sync.RWMutex{},
-			}
+			consensus := consensus.NewDPoSConsensus(blockchain)
 			blockchainManager.Consensuses[chainId] = consensus
 			go consensus.Run()
 		default:
-			consensus := consensus.DPOSConsensus{
-				Blockchain:    blockchain,
-				Locker:        sync.RWMutex{},
-				DPOSRunLocker: sync.RWMutex{},
-			}
+			consensus := consensus.NewDPoSConsensus(blockchain)
 			blockchainManager.Consensuses[chainId] = consensus
 			go consensus.Run()
 		}
