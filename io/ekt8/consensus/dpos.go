@@ -82,18 +82,8 @@ func (dpos DPOSConsensus) Run() {
 }
 
 func (dpos DPOSConsensus) DPoSRun() {
-	interval := dpos.Blockchain.BlockInterval / 2
-	dpos.DPOSStatusLocker.RLock()
-	if dpos.DPoSStatus == 100 {
-		dpos.DPOSStatusLocker.RUnlock()
-		return
-	} else {
-		dpos.DPOSStatusLocker.RUnlock()
-		dpos.DPOSStatusLocker.Lock()
-		dpos.DPoSStatus = 100
-		dpos.DPOSStatusLocker.Unlock()
-	}
 	fmt.Println("DPoS running.")
+	interval := dpos.Blockchain.BlockInterval / 2
 	for {
 		defer func() {
 			if r := recover(); r != nil {
@@ -232,13 +222,7 @@ WaitingNodes:
 				fmt.Println("Fail count more than 3 times.")
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
 				if round.MyIndex() != -1 {
-					defer func() {
-						if r := recover(); r != nil {
-							fmt.Println(r)
-						}
-					}()
 					fmt.Println("This peer is DPoS node, start DPoS thread.")
-					go dpos.DPoSRun()
 				} else {
 					fmt.Println("Change interval to 3 second.")
 					interval = 3 * time.Second
@@ -246,6 +230,20 @@ WaitingNodes:
 			}
 		}
 		time.Sleep(interval)
+	}
+}
+
+func (dpos DPOSConsensus) startDPOS() {
+	dpos.DPOSStatusLocker.RLock()
+	if dpos.DPoSStatus == 100 {
+		dpos.DPOSStatusLocker.RUnlock()
+		return
+	} else {
+		dpos.DPOSStatusLocker.RUnlock()
+		dpos.DPOSStatusLocker.Lock()
+		dpos.DPoSStatus = 100
+		go dpos.DPoSRun()
+		dpos.DPOSStatusLocker.Unlock()
 	}
 }
 
