@@ -80,7 +80,7 @@ func (dpos *DPOSConsensus) Run() {
 
 func (dpos DPOSConsensus) DPoSRun() {
 	fmt.Println("DPoS started.")
-	interval := dpos.Blockchain.BlockInterval / 2
+	interval := dpos.Blockchain.BlockInterval / 4
 	for {
 		defer func() {
 			if r := recover(); r != nil {
@@ -88,7 +88,6 @@ func (dpos DPOSConsensus) DPoSRun() {
 				log.GetLogInst().LogDebug("A panic occurred, %v.\n", r)
 			}
 		}()
-		time.Sleep(interval)
 		round := &i_consensus.Round{Peers: param.MainChainDPosNode, CurrentIndex: -1}
 		if dpos.Blockchain.CurrentHeight > 0 {
 			round = dpos.Blockchain.CurrentBlock.Round
@@ -103,11 +102,10 @@ func (dpos DPOSConsensus) DPoSRun() {
 			fmt.Printf("This is my turn, current heigth is %d. \n", dpos.Blockchain.CurrentHeight)
 			log.GetLogInst().LogInfo("Yes.")
 			dpos.Pack(dpos.Blockchain.CurrentHeight)
-			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)*1e6/2)))
 		} else {
 			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
-			time.Sleep(interval)
 		}
+		time.Sleep(interval)
 	}
 }
 
