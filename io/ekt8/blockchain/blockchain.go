@@ -190,7 +190,14 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 func (blockchain *BlockChain) WaitAndPack() *Block {
 	// 打包10500个交易大概需要0.95秒
 	eventTimeout := time.After(950 * time.Millisecond)
-	block := NewBlock(blockchain.CurrentBlock, blockchain.CurrentBlock.Round.MyRound(blockchain.CurrentBlock.CurrentHash))
+	round := &i_consensus.Round{
+		Peers:        param.MainChainDPosNode,
+		CurrentIndex: 0,
+	}
+	if blockchain.CurrentBlock.Height != 0 {
+		round = blockchain.CurrentBlock.Round.MyRound(blockchain.CurrentBlock.CurrentHash)
+	}
+	block := NewBlock(blockchain.CurrentBlock, round)
 	fmt.Println("Packing transaction and other events.")
 	for {
 		flag := false
