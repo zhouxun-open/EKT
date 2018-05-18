@@ -220,10 +220,8 @@ WaitingNodes:
 				if round.MyIndex() != -1 {
 					fmt.Println("This peer is DPoS node, start DPoS thread.")
 					dpos.startDPOS()
-				} else {
-					fmt.Println("Change interval to 3 second.")
-					interval = 3 * time.Second
 				}
+				interval = 3 * time.Second
 			}
 		}
 		time.Sleep(interval)
