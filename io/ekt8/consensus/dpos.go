@@ -12,7 +12,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
-	"github.com/EducationEKT/EKT/io/ekt8/exceptions"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
@@ -24,24 +23,22 @@ import (
 )
 
 type DPOSConsensus struct {
-	Blockchain       *blockchain.BlockChain
-	Block            chan blockchain.Block
-	Vote             chan blockchain.BlockVote
-	VoteResults      chan blockchain.VoteResults
-	Locker           sync.RWMutex
-	DPoSStatus       int // 0 未开始   100 正在进行中
-	DPOSStatusLocker sync.RWMutex
+	Blockchain  *blockchain.BlockChain
+	Block       chan blockchain.Block
+	Vote        chan blockchain.BlockVote
+	VoteResults chan blockchain.VoteResults
+	Locker      sync.RWMutex
+	DPoSStatus  int // 0 未开始   100 正在进行中
 }
 
-func NewDPoSConsensus(Blockchain *blockchain.BlockChain) DPOSConsensus {
-	return DPOSConsensus{
-		Blockchain:       Blockchain,
-		Block:            make(chan blockchain.Block),
-		Vote:             make(chan blockchain.BlockVote),
-		VoteResults:      make(chan blockchain.VoteResults),
-		Locker:           sync.RWMutex{},
-		DPoSStatus:       0,
-		DPOSStatusLocker: sync.RWMutex{},
+func NewDPoSConsensus(Blockchain *blockchain.BlockChain) *DPOSConsensus {
+	return &DPOSConsensus{
+		Blockchain:  Blockchain,
+		Block:       make(chan blockchain.Block),
+		Vote:        make(chan blockchain.BlockVote),
+		VoteResults: make(chan blockchain.VoteResults),
+		Locker:      sync.RWMutex{},
+		DPoSStatus:  0,
 	}
 }
 
@@ -68,7 +65,7 @@ func (dpos DPOSConsensus) BlockFromPeer(block blockchain.Block) {
 	dpos.Blockchain.BlockFromPeer(block)
 }
 
-func (dpos DPOSConsensus) Run() {
+func (dpos *DPOSConsensus) Run() {
 	for {
 		defer func() {
 			if r := recover(); r != nil {
@@ -82,12 +79,13 @@ func (dpos DPOSConsensus) Run() {
 }
 
 func (dpos DPOSConsensus) DPoSRun() {
-	fmt.Println("DPoS running.")
+	fmt.Println("DPoS started.")
 	interval := dpos.Blockchain.BlockInterval / 2
 	for {
 		defer func() {
 			if r := recover(); r != nil {
-				exceptions.PanicTrace()
+				fmt.Println("A panic occurred.")
+				log.GetLogInst().LogDebug("A panic occurred, %v.\n", r)
 			}
 		}()
 		time.Sleep(interval)
@@ -171,7 +169,7 @@ func (dpos DPOSConsensus) IsMyTurn() bool {
 	return dpos.PeerTurn(time.Now().UnixNano()/1e6, conf.EKTConfig.Node)
 }
 
-func (dpos DPOSConsensus) RUN() {
+func (dpos *DPOSConsensus) RUN() {
 	// 从数据库中恢复当前节点已同步的区块
 	fmt.Println("Recover data from local database.")
 	dpos.RecoverFromDB()
@@ -223,6 +221,7 @@ WaitingNodes:
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
 				if round.MyIndex() != -1 {
 					fmt.Println("This peer is DPoS node, start DPoS thread.")
+					dpos.startDPOS()
 				} else {
 					fmt.Println("Change interval to 3 second.")
 					interval = 3 * time.Second
@@ -233,17 +232,17 @@ WaitingNodes:
 	}
 }
 
-func (dpos DPOSConsensus) startDPOS() {
-	dpos.DPOSStatusLocker.RLock()
+func (dpos *DPOSConsensus) startDPOS() {
+	dpos.Locker.Lock()
 	if dpos.DPoSStatus == 100 {
-		dpos.DPOSStatusLocker.RUnlock()
+		dpos.Locker.Unlock()
+		fmt.Println("Dpos goroutine is already running, return.")
 		return
 	} else {
-		dpos.DPOSStatusLocker.RUnlock()
-		dpos.DPOSStatusLocker.Lock()
+		fmt.Printf("Status is %d, starting dpos goroutine.", dpos.DPoSStatus)
 		dpos.DPoSStatus = 100
 		go dpos.DPoSRun()
-		dpos.DPOSStatusLocker.Unlock()
+		dpos.Locker.Unlock()
 	}
 }
 
