@@ -96,10 +96,10 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 		blockchain.BlockManager.Unlock()
 		if err := block.Sign(); err != nil {
 			fmt.Println("Sign block failed.", err)
-			return
-		}
-		if err := blockchain.broadcastBlock(block); err != nil {
-			fmt.Println("Broadcast block failed, reason: ", err)
+		} else {
+			if err := blockchain.broadcastBlock(block); err != nil {
+				fmt.Println("Broadcast block failed, reason: ", err)
+			}
 		}
 		blockchain.Status = InitStatus
 	}
@@ -190,7 +190,14 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 func (blockchain *BlockChain) WaitAndPack() *Block {
 	// 打包10500个交易大概需要0.95秒
 	eventTimeout := time.After(950 * time.Millisecond)
-	block := NewBlock(blockchain.CurrentBlock, blockchain.CurrentBlock.Round.MyRound(blockchain.CurrentBlock.CurrentHash))
+	round := &i_consensus.Round{
+		Peers:        param.MainChainDPosNode,
+		CurrentIndex: 0,
+	}
+	if blockchain.CurrentBlock.Height != 0 {
+		round = blockchain.CurrentBlock.Round.MyRound(blockchain.CurrentBlock.CurrentHash)
+	}
+	block := NewBlock(blockchain.CurrentBlock, round)
 	fmt.Println("Packing transaction and other events.")
 	for {
 		flag := false
