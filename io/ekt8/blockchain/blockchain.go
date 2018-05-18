@@ -96,10 +96,10 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 		blockchain.BlockManager.Unlock()
 		if err := block.Sign(); err != nil {
 			fmt.Println("Sign block failed.", err)
-			return
-		}
-		if err := blockchain.broadcastBlock(block); err != nil {
-			fmt.Println("Broadcast block failed, reason: ", err)
+		} else {
+			if err := blockchain.broadcastBlock(block); err != nil {
+				fmt.Println("Broadcast block failed, reason: ", err)
+			}
 		}
 		blockchain.Status = InitStatus
 	}
