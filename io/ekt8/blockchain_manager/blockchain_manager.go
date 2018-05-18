@@ -15,7 +15,7 @@ const (
 )
 
 var MainBlockChain *blockchain.BlockChain
-var MainBlockChainConsensus consensus.DPOSConsensus
+var MainBlockChainConsensus *consensus.DPOSConsensus
 
 var blockchainManager *BlockchainManager
 
@@ -65,6 +65,6 @@ func GetMainChain() *blockchain.BlockChain {
 	return MainBlockChain
 }
 
-func GetMainChainConsensus() consensus.DPOSConsensus {
+func GetMainChainConsensus() *consensus.DPOSConsensus {
 	return MainBlockChainConsensus
 }
