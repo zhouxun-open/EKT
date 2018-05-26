@@ -170,7 +170,7 @@ func (pool Pool) FetchEvent() *event.Event {
 func (pool Pool) FetchTx() *common.Transaction {
 	if len(pool.txReady) > 0 {
 		for _, tx := range pool.txReady {
-			delete(pool.txReady, tx.TransactionId())
+			//delete(pool.txReady, tx.TransactionId())
 			return tx
 		}
 	}

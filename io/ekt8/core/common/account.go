@@ -5,9 +5,14 @@ import (
 	"fmt"
 )
 
+const (
+	Default_Crypto_Method = "secp256k1"
+)
+
 type Account struct {
 	hexAddress    string           `json:"address"`
 	hexPublickKey string           `json:"publicKey"`
+	cryptoMethod  string           `json:"cryptoMethod"`
 	amount        int64            `json:"amount"`
 	nonce         int64            `json:"nonce"`
 	balances      map[string]int64 `json:"balances"`
