@@ -202,34 +202,13 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			flag = true
 			break
 		default:
-			// TODO 因为要进行以太坊ERC20的映射和冷钱包，因此一期不支持地址的申请和加密算法的替换，只能打包转账交易 和 token发行
+			// 因为要进行以太坊ERC20的映射和冷钱包，因此一期不支持地址的申请和加密算法的替换，只能打包转账交易 和 token发行
 			tx := blockchain.Pool.FetchTx()
 			if tx != nil {
 				txResult := block.NewTransaction(tx, block.Fee)
 				blockchain.Pool.Notify(tx.TransactionId())
 				block.BlockBody.AddTxResult(*txResult)
 			}
-			//evt := blockchain.Pool.FetchEvent()
-			//if evt != nil {
-			//	if strings.EqualFold(evt.EventType, event.NewAccountEvent) {
-			//		param := evt.EventParam.(event.NewAccountParam)
-			//		address, _ := hex.DecodeString(param.Address)
-			//		pubKey, _ := hex.DecodeString(param.PubKey)
-			//		if block.InsertAccount(*common.NewAccount(address, pubKey)) {
-			//			block.BlockBody.AddEventResult(event.EventResult{Success: true, EventId: evt.EventParam.Id()})
-			//		} else {
-			//			block.BlockBody.AddEventResult(event.EventResult{Success: false, Reason: "address exist", EventId: evt.EventParam.Id()})
-			//		}
-			//	}
-			//	blockchain.Pool.NotifyEvent(evt.EventParam.Id())
-			//} else {
-			//	tx := blockchain.Pool.FetchTx()
-			//	if tx != nil {
-			//		txResult := block.NewTransaction(tx, block.Fee)
-			//		blockchain.Pool.Notify(tx.TransactionId())
-			//		block.BlockBody.AddTxResult(*txResult)
-			//	}
-			//}
 		}
 		if flag {
 			break
