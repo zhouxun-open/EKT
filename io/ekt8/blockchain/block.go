@@ -117,8 +117,6 @@ func (block *Block) newAccount(address []byte, pubKey []byte) {
 }
 
 func (block *Block) NewTransaction(tx *common.Transaction, fee int64) *common.TxResult {
-	block.Locker.Lock()
-	defer block.Locker.Unlock()
 	fromAddress, _ := hex.DecodeString(tx.From)
 	toAddress, _ := hex.DecodeString(tx.To)
 	account, _ := block.GetAccount(fromAddress)
