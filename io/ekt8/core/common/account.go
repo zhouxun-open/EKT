@@ -1,8 +1,11 @@
 package common
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 )
 
 const (
@@ -66,4 +69,14 @@ func (account Account) ReduceAmount(amount int64) {
 func (account Account) AlterPublicKey(newPublicKey []byte) {
 	account.hexPublickKey = hex.EncodeToString(newPublicKey)
 	account.nonce++
+}
+
+func FromPubKeyToAddress(pubKey []byte) []byte {
+	hash := crypto.Sha3_256(pubKey)
+	address := crypto.Sha3_256(crypto.Sha3_256(append([]byte("EKT"), hash...)))
+	return address
+}
+
+func ValidatePubKey(pubKey, address []byte) bool {
+	return bytes.Equal(FromPubKeyToAddress(pubKey), address)
 }

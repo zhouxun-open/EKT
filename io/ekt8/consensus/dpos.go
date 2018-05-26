@@ -378,7 +378,7 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
 		return
 	} else {
 		fmt.Println("Recieve vote result and get this block, saving block.")
-		// TODO，判断当前的区块body是否已经同步
+		dpos.Blockchain.NotifyPool(block)
 		dpos.Blockchain.SaveBlock(block)
 	}
 }

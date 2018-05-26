@@ -2,7 +2,6 @@ package common
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
@@ -74,13 +73,6 @@ func (transactions Transactions) Less(i, j int) bool {
 
 func (transactions Transactions) Swap(i, j int) {
 	transactions[i], transactions[j] = transactions[j], transactions[i]
-}
-
-func (tx *Transaction) Bytes() []byte {
-	token := tx.TokenAddress
-	str := fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "nonce": %d, "tokenAddress": "%s"}`,
-		tx.From, tx.To, tx.TimeStamp, tx.Amount, tx.Nonce, token)
-	return []byte(str)
 }
 
 func (tx *Transaction) TransactionId() string {

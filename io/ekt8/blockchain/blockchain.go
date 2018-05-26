@@ -202,34 +202,13 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			flag = true
 			break
 		default:
-			// TODO 因为要进行以太坊ERC20的映射和冷钱包，因此一期不支持地址的申请和加密算法的替换，只能打包转账交易 和 token发行
+			// 因为要进行以太坊ERC20的映射和冷钱包，因此一期不支持地址的申请和加密算法的替换，只能打包转账交易 和 token发行
 			tx := blockchain.Pool.FetchTx()
 			if tx != nil {
 				txResult := block.NewTransaction(tx, block.Fee)
 				blockchain.Pool.Notify(tx.TransactionId())
 				block.BlockBody.AddTxResult(*txResult)
 			}
-			//evt := blockchain.Pool.FetchEvent()
-			//if evt != nil {
-			//	if strings.EqualFold(evt.EventType, event.NewAccountEvent) {
-			//		param := evt.EventParam.(event.NewAccountParam)
-			//		address, _ := hex.DecodeString(param.Address)
-			//		pubKey, _ := hex.DecodeString(param.PubKey)
-			//		if block.InsertAccount(*common.NewAccount(address, pubKey)) {
-			//			block.BlockBody.AddEventResult(event.EventResult{Success: true, EventId: evt.EventParam.Id()})
-			//		} else {
-			//			block.BlockBody.AddEventResult(event.EventResult{Success: false, Reason: "address exist", EventId: evt.EventParam.Id()})
-			//		}
-			//	}
-			//	blockchain.Pool.NotifyEvent(evt.EventParam.Id())
-			//} else {
-			//	tx := blockchain.Pool.FetchTx()
-			//	if tx != nil {
-			//		txResult := block.NewTransaction(tx, block.Fee)
-			//		blockchain.Pool.Notify(tx.TransactionId())
-			//		block.BlockBody.AddTxResult(*txResult)
-			//	}
-			//}
 		}
 		if flag {
 			break
@@ -237,6 +216,22 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 	}
 	blockchain.Pack(block)
 	return block
+}
+
+// 当区块写入区块时，notify交易池，一些nonce比较大的交易可以进行打包
+func (blockchain *BlockChain) NotifyPool(block *Block) {
+	// Notify transaction
+	if len(block.BlockBody.TxResults) > 0 {
+		for _, txResult := range block.BlockBody.TxResults {
+			blockchain.Pool.Notify(txResult.TxId)
+		}
+	}
+	// Notify event
+	if len(block.BlockBody.EventResults) > 0 {
+		for _, eventResult := range block.BlockBody.EventResults {
+			blockchain.Pool.NotifyEvent(eventResult.EventId)
+		}
+	}
 }
 
 // consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法
