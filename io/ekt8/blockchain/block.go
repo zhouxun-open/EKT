@@ -122,6 +122,9 @@ func (block *Block) NewTransaction(tx *common.Transaction, fee int64) *common.Tx
 	account, _ := block.GetAccount(fromAddress)
 	recieverAccount, _ := block.GetAccount(toAddress)
 	var txResult *common.TxResult
+	if fee < block.Fee {
+		return common.NewTransactionResult(tx, fee, false, "fee is too less")
+	}
 	if account.GetAmount() < tx.Amount+fee {
 		txResult = common.NewTransactionResult(tx, fee, false, "no enough amount")
 	} else {
