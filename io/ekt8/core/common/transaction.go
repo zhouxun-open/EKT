@@ -17,6 +17,7 @@ type Transaction struct {
 	TimeStamp    Time   `json:"time"` // UnixTimeStamp
 	Amount       int64  `json:"amount"`
 	Nonce        int64  `json:"nonce"`
+	Data         string `json:"data"`
 	TokenAddress string `json:"tokenAddress"`
 	Sign         string `json:"sign"`
 }
