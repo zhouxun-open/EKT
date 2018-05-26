@@ -239,6 +239,22 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 	return block
 }
 
+// 当区块写入区块时，notify交易池，一些nonce比较大的交易可以进行打包
+func (blockchain *BlockChain) NotifyPool(block *Block) {
+	// Notify transaction
+	if len(block.BlockBody.TxResults) > 0 {
+		for _, txResult := range block.BlockBody.TxResults {
+			blockchain.Pool.Notify(txResult.TxId)
+		}
+	}
+	// Notify event
+	if len(block.BlockBody.EventResults) > 0 {
+		for _, eventResult := range block.BlockBody.EventResults {
+			blockchain.Pool.NotifyEvent(eventResult.EventId)
+		}
+	}
+}
+
 // consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法
 func (blockchain *BlockChain) Pack(block *Block) {
 	block.Locker.Lock()
