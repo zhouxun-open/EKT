@@ -3,7 +3,7 @@ package common
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
+	"encoding/json"
 
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 )
@@ -30,13 +30,9 @@ func NewAccount(address, pubKey []byte) *Account {
 	}
 }
 
-func (account Account) ToString() string {
-	return fmt.Sprintf(`{"HexAddress": "%s", "publicKey": "%s", "Amount": %s, "Nonce": %d}`,
-		account.hexAddress, account.hexPublickKey, account.amount, account.nonce)
-}
-
 func (account Account) ToBytes() []byte {
-	return []byte(account.ToString())
+	data, _ := json.Marshal(account)
+	return data
 }
 
 func (account Account) GetNonce() int64 {
