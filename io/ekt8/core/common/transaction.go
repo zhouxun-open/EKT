@@ -14,8 +14,8 @@ type Transaction struct {
 	From         string `json:"from"`
 	To           string `json:"to"`
 	TimeStamp    Time   `json:"time"` // UnixTimeStamp
-	Amount       int64  `json:"amount"`
-	Nonce        int64  `json:"nonce"`
+	Amount       int64  `json:"Amount"`
+	Nonce        int64  `json:"Nonce"`
 	Data         string `json:"data"`
 	TokenAddress string `json:"tokenAddress"`
 	Sign         string `json:"sign"`
