@@ -102,7 +102,10 @@ func (block *Block) CreateAccount(address, pubKey []byte) {
 func (block *Block) InsertAccount(account common.Account) bool {
 	if !block.ExistAddress(account.Address()) {
 		value, _ := json.Marshal(account)
-		block.StatTree.MustInsert(account.Address(), value)
+		err := block.StatTree.MustInsert(account.Address(), value)
+		if err != nil {
+			return false
+		}
 		block.UpdateMPTPlusRoot()
 		return true
 	}

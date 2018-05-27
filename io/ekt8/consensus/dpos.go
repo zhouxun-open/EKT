@@ -8,6 +8,9 @@ import (
 
 	"xserver/x_http/x_resp"
 
+	"sync"
+	"time"
+
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
@@ -17,9 +20,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
-
-	"sync"
-	"time"
 )
 
 type DPOSConsensus struct {
