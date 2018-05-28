@@ -223,14 +223,17 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 
 // 当区块写入区块时，notify交易池，一些nonce比较大的交易可以进行打包
 func (blockchain *BlockChain) NotifyPool(block *Block) {
+	if block.BlockBody == nil {
+		return
+	}
 	// Notify transaction
-	if len(block.BlockBody.TxResults) > 0 {
+	if block.BlockBody.TxResults != nil && len(block.BlockBody.TxResults) > 0 {
 		for _, txResult := range block.BlockBody.TxResults {
 			blockchain.Pool.Notify(txResult.TxId)
 		}
 	}
 	// Notify event
-	if len(block.BlockBody.EventResults) > 0 {
+	if block.BlockBody.EventResults != nil && len(block.BlockBody.EventResults) > 0 {
 		for _, eventResult := range block.BlockBody.EventResults {
 			blockchain.Pool.NotifyEvent(eventResult.EventId)
 		}
@@ -273,8 +276,10 @@ func (blockchain *BlockChain) BlockFromPeer(block Block) {
 			util.HttpPost(url, evilBlock.Bytes())
 		}
 	}
-	if time.Now().UnixNano()/1e6-block.Timestamp > int64(blockchain.BlockInterval/3e6) {
-		fmt.Println("Block timestamp is more than 1/3 block interval, abort vote.")
+	// 1500是毫秒和纳秒的单位乘以2/3计算得来的
+	if time.Now().UnixNano()/1e6-block.Timestamp > int64(blockchain.BlockInterval/1500) {
+		fmt.Printf("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(blockchain.BlockInterval/1500))
+		fmt.Println("Block timestamp is more than 2/3 block interval, abort vote.")
 		return
 	}
 	if !blockchain.CurrentBlock.ValidateNextBlock(block, blockchain.BlockInterval) {
