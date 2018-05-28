@@ -21,7 +21,6 @@ func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if err != nil {
 		return nil, x_err.New(-1, err.Error())
 	}
-	dispatcher.GetDisPatcher().NewTransaction(&tx)
-	// TODO 根据mainchain的记录进行转发
-	return x_resp.Success("success"), nil
+	err = dispatcher.GetDisPatcher().NewTransaction(&tx)
+	return x_resp.Return(nil, err)
 }

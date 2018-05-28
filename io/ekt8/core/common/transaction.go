@@ -1,7 +1,9 @@
 package common
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
@@ -78,4 +80,26 @@ func (transactions Transactions) Swap(i, j int) {
 func (tx *Transaction) TransactionId() string {
 	txData, _ := json.Marshal(tx)
 	return string(crypto.Sha3_256(txData))
+}
+
+func (tx *Transaction) String() string {
+	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "nonce": %d, "data": "%s", "tokenAddress": "%s"}`,
+		tx.From, tx.To, tx.TimeStamp, tx.Amount, tx.Nonce, tx.Data, tx.TokenAddress)
+}
+
+func (tx *Transaction) Validate() bool {
+	sign, err := hex.DecodeString(tx.Sign)
+	if err != nil {
+		return false
+	}
+	data := crypto.Sha3_256([]byte(tx.String()))
+	if pubKey, err := crypto.RecoverPubKey(data, sign); err != nil {
+		return false
+	} else {
+		address, err := hex.DecodeString(tx.From)
+		if err != nil || !ValidatePubKey(pubKey, address) {
+			return false
+		}
+	}
+	return true
 }
