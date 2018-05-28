@@ -11,6 +11,7 @@ import (
 	"errors"
 
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
+	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
@@ -308,6 +309,20 @@ func (blockchain *BlockChain) BlockFromPeer(block Block) {
 			util.HttpPost(url, vote.Bytes())
 		}
 	}
+}
+
+func (blockchain BlockChain) NewTransaction(tx *common.Transaction) bool {
+	from, _ := hex.DecodeString(tx.From)
+	if account, err := blockchain.CurrentBlock.GetAccount(from); err == nil && account != nil {
+		if account.Nonce+1 == tx.Nonce {
+			blockchain.Pool.ParkTx(tx, pool.Ready)
+			return true
+		} else if account.Nonce+1 < tx.Nonce {
+			blockchain.Pool.ParkTx(tx, pool.Block)
+			return true
+		}
+	}
+	return false
 }
 
 func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {

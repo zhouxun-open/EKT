@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"encoding/hex"
+	"errors"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
@@ -16,7 +17,7 @@ func init() {
 }
 
 type IDispatcher interface {
-	NewTransaction(transaction *common.Transaction)
+	NewTransaction(transaction *common.Transaction) error
 	NewEvent(event *event.Event)
 }
 
@@ -39,27 +40,27 @@ func (dispacher DefaultDispatcher) GetBackBoneBlockChain() *blockchain.BlockChai
 	return blockChain
 }
 
-func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transaction) {
-	// TODO
-	//blockChain := dispatcher.GetBackBoneBlockChain()
-	//// TODO 把不同blockchain的transaction分开
-	//if blockChain.GetStatus() == 100 {
-	//	if block := blockChain.CurrentBlock; block != nil {
-	//		address, _ := hex.DecodeString(transaction.From)
-	//		account, _ := block.GetAccount(address)
-	//		if transaction.Nonce <= account.GetNonce() {
-	//			return
-	//		} else if transaction.Nonce-account.GetNonce() > 1 {
-	//			blockChain.Pool.ParkTx(transaction, pool.Block)
-	//		} else {
-	//			toAddress, _ := hex.DecodeString(transaction.To)
-	//			if !block.ExistAddress(toAddress) {
-	//				return
-	//			}
-	//			blockChain.Pool.ParkTx(transaction, pool.Ready)
-	//		}
-	//	}
-	//}
+func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transaction) error {
+	// 主币的tokenAddress为空
+	if transaction.TokenAddress != "" {
+		tokenAddress, err := hex.DecodeString(transaction.TokenAddress)
+		if err != nil {
+			return err
+		}
+		currentBlock := dispatcher.GetBackBoneBlockChain().CurrentBlock
+		var token common.Token
+		err = currentBlock.TokenTree.GetInterfaceValue(tokenAddress, &token)
+		if err != nil || token.Name == "" || token.Decimals <= 0 || token.Total <= 0 {
+			return err
+		}
+	}
+	if !transaction.Validate() {
+		return errors.New("error signature")
+	}
+	if !blockchain_manager.GetMainChain().NewTransaction(transaction) {
+		return errors.New("error transaction")
+	}
+	return nil
 }
 
 func (dispatcher DefaultDispatcher) NewEvent(evt *event.Event) {
