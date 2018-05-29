@@ -21,6 +21,6 @@ func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if err != nil {
 		return nil, x_err.New(-1, err.Error())
 	}
-	err = dispatcher.GetDisPatcher().NewTransaction(&tx)
+	err = dispatcher.NewTransaction(&tx)
 	return x_resp.Return(nil, err)
 }
