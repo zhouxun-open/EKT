@@ -345,7 +345,6 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	if header == nil {
 		return false
 	}
-	// TODO 同步区块体
 	dpos.Blockchain.SaveBlock(header)
 	fmt.Printf("Block at height %d header: %v \n", height, string(header.Bytes()))
 	return true
