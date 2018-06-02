@@ -1,10 +1,6 @@
 package api
 
 import (
-	"encoding/json"
-
-	"github.com/EducationEKT/EKT/io/ekt8/dispatcher"
-	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -16,12 +12,5 @@ func init() {
 }
 
 func NewAccount(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	var account event.NewAccountParam
-	err := json.Unmarshal(req.Body, &account)
-	if err != nil {
-		return x_resp.Fail(-1, err.Error(), nil), x_err.New(-1, err.Error())
-	}
-	evt := &event.Event{EventParam: account, EventType: event.NewAccountEvent}
-	dispatcher.GetDisPatcher().NewEvent(evt)
-	return x_resp.Success("success"), nil
+	return x_resp.Fail(-1, "This function is not open now.", nil), nil
 }
