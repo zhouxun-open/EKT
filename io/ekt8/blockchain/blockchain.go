@@ -84,6 +84,12 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 	defer blockchain.PackLock.Unlock()
 	if blockchain.Status != StartPackStatus {
 		blockchain.Status = StartPackStatus
+		defer func() {
+			if r := recover(); r != nil {
+				log.GetLogInst().LogCrit("Panic while pack. %v", r)
+			}
+			blockchain.Status = InitStatus
+		}()
 		block := blockchain.WaitAndPack()
 		hash := hex.EncodeToString(block.CurrentHash)
 		blockchain.BlockManager.Lock()
@@ -98,7 +104,6 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 				fmt.Println("Broadcast block failed, reason: ", err)
 			}
 		}
-		blockchain.Status = InitStatus
 	}
 }
 
