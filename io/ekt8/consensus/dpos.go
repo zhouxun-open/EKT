@@ -80,7 +80,7 @@ func (dpos *DPOSConsensus) Run() {
 
 func (dpos DPOSConsensus) DPoSRun() {
 	fmt.Println("DPoS started.")
-	interval := dpos.Blockchain.BlockInterval / 4
+	interval := dpos.Blockchain.BlockInterval / 10
 	for {
 		defer func() {
 			if r := recover(); r != nil {
@@ -362,6 +362,22 @@ func (dpos DPOSConsensus) pullBlock() {
 }
 
 func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
+	dpos.ValidateVotes(votes)
+	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; !exist {
+		fmt.Println("Recieve vote result but current node does not have this block, waiting for synchronized block.")
+		return
+	} else {
+		fmt.Println("Recieve vote result and get this block, saving block.")
+		dpos.SaveVotes(votes)
+		dpos.Blockchain.NotifyPool(block)
+		dpos.Blockchain.SaveBlock(block)
+	}
+}
+
+func (dpos DPOSConsensus) ValidateVotes(votes blockchain.Votes) bool {
+	if !votes.Validate() {
+		return false
+	}
 	round := &i_consensus.Round{
 		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
@@ -370,16 +386,28 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
 		round = dpos.Blockchain.CurrentBlock.Round
 	}
 	if votes.Len() <= len(round.Peers)/2 {
-		return
+		return false
 	}
-	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; !exist {
-		fmt.Println("Recieve vote result but current node does not have this block, waiting for synchronized block.")
-		return
-	} else {
-		fmt.Println("Recieve vote result and get this block, saving block.")
-		dpos.Blockchain.NotifyPool(block)
-		dpos.Blockchain.SaveBlock(block)
+	return true
+}
+
+func (dpos DPOSConsensus) SaveVotes(votes blockchain.Votes) {
+	dbKey := []byte(fmt.Sprintf("block_votes:%s", hex.EncodeToString(votes[0].BlockHash)))
+	db.GetDBInst().Set(dbKey, votes.Bytes())
+}
+
+func (dpos DPOSConsensus) GetVotes(blockHash string) blockchain.Votes {
+	dbKey := []byte(fmt.Sprintf("block_votes:%s", blockHash))
+	data, err := db.GetDBInst().Get(dbKey)
+	if err != nil {
+		return nil
 	}
+	var votes blockchain.Votes
+	err = json.Unmarshal(data, &votes)
+	if err != nil {
+		return nil
+	}
+	return votes
 }
 
 //从其他节点得到待验证block header
