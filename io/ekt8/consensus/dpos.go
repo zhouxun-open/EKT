@@ -362,7 +362,10 @@ func (dpos DPOSConsensus) pullBlock() {
 }
 
 func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
-	dpos.ValidateVotes(votes)
+	if !dpos.ValidateVotes(votes) {
+		fmt.Println("Votes validate failed. ", votes)
+		return
+	}
 	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; !exist {
 		fmt.Println("Recieve vote result but current node does not have this block, waiting for synchronized block.")
 		return
