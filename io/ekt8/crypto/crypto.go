@@ -40,6 +40,15 @@ func RecoverPubKey(msg, sign []byte) ([]byte, error) {
 	return secp256k1.RecoverPubkey(msg, sign)
 }
 
+func PubKey(priv []byte) ([]byte, error) {
+	data := Sha3_256([]byte("helloworld"))
+	sign, err := Crypto(data, priv)
+	if err != nil {
+		return nil, err
+	}
+	return RecoverPubKey(data, sign)
+}
+
 func GenerateKeyPair() (pubkey, privkey []byte) {
 	key, err := ecdsa.GenerateKey(S256(), rand.Reader)
 	if err != nil {

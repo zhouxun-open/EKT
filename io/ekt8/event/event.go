@@ -3,8 +3,10 @@ package event
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/db"
 )
 
 const (
@@ -15,6 +17,7 @@ const (
 type EventParam interface {
 	EventType() string
 	Validate() bool
+	Id() string
 }
 
 type Event struct {
@@ -25,21 +28,48 @@ type Event struct {
 type NewAccountParam struct {
 	Address string
 	PubKey  string
-	Nonce   int
+	Nonce   int64
 	EventId string
 }
 
 type UpdatePublicKeyParam struct {
 	Address   string
 	NewPubKey string
-	Nonce     int
+	Nonce     int64
 	EventId   string
 }
 
 type EventResult struct {
-	EventId string
-	Success bool
-	Reason  string
+	EventId string `json:"eventId"`
+	Success bool   `json:"success"`
+	Reason  string `json:"reason"`
+}
+
+func (evtResult EventResult) Bytes() []byte {
+	data, _ := json.Marshal(evtResult)
+	return data
+}
+
+func (event Event) EventId() []byte {
+	data, _ := json.Marshal(event)
+	return crypto.Sha3_256(data)
+}
+
+func GetEvent(eventId []byte) *Event {
+	data, err := db.GetDBInst().Get(eventId)
+	if err != nil {
+		return nil
+	}
+	return FromBytes(data)
+}
+
+func FromBytes(data []byte) *Event {
+	var event Event
+	err := json.Unmarshal(data, &event)
+	if err != nil {
+		return nil
+	}
+	return &event
 }
 
 func (newAccountParam NewAccountParam) EventType() string {
@@ -64,6 +94,10 @@ func (newAccountParam NewAccountParam) Validate() bool {
 	return true
 }
 
+func (newAccountParam NewAccountParam) Id() string {
+	return newAccountParam.EventId
+}
+
 func (updatePublicKeyParam UpdatePublicKeyParam) Validate() bool {
 	msg := []byte(fmt.Sprintf(`{"address": "%s", "pubKey": "%s", "nonce": %d}`, updatePublicKeyParam.Address, updatePublicKeyParam.NewPubKey, updatePublicKeyParam.Nonce))
 	msg = crypto.Sha3_256(msg)
@@ -84,6 +118,10 @@ func (updatePublicKeyParam UpdatePublicKeyParam) Validate() bool {
 
 func (updatePublicKeyParam UpdatePublicKeyParam) EventType() string {
 	return UpdatePublicKeyEvent
+}
+
+func (updatePublicKeyParam UpdatePublicKeyParam) Id() string {
+	return updatePublicKeyParam.EventId
 }
 
 func (event Event) ValidateEvent() bool {

@@ -2,13 +2,12 @@ package dispatcher
 
 import (
 	"encoding/hex"
+	"errors"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
-	"github.com/EducationEKT/EKT/io/ekt8/tx_pool"
-	"github.com/EducationEKT/EKT/io/ekt8/validator"
 )
 
 var dispatcher DefaultDispatcher
@@ -17,12 +16,8 @@ func init() {
 	dispatcher = DefaultDispatcher{}
 }
 
-func NewTransaction(transaction common.Transaction) {
-	blockchain_manager.MainBlockChainConsensus.NewTransaction(transaction)
-}
-
 type IDispatcher interface {
-	NewTransaction(transaction *common.Transaction)
+	NewTransaction(transaction *common.Transaction) error
 	NewEvent(event *event.Event)
 }
 
@@ -45,30 +40,50 @@ func (dispacher DefaultDispatcher) GetBackBoneBlockChain() *blockchain.BlockChai
 	return blockChain
 }
 
-func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transaction) {
-	if !validator.ValidateTx(transaction) {
-		return
-	}
-	blockChain := dispatcher.GetBackBoneBlockChain()
-	// TODO 把不同blockchain的transaction分开
-	if blockChain.GetStatus() == 100 {
-		if block := blockChain.CurrentBlock; block != nil {
-			address, _ := hex.DecodeString(transaction.From)
-			account, _ := block.GetAccount(address)
-			if transaction.Nonce <= account.GetNonce() {
-				return
-			} else if transaction.Nonce-account.GetNonce() > 1 {
-				blockChain.TxPool.Park(transaction, tx_pool.Block)
-			} else {
-				toAddress, _ := hex.DecodeString(transaction.To)
-				if !block.ExistAddress(toAddress) {
-					return
-				}
-				blockChain.NewTransaction(transaction)
-				//block.NewTransaction(transaction)
-			}
+func NewTransaction(transaction *common.Transaction) error {
+	// 主币的tokenAddress为空
+	if transaction.TokenAddress != "" {
+		tokenAddress, err := hex.DecodeString(transaction.TokenAddress)
+		if err != nil {
+			return err
+		}
+		currentBlock := blockchain_manager.GetMainChain().CurrentBlock
+		var token common.Token
+		err = currentBlock.TokenTree.GetInterfaceValue(tokenAddress, &token)
+		if err != nil || token.Name == "" || token.Decimals <= 0 || token.Total <= 0 {
+			return err
 		}
 	}
+	if !transaction.Validate() {
+		return errors.New("error signature")
+	}
+	if !blockchain_manager.GetMainChain().NewTransaction(transaction) {
+		return errors.New("error transaction")
+	}
+	return nil
+}
+
+func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transaction) error {
+	// 主币的tokenAddress为空
+	if transaction.TokenAddress != "" {
+		tokenAddress, err := hex.DecodeString(transaction.TokenAddress)
+		if err != nil {
+			return err
+		}
+		currentBlock := dispatcher.GetBackBoneBlockChain().CurrentBlock
+		var token common.Token
+		err = currentBlock.TokenTree.GetInterfaceValue(tokenAddress, &token)
+		if err != nil || token.Name == "" || token.Decimals <= 0 || token.Total <= 0 {
+			return err
+		}
+	}
+	if !transaction.Validate() {
+		return errors.New("error signature")
+	}
+	if !blockchain_manager.GetMainChain().NewTransaction(transaction) {
+		return errors.New("error transaction")
+	}
+	return nil
 }
 
 func (dispatcher DefaultDispatcher) NewEvent(evt *event.Event) {

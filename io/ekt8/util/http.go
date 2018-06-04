@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 func HttpGet(url string) ([]byte, error) {
 	client := &http.Client{}
+	client.Timeout = 2 * time.Second
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -21,6 +23,7 @@ func HttpGet(url string) ([]byte, error) {
 
 func HttpPost(url string, body []byte) ([]byte, error) {
 	client := &http.Client{}
+	client.Timeout = 2 * time.Second
 	request, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	request.Header["Content-Type"] = []string{"application/json"}
 	if err != nil {

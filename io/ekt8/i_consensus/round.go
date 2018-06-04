@@ -3,6 +3,7 @@ package i_consensus
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
@@ -15,26 +16,94 @@ type Round struct {
 	Random       int        `json:"random"`
 }
 
-func (round *Round) NextRound(CurrentHash []byte) *Round {
+func (round1 *Round) Equal(round2 *Round) bool {
+	if round1.CurrentIndex != round2.CurrentIndex || len(round1.Peers) != len(round2.Peers) {
+		return false
+	}
+	for i, peer := range round1.Peers {
+		if !peer.Equal(round2.Peers[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (round *Round) IndexPlus(CurrentHash []byte) *Round {
 	if round.CurrentIndex == len(round.Peers)-1 {
-		bytes := CurrentHash[22:]
-		Random := util.BytesToInt(bytes)
-		round = &Round{
-			CurrentIndex: -1,
+		Random := util.BytesToInt(CurrentHash[22:])
+		round_ := &Round{
+			CurrentIndex: 0,
 			Peers:        round.Peers,
 			Random:       Random,
 		}
+		sort.Sort(round_)
+		return round_
 	} else {
 		round.CurrentIndex++
 	}
 	return round
 }
 
+func (round *Round) NewRandom(CurrentHash []byte) *Round {
+	round1 := &Round{
+		Peers:        round.Peers,
+		Random:       util.BytesToInt(CurrentHash[22:]),
+		CurrentIndex: round.CurrentIndex,
+	}
+	return round1
+}
+
+func (round *Round) MyRound(CurrentHash []byte) *Round {
+	_round := round
+	if round.CurrentIndex == round.Len()-1 {
+		_round = round.NewRandom(CurrentHash)
+		sort.Sort(_round)
+	}
+	_round.CurrentIndex = _round.MyIndex()
+	return _round
+}
+
+func (round *Round) NextRound(CurrentHash []byte) *Round {
+	if round.CurrentIndex == len(round.Peers)-1 {
+		bytes := CurrentHash[22:]
+		Random := util.BytesToInt(bytes)
+		round = &Round{
+			CurrentIndex: 0,
+			Peers:        round.Peers,
+			Random:       Random,
+		}
+	} else {
+		round.CurrentIndex = round.MyIndex()
+	}
+	return round
+}
+
 func (round Round) IsMyTurn() bool {
-	if round.Peers[round.CurrentIndex+1].Equal(conf.EKTConfig.Node) {
+	if round.Peers[(round.CurrentIndex+1)%len(round.Peers)].Equal(conf.EKTConfig.Node) {
 		return true
 	}
 	return false
+}
+
+func (round Round) NextPeerRight(peer p2p.Peer, hash []byte) bool {
+	if round.CurrentIndex < round.Len()-1 {
+		if round.Peers[round.CurrentIndex+1].Equal(peer) {
+			return true
+		}
+		return false
+	} else {
+		_round := round.NewRandom(hash)
+		return _round.Peers[0].Equal(peer)
+	}
+}
+
+func (round Round) MyIndex() int {
+	for i, peer := range round.Peers {
+		if peer.Equal(conf.EKTConfig.Node) {
+			return i
+		}
+	}
+	return -1
 }
 
 func (round Round) Len() int {

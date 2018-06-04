@@ -1,65 +1,86 @@
 package common
 
 import (
+	"bytes"
 	"encoding/hex"
-	"fmt"
+	"encoding/json"
+
+	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+)
+
+const (
+	Default_Crypto_Method = "secp256k1"
 )
 
 type Account struct {
-	hexAddress    string           `json:"address"`
-	hexPublickKey string           `json:"publicKey"`
-	amount        int64            `json:"amount"`
-	nonce         int64            `json:"nonce"`
-	balances      map[string]int64 `json:"balances"`
+	HexAddress    string           `json:"address"`
+	HexPublickKey string           `json:"publicKey"`
+	CryptoMethod  string           `json:"CryptoMethod"`
+	Amount        int64            `json:"amount"`
+	Nonce         int64            `json:"monce"`
+	Balances      map[string]int64 `json:"balances"`
+}
+
+func CreateAccount(address string, Amount int64) Account {
+	return Account{
+		HexAddress: address,
+		Amount:     Amount,
+		Nonce:      0,
+	}
 }
 
 func NewAccount(address, pubKey []byte) *Account {
 	return &Account{
-		hexAddress:    hex.EncodeToString(address),
-		hexPublickKey: hex.EncodeToString(pubKey),
-		nonce:         0,
-		amount:        0,
+		HexAddress:    hex.EncodeToString(address),
+		HexPublickKey: hex.EncodeToString(pubKey),
+		Nonce:         0,
+		Amount:        0,
 	}
 }
 
-func (account Account) ToString() string {
-	return fmt.Sprintf(`{"HexAddress": "%s", "publicKey": "%s", "Amount": %s, "Nonce": %d}`,
-		account.hexAddress, account.hexPublickKey, account.amount, account.nonce)
-}
-
 func (account Account) ToBytes() []byte {
-	return []byte(account.ToString())
+	data, _ := json.Marshal(account)
+	return data
 }
 
 func (account Account) GetNonce() int64 {
-	return account.nonce
+	return account.Nonce
 }
 
 func (account Account) Address() []byte {
-	address, _ := hex.DecodeString(account.hexAddress)
+	address, _ := hex.DecodeString(account.HexAddress)
 	return address
 }
 
 func (account Account) PublicKey() []byte {
-	publicKey, _ := hex.DecodeString(account.hexPublickKey)
+	publicKey, _ := hex.DecodeString(account.HexPublickKey)
 	return publicKey
 }
 
 func (account Account) GetAmount() int64 {
-	return account.amount
+	return account.Amount
 }
 
 func (account Account) AddAmount(amount int64) {
-	account.amount += amount
-	//account.Nonce++
+	account.Amount += amount
 }
 
 func (account Account) ReduceAmount(amount int64) {
-	account.amount -= amount
-	account.nonce++
+	account.Amount -= amount
+	account.Nonce++
 }
 
 func (account Account) AlterPublicKey(newPublicKey []byte) {
-	account.hexPublickKey = hex.EncodeToString(newPublicKey)
-	account.nonce++
+	account.HexPublickKey = hex.EncodeToString(newPublicKey)
+	account.Nonce++
+}
+
+func FromPubKeyToAddress(pubKey []byte) []byte {
+	hash := crypto.Sha3_256(pubKey)
+	address := crypto.Sha3_256(crypto.Sha3_256(append([]byte("EKT"), hash...)))
+	return address
+}
+
+func ValidatePubKey(pubKey, address []byte) bool {
+	return bytes.Equal(FromPubKeyToAddress(pubKey), address)
 }

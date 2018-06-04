@@ -9,11 +9,14 @@ import (
 )
 
 type EKTConf struct {
+	Version              string           `json:"version"`
 	DBPath               string           `json:"dbPath"`
 	LogPath              string           `json:"logPath"`
 	Node                 p2p.Peer         `json:"node"`
 	BlockchainManagePwd  string           `json:"blockchainManagePwd"`
 	GenesisBlockAccounts []common.Account `json:"genesisBlock"`
+	PrivateKey           []byte           `json:"privateKey"`
+	Env                  string           `json:"env"`
 }
 
 var EKTConfig EKTConf

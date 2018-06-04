@@ -16,13 +16,6 @@ type CommonAddress struct {
 	Address       []byte
 }
 
-//func (commonAddress *CommonAddress) Hex() string {
-//	prefix:=commonAddress.Type<16&commonAddress.AddressLength
-//	buffer:=bytes.NewBuffer([]byte{})
-//	binary.Write(buffer, binary.BigEndian, &prefix)
-//	buffer.Write(commonAddress.Address)
-//}
-
 type NormalAddress [AddressLength]byte
 
 func BytesToAddress(b []byte) NormalAddress {

@@ -27,6 +27,11 @@ func FromBytes(data []byte) (*BlockBody, error) {
 	return &body, err
 }
 
+func (body *BlockBody) Bytes() []byte {
+	data, _ := json.Marshal(body)
+	return data
+}
+
 func (body *BlockBody) AddTxResult(txResult common.TxResult) {
 	body.TxResults = append(body.TxResults, txResult)
 }

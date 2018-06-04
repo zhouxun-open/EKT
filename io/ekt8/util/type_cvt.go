@@ -18,3 +18,8 @@ func IntToBytes(n int) []byte {
 	binary.Write(bytesBuffer, binary.BigEndian, tmp)
 	return bytesBuffer.Bytes()
 }
+
+func MoreThanHalf(n int) int {
+	half := n/2 + 1
+	return half
+}

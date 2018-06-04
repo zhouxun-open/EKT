@@ -3,13 +3,11 @@ package blockchain_manager
 import (
 	"encoding/hex"
 	"encoding/json"
-	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
-	"github.com/EducationEKT/EKT/io/ekt8/tx_pool"
 )
 
 const (
@@ -17,7 +15,7 @@ const (
 )
 
 var MainBlockChain *blockchain.BlockChain
-var MainBlockChainConsensus consensus.DPOSConsensus
+var MainBlockChainConsensus *consensus.DPOSConsensus
 
 var blockchainManager *BlockchainManager
 
@@ -31,9 +29,8 @@ func Init() {
 		Blockchains: make(map[string]*blockchain.BlockChain),
 		Consensuses: make(map[string]i_consensus.Consensus),
 	}
-	MainBlockChain = &blockchain.BlockChain{blockchain.BackboneChainId, blockchain.InitStatus, nil, nil, sync.RWMutex{},
-		blockchain.BackboneConsensus, 210000, []byte("FFFFFF"), tx_pool.NewTxPool(), 0, nil}
-	MainBlockChainConsensus = consensus.DPOSConsensus{Blockchain: MainBlockChain}
+	MainBlockChain = blockchain.NewBlockChain(blockchain.BackboneChainId, blockchain.BackboneConsensus, blockchain.BackboneChainFee, blockchain.BackboneChainDifficulty, blockchain.BackboneBlockInterval)
+	MainBlockChainConsensus = consensus.NewDPoSConsensus(MainBlockChain)
 	go MainBlockChainConsensus.Run()
 	value, err := db.GetDBInst().Get([]byte(BlockchainManagerDBKey))
 	if err != nil {
@@ -49,11 +46,11 @@ func Init() {
 		blockchainManager.Blockchains[chainId] = blockchain
 		switch blockchain.Consensus {
 		case i_consensus.DPOS:
-			consensus := consensus.DPOSConsensus{Blockchain: blockchain}
+			consensus := consensus.NewDPoSConsensus(blockchain)
 			blockchainManager.Consensuses[chainId] = consensus
 			go consensus.Run()
 		default:
-			consensus := consensus.DPOSConsensus{Blockchain: blockchain}
+			consensus := consensus.NewDPoSConsensus(blockchain)
 			blockchainManager.Consensuses[chainId] = consensus
 			go consensus.Run()
 		}
@@ -68,6 +65,6 @@ func GetMainChain() *blockchain.BlockChain {
 	return MainBlockChain
 }
 
-func GetMainChainConsensus() consensus.DPOSConsensus {
+func GetMainChainConsensus() *consensus.DPOSConsensus {
 	return MainBlockChainConsensus
 }

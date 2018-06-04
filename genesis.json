@@ -1,0 +1,27 @@
+{
+    "version": "v0.3",
+    "dbPath": "/data/EKT/db",
+    "logPath": "/data/EKT/log",
+    "env": "testnet",
+    "node": {
+        "address": "127.0.0.1",
+        "port": 19951,
+        "addressVersion": 4
+    },
+    "blockchainManagePwd": "helloworld",
+    "genesisBlock": [
+        {
+            "address": "d7190eb194ff9494625514b6d178c87f99c5973e28c398969d2233f2960a573e",
+            "amount": 1000000,
+            "nonce": 0
+        },{
+            "address": "d7190eb194ff9494625514b6d178c87f99c5973e28c398969d2233f2960a573f",
+            "amount": 1000000,
+            "nonce": 0
+        },{
+            "address": "d7190eb194ff9494625514b6d178c87f99c5973e28c398969d2233f2960a57aa",
+            "amount": 100000000000000,
+            "nonce": 0
+        }
+    ]
+}
