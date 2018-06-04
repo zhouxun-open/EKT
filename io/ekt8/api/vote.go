@@ -40,10 +40,6 @@ func voteResult(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		fmt.Println("Invalid vote, unmarshal fail, abort.")
 		return x_resp.Return(nil, err)
 	}
-	if !votes.Validate() {
-		fmt.Println("Vote Results validate failed, return")
-		return x_resp.Return("Validate failed.", nil)
-	}
 	blockchain_manager.GetMainChainConsensus().RecieveVoteResult(votes)
 	return x_resp.Success(make(map[string]interface{})), nil
 }
