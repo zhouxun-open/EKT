@@ -87,17 +87,13 @@ func (vote VoteResults) Insert(voteResult BlockVote) {
 	defer vote.Locker.Unlock()
 	votes, exist := vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)]
 	if exist || len(votes) > 0 {
-		flag := false
 		for _, _vote := range votes {
 			if strings.EqualFold(_vote.Value(), voteResult.Value()) {
-				flag = true
-				break
+				return
 			}
 		}
-		if !flag {
-			votes = append(votes, voteResult)
-			vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)] = votes
-		}
+		votes = append(votes, voteResult)
+		vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)] = votes
 	} else {
 		votes = make([]BlockVote, 0)
 		votes = append(votes, voteResult)
@@ -143,11 +139,15 @@ func (votes Votes) Validate() bool {
 		fmt.Println("Votes.Validate: length of votes is 0, return false.")
 		return false
 	}
-	if len(votes) >= 2 {
-		for i := 1; i < len(votes); i++ {
-			vote := votes[i]
-			if !vote.Validate() || bytes.Equal(vote.Data(), votes[0].Data()) || !vote.VoteResult {
-				return false
+	for i, vote := range votes {
+		if !vote.Validate() || !vote.VoteResult {
+			return false
+		}
+		for j, _vote := range votes {
+			if i != j {
+				if bytes.Equal(vote.Data(), _vote.Data()) {
+					return false
+				}
 			}
 		}
 	}
