@@ -366,14 +366,25 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
 		fmt.Println("Votes validate failed. ", votes)
 		return
 	}
-	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; !exist {
-		fmt.Println("Recieve vote result but current node does not have this block, waiting for synchronized block.")
+	status := blockchain.BlockRecorder.GetStatus(hex.EncodeToString(votes[0].BlockHash))
+	// 未同步区块body
+	if status == -1 {
+		// 未同步区块体通过sync同步区块
 		return
+	}
+	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; !exist {
+		if status == 100 {
+			// 已同步区块body，但是未写入区块链中
+			fmt.Println("Recieve vote result and get this block, saving block.")
+			dpos.SaveVotes(votes)
+			dpos.Blockchain.NotifyPool(block)
+			dpos.Blockchain.SaveBlock(block)
+		} else if status == 200 {
+			// 已经写入区块链中
+			fmt.Println("This block is already wrote to blockchain.")
+		}
 	} else {
-		fmt.Println("Recieve vote result and get this block, saving block.")
-		dpos.SaveVotes(votes)
-		dpos.Blockchain.NotifyPool(block)
-		dpos.Blockchain.SaveBlock(block)
+		fmt.Println("Haven't recieve this block,  abort.")
 	}
 }
 
