@@ -319,9 +319,6 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	if dpos.Blockchain.CurrentHeight > 0 {
 		round = dpos.Blockchain.CurrentBlock.Round
 	}
-	var header *blockchain.Block
-	m := make(map[string]int)
-	mapping := make(map[string]*blockchain.Block)
 	peers := param.MainChainDPosNode
 	if dpos.Blockchain.CurrentHeight > 0 {
 		peers = round.Peers
@@ -329,49 +326,55 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	for _, peer := range peers {
 		block, err := getBlockHeader(peer, height)
 		if err != nil || block.Height != height {
-			fmt.Println("Geting block header by height failed.")
+			fmt.Println("Geting block header by height failed.", err)
 			continue
 		}
-		mapping[hex.EncodeToString(block.Hash())] = block
-		if _, ok := m[hex.EncodeToString(block.Hash())]; ok {
-			m[hex.EncodeToString(block.Hash())]++
-		} else {
-			m[hex.EncodeToString(block.Hash())] = 1
+		votes, err := getVotes(peer, hex.EncodeToString(block.CurrentHash))
+		if err != nil {
+			fmt.Println("Error peer has no votes.", err)
+			continue
 		}
-		if m[hex.EncodeToString(block.Hash())] >= util.MoreThanHalf(len(peers)) {
-			header = mapping[hex.EncodeToString(block.Hash())]
-		}
-	}
-	if header == nil {
-		return false
-	}
-	dpos.Blockchain.SaveBlock(header)
-	fmt.Printf("Block at height %d header: %v \n", height, string(header.Bytes()))
-	return true
-}
-
-func (dpos DPOSConsensus) pullBlock() {
-	for {
-		peers := dpos.Blockchain.CurrentBlock.Round.Peers
-		for _, peer := range peers {
-			block, _ := CurrentBlock(peer)
-			if dpos.Blockchain.CurrentBlock.Height < block.Height {
+		if votes.Validate() {
+			if dpos.Blockchain.CurrentBlock.ValidateNextBlock(*block, dpos.Blockchain.BlockInterval) {
+				if dpos.RecieveVoteResult(votes) {
+					return true
+				} else {
+					continue
+				}
 			}
 		}
 	}
+	return false
 }
 
-func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) {
-	dpos.ValidateVotes(votes)
-	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; !exist {
-		fmt.Println("Recieve vote result but current node does not have this block, waiting for synchronized block.")
-		return
-	} else {
-		fmt.Println("Recieve vote result and get this block, saving block.")
-		dpos.SaveVotes(votes)
-		dpos.Blockchain.NotifyPool(block)
-		dpos.Blockchain.SaveBlock(block)
+func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
+	if !dpos.ValidateVotes(votes) {
+		fmt.Println("Votes validate failed. ", votes)
+		return false
 	}
+	status := blockchain.BlockRecorder.GetStatus(hex.EncodeToString(votes[0].BlockHash))
+	// 未同步区块body
+	if status == -1 {
+		// 未同步区块体通过sync同步区块
+		return false
+	}
+	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; exist {
+		if status == 100 {
+			// 已同步区块body，但是未写入区块链中
+			fmt.Println("Recieve vote result and get this block, saving block.")
+			dpos.SaveVotes(votes)
+			dpos.Blockchain.NotifyPool(block)
+			dpos.Blockchain.SaveBlock(block)
+			blockchain.BlockRecorder.SetStatus(hex.EncodeToString(block.CurrentHash), 200)
+		} else if status == 200 {
+			// 已经写入区块链中
+			fmt.Println("This block is already wrote to blockchain.")
+		}
+		return true
+	} else {
+		fmt.Println("Haven't recieve this block,  abort.")
+	}
+	return false
 }
 
 func (dpos DPOSConsensus) ValidateVotes(votes blockchain.Votes) bool {
@@ -410,54 +413,9 @@ func (dpos DPOSConsensus) GetVotes(blockHash string) blockchain.Votes {
 	return votes
 }
 
-//从其他节点得到待验证block header
-func (dpos DPOSConsensus) CurrentBlock() *blockchain.Block {
-	var currentBlock *blockchain.Block = nil
-	blocks := make(map[string]int64)
-	mapping := make(map[string]*blockchain.Block)
-	for _, peer := range dpos.Blockchain.CurrentBlock.Round.Peers {
-		block, err := CurrentBlock(peer)
-		if err != nil {
-			continue
-		}
-		mapping[hex.EncodeToString(block.Hash())] = block
-		num, exist := blocks[hex.EncodeToString(block.Hash())]
-		if exist && num+1 >= int64(len(dpos.Blockchain.CurrentBlock.Round.Peers))/2 {
-			currentBlock = block
-			break
-		} else {
-			if exist {
-				blocks[hex.EncodeToString(block.Hash())] = num + 1
-			} else {
-				blocks[hex.EncodeToString(block.Hash())] = 1
-			}
-		}
-	}
-	var maxNum int64 = 0
-	var consensusHash string
-	if currentBlock == nil {
-		for hash, num := range blocks {
-			if num > maxNum {
-				maxNum, consensusHash = num, hash
-			}
-		}
-	}
-	return mapping[consensusHash]
-}
-
 //获取当前的peers
 func (dpos DPOSConsensus) GetCurrentDPOSPeers() p2p.Peers {
 	return param.MainChainDPosNode
-}
-
-//向指定节点获取最新区块
-func CurrentBlock(peer p2p.Peer) (*blockchain.Block, error) {
-	url := fmt.Sprintf(`http://%s:%d/blocks/api/last`, peer.Address, peer.Port)
-	body, err := util.HttpGet(url)
-	if err != nil {
-		return nil, err
-	}
-	return blockchain.FromBytes2Block(body)
 }
 
 func getBlockHeader(peer p2p.Peer, height int64) (*blockchain.Block, error) {
@@ -473,6 +431,26 @@ func getBlockHeader(peer p2p.Peer, height int64) (*blockchain.Block, error) {
 		var block blockchain.Block
 		err = json.Unmarshal(data, &block)
 		return &block, err
+	}
+	return nil, err
+}
+
+func getVotes(peer p2p.Peer, blockHash string) (blockchain.Votes, error) {
+	url := fmt.Sprintf(`http://%s:%d/vote/api/getVotes?hash=%s`, peer.Address, peer.Port, blockHash)
+	body, err := util.HttpGet(url)
+	if err != nil {
+		return nil, err
+	}
+	var resp x_resp.XRespBody
+	err = json.Unmarshal(body, &resp)
+	if err == nil && resp.Status == 0 {
+		var votes blockchain.Votes
+		data, err := json.Marshal(resp.Result)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(data, &votes)
+		return votes, err
 	}
 	return nil, err
 }

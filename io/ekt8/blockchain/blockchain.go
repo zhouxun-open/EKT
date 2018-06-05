@@ -273,6 +273,7 @@ func (blockchain *BlockChain) BlockFromPeer(block Block) {
 	if status == -1 {
 		evilBlock := blockchain.Police.GetEvilBlock(block)
 		for _, peer := range block.Round.Peers {
+			fmt.Println("Recieve Evil block, notify other peer.")
 			defer func() {
 				if r := recover(); r != nil {
 					log.GetLogInst().LogCrit("Sending evil block fail, recovered.", r)
@@ -292,7 +293,6 @@ func (blockchain *BlockChain) BlockFromPeer(block Block) {
 		fmt.Println("This block from peer can not recover by last block, abort.")
 		return
 	}
-	BlockRecorder.Blocks[hex.EncodeToString(block.Hash())] = &block
 	// 签名
 	vote := &BlockVote{
 		BlockchainId: blockchain.ChainId,
@@ -352,7 +352,8 @@ func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {
 		votes := VoteResultManager.VoteResults[hex.EncodeToString(vote.BlockHash)]
 		for _, peer := range round.Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
-			util.HttpPost(url, votes.Bytes())
+			resp, err := util.HttpPost(url, votes.Bytes())
+			log.GetLogInst().LogDebug(`Resp: %s, err: %v`, string(resp), err)
 		}
 	} else {
 		fmt.Printf("Current vote results: %s", string(VoteResultManager.VoteResults[hex.EncodeToString(vote.BlockHash)].Bytes()))

@@ -15,6 +15,7 @@ import (
 func init() {
 	x_router.Post("/vote/api/vote", voteBlock)
 	x_router.Post("/vote/api/voteResult", voteResult)
+	x_router.Get("/vote/api/getVotes", getVotes)
 }
 
 func voteBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -40,10 +41,12 @@ func voteResult(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		fmt.Println("Invalid vote, unmarshal fail, abort.")
 		return x_resp.Return(nil, err)
 	}
-	if !votes.Validate() {
-		fmt.Println("Vote Results validate failed, return")
-		return x_resp.Return("Validate failed.", nil)
-	}
 	blockchain_manager.GetMainChainConsensus().RecieveVoteResult(votes)
 	return x_resp.Success(make(map[string]interface{})), nil
+}
+
+func getVotes(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	blockHash := req.MustGetString("hash")
+	votes := blockchain_manager.GetMainChainConsensus().GetVotes(blockHash)
+	return x_resp.Return(votes, nil)
 }
