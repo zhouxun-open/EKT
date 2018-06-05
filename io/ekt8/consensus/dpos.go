@@ -326,12 +326,12 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	for _, peer := range peers {
 		block, err := getBlockHeader(peer, height)
 		if err != nil || block.Height != height {
-			fmt.Println("Geting block header by height failed.")
+			fmt.Println("Geting block header by height failed.", err)
 			continue
 		}
 		votes, err := getVotes(peer, hex.EncodeToString(block.CurrentHash))
 		if err != nil {
-			fmt.Println("Error peer has no votes.")
+			fmt.Println("Error peer has no votes.", err)
 			continue
 		}
 		if votes.Validate() {
@@ -436,12 +436,21 @@ func getBlockHeader(peer p2p.Peer, height int64) (*blockchain.Block, error) {
 }
 
 func getVotes(peer p2p.Peer, blockHash string) (blockchain.Votes, error) {
-	url := fmt.Sprintf(``, peer.Address, peer.Port, blockHash)
+	url := fmt.Sprintf(`http://%s:%d/vote/api/getVotes?hash=%s`, peer.Address, peer.Port, blockHash)
 	body, err := util.HttpGet(url)
 	if err != nil {
 		return nil, err
 	}
-	var votes blockchain.Votes
-	err = json.Unmarshal(body, &votes)
-	return votes, err
+	var resp x_resp.XRespBody
+	err = json.Unmarshal(body, &resp)
+	if err == nil && resp.Status == 0 {
+		var votes blockchain.Votes
+		data, err := json.Marshal(resp.Result)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(data, &votes)
+		return votes, err
+	}
+	return nil, err
 }
