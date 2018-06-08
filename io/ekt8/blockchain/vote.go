@@ -32,16 +32,23 @@ type Votes []BlockVote
 
 type VoteResults struct {
 	Locker      sync.RWMutex
-	Broadcast   map[string]bool
-	VoteResults map[string]Votes
+	broadcast   map[string]bool
+	voteResults map[string]Votes
 }
 
 func NewVoteResults() VoteResults {
 	return VoteResults{
-		Broadcast:   make(map[string]bool),
-		VoteResults: make(map[string]Votes),
+		broadcast:   make(map[string]bool),
+		voteResults: make(map[string]Votes),
 		Locker:      sync.RWMutex{},
 	}
+}
+
+func (vote VoteResults) GetVoteResults(hash string) Votes {
+	vote.Locker.RLock()
+	votes := vote.voteResults[hash]
+	vote.Locker.RUnlock()
+	return votes
 }
 
 func (vote BlockVote) Validate() bool {
@@ -85,7 +92,7 @@ func (vote BlockVote) Bytes() []byte {
 func (vote VoteResults) Insert(voteResult BlockVote) {
 	vote.Locker.Lock()
 	defer vote.Locker.Unlock()
-	votes, exist := vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)]
+	votes, exist := vote.voteResults[hex.EncodeToString(voteResult.BlockHash)]
 	if exist && len(votes) > 0 {
 		for _, _vote := range votes {
 			if strings.EqualFold(_vote.Value(), voteResult.Value()) {
@@ -93,18 +100,18 @@ func (vote VoteResults) Insert(voteResult BlockVote) {
 			}
 		}
 		votes = append(votes, voteResult)
-		vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)] = votes
+		vote.voteResults[hex.EncodeToString(voteResult.BlockHash)] = votes
 	} else {
 		votes = make([]BlockVote, 0)
 		votes = append(votes, voteResult)
-		vote.VoteResults[hex.EncodeToString(voteResult.BlockHash)] = votes
+		vote.voteResults[hex.EncodeToString(voteResult.BlockHash)] = votes
 	}
 }
 
 func (vote VoteResults) Number(blockHash []byte) int {
 	vote.Locker.RLock()
 	defer vote.Locker.RUnlock()
-	votes, exist := vote.VoteResults[hex.EncodeToString(blockHash)]
+	votes, exist := vote.voteResults[hex.EncodeToString(blockHash)]
 	if !exist {
 		return 0
 	}
@@ -114,7 +121,7 @@ func (vote VoteResults) Number(blockHash []byte) int {
 func (vote VoteResults) Broadcasted(blockHash []byte) bool {
 	vote.Locker.RLock()
 	vote.Locker.RUnlock()
-	return vote.Broadcast[hex.EncodeToString(blockHash)]
+	return vote.broadcast[hex.EncodeToString(blockHash)]
 }
 
 func (vote Votes) Len() int {
