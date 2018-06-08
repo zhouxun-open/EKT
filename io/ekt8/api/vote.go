@@ -30,7 +30,7 @@ func voteBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		fmt.Println("Invalid vote, abort.")
 		return x_resp.Return(false, nil)
 	}
-	blockchain_manager.GetMainChain().VoteFromPeer(vote)
+	blockchain_manager.GetMainChainConsensus().VoteFromPeer(vote)
 	return nil, nil
 }
 
