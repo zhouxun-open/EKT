@@ -211,7 +211,7 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 }
 
 func (block *Block) ValidateBlockStat(next Block) bool {
-	BlockRecorder.Blocks[hex.EncodeToString(next.CurrentHash)] = &next
+	BlockRecorder.SetBlock(&next)
 	fmt.Println("Validating block stat merkler proof.")
 	// 从打包节点获取body
 	body, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(next.Body)

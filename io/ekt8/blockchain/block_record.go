@@ -12,41 +12,37 @@ func init() {
 }
 
 type BlockRecord struct {
-	Locker     sync.RWMutex
-	Status     map[string]int
-	Blocks     map[string]*Block
-	Signatures map[string]string
+	status *sync.Map
+	blocks *sync.Map
 }
 
 func NewBlockRecorder() *BlockRecord {
 	return &BlockRecord{
-		Locker:     sync.RWMutex{},
-		Blocks:     make(map[string]*Block),
-		Status:     make(map[string]int),
-		Signatures: make(map[string]string),
+		status: &sync.Map{},
+		blocks: &sync.Map{},
 	}
 }
 
 func (recorder BlockRecord) GetStatus(blockHash string) int {
-	recorder.Locker.RLock()
-	defer recorder.Locker.RUnlock()
-	if status, exist := recorder.Status[blockHash]; exist {
-		return status
+	obj, exist := recorder.status.Load(blockHash)
+	if !exist {
+		return -1
 	}
-	return -1
+	return obj.(int)
 }
 
 func (recorder BlockRecord) SetStatus(blockHash string, status int) {
-	recorder.Locker.Lock()
-	defer recorder.Locker.Unlock()
-	recorder.Status[blockHash] = status
+	recorder.status.Store(blockHash, status)
 }
 
-func GetBlockRecordInst() *BlockRecord {
-	return BlockRecorder
+func (recorder BlockRecord) GetBlock(hash string) *Block {
+	obj, exist := recorder.blocks.Load(hash)
+	if !exist {
+		return nil
+	}
+	return obj.(*Block)
 }
 
-func (record BlockRecord) Record(block *Block, sign []byte) {
-	record.Blocks[hex.EncodeToString(block.Hash())] = block
-	record.Signatures[hex.EncodeToString(block.Hash())] = hex.EncodeToString(sign)
+func (recorder BlockRecord) SetBlock(block *Block) {
+	recorder.blocks.Store(hex.EncodeToString(block.CurrentHash), block)
 }
