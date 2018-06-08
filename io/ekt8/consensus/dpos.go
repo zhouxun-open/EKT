@@ -364,8 +364,6 @@ func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 	fmt.Println("Is current vote number more than half node?")
 	if dpos.VoteResults.Number(vote.BlockHash) > len(round.Peers)/2 {
 		fmt.Println("Vote number more than half node, sending vote result to other nodes.")
-		dpos.VoteResults.Locker.RLock()
-		defer dpos.VoteResults.Locker.RUnlock()
 		votes := dpos.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash))
 		for _, peer := range round.Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
