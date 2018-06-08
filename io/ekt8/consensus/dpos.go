@@ -26,7 +26,7 @@ type DPOSConsensus struct {
 	Blockchain  *blockchain.BlockChain
 	Block       chan blockchain.Block
 	Vote        chan blockchain.BlockVote
-	VoteResults chan blockchain.VoteResults
+	VoteResults blockchain.VoteResults
 	Locker      sync.RWMutex
 	DPoSStatus  int // 0 未开始   100 正在进行中
 }
@@ -36,7 +36,7 @@ func NewDPoSConsensus(Blockchain *blockchain.BlockChain) *DPOSConsensus {
 		Blockchain:  Blockchain,
 		Block:       make(chan blockchain.Block),
 		Vote:        make(chan blockchain.BlockVote),
-		VoteResults: make(chan blockchain.VoteResults),
+		VoteResults: blockchain.NewVoteResults(),
 		Locker:      sync.RWMutex{},
 		DPoSStatus:  0,
 	}
@@ -345,6 +345,37 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 		}
 	}
 	return false
+}
+
+func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
+	fmt.Println("Recieved vote from peer.")
+	if dpos.VoteResults.Broadcasted(vote.BlockHash) {
+		fmt.Println("This block has voted, return.")
+		return
+	}
+	dpos.VoteResults.Insert(vote)
+	round := &i_consensus.Round{
+		Peers:        param.MainChainDPosNode,
+		CurrentIndex: -1,
+	}
+	if dpos.Blockchain.CurrentHeight > 0 {
+		round = dpos.Blockchain.CurrentBlock.Round
+	}
+	fmt.Println("Is current vote number more than half node?")
+	if dpos.VoteResults.Number(vote.BlockHash) > len(round.Peers)/2 {
+		fmt.Println("Vote number more than half node, sending vote result to other nodes.")
+		dpos.VoteResults.Locker.RLock()
+		defer dpos.VoteResults.Locker.RUnlock()
+		votes := dpos.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash))
+		for _, peer := range round.Peers {
+			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
+			resp, err := util.HttpPost(url, votes.Bytes())
+			log.GetLogInst().LogDebug(`Resp: %s, err: %v`, string(resp), err)
+		}
+	} else {
+		fmt.Printf("Current vote results: %s", string(dpos.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash)).Bytes()))
+		fmt.Printf("Vote number is %d, less than %d, waiting for vote. \n", dpos.VoteResults.Number(vote.BlockHash), len(round.Peers)/2+1)
+	}
 }
 
 func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
