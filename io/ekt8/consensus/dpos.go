@@ -364,8 +364,6 @@ func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 	fmt.Println("Is current vote number more than half node?")
 	if dpos.VoteResults.Number(vote.BlockHash) > len(round.Peers)/2 {
 		fmt.Println("Vote number more than half node, sending vote result to other nodes.")
-		dpos.VoteResults.Locker.RLock()
-		defer dpos.VoteResults.Locker.RUnlock()
 		votes := dpos.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash))
 		for _, peer := range round.Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
@@ -389,7 +387,7 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 		// 未同步区块体通过sync同步区块
 		return false
 	}
-	if block, exist := blockchain.BlockRecorder.Blocks[hex.EncodeToString(votes[0].BlockHash)]; exist {
+	if block := blockchain.BlockRecorder.GetBlock(hex.EncodeToString(votes[0].BlockHash)); block != nil {
 		if status == 100 {
 			// 已同步区块body，但是未写入区块链中
 			fmt.Println("Recieve vote result and get this block, saving block.")
