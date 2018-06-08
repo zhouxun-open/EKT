@@ -329,34 +329,3 @@ func (blockchain BlockChain) NewTransaction(tx *common.Transaction) bool {
 	}
 	return false
 }
-
-func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {
-	fmt.Println("Recieved vote from peer.")
-	if VoteResultManager.Broadcasted(vote.BlockHash) {
-		fmt.Println("This block has voted, return.")
-		return
-	}
-	VoteResultManager.Insert(vote)
-	round := &i_consensus.Round{
-		Peers:        param.MainChainDPosNode,
-		CurrentIndex: -1,
-	}
-	if blockchain.CurrentHeight > 0 {
-		round = blockchain.CurrentBlock.Round
-	}
-	fmt.Println("Is current vote number more than half node?")
-	if VoteResultManager.Number(vote.BlockHash) > len(round.Peers)/2 {
-		fmt.Println("Vote number more than half node, sending vote result to other nodes.")
-		VoteResultManager.Locker.RLock()
-		defer VoteResultManager.Locker.RUnlock()
-		votes := VoteResultManager.GetVoteResults(hex.EncodeToString(vote.BlockHash))
-		for _, peer := range round.Peers {
-			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
-			resp, err := util.HttpPost(url, votes.Bytes())
-			log.GetLogInst().LogDebug(`Resp: %s, err: %v`, string(resp), err)
-		}
-	} else {
-		fmt.Printf("Current vote results: %s", string(VoteResultManager.GetVoteResults(hex.EncodeToString(vote.BlockHash)).Bytes()))
-		fmt.Printf("Vote number is %d, less than %d, waiting for vote. \n", VoteResultManager.Number(vote.BlockHash), len(round.Peers)/2+1)
-	}
-}
