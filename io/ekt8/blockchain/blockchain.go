@@ -101,7 +101,7 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 			fmt.Println("Sign block failed.", err)
 		} else {
 			if err := blockchain.broadcastBlock(block); err != nil {
-				fmt.Println("Broadcast block failed, reason: ", err)
+				fmt.Println("broadcast block failed, reason: ", err)
 			}
 		}
 	}
@@ -349,14 +349,14 @@ func (blockchain BlockChain) VoteFromPeer(vote BlockVote) {
 		fmt.Println("Vote number more than half node, sending vote result to other nodes.")
 		VoteResultManager.Locker.RLock()
 		defer VoteResultManager.Locker.RUnlock()
-		votes := VoteResultManager.VoteResults[hex.EncodeToString(vote.BlockHash)]
+		votes := VoteResultManager.GetVoteResults(hex.EncodeToString(vote.BlockHash))
 		for _, peer := range round.Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
 			resp, err := util.HttpPost(url, votes.Bytes())
 			log.GetLogInst().LogDebug(`Resp: %s, err: %v`, string(resp), err)
 		}
 	} else {
-		fmt.Printf("Current vote results: %s", string(VoteResultManager.VoteResults[hex.EncodeToString(vote.BlockHash)].Bytes()))
+		fmt.Printf("Current vote results: %s", string(VoteResultManager.GetVoteResults(hex.EncodeToString(vote.BlockHash)).Bytes()))
 		fmt.Printf("Vote number is %d, less than %d, waiting for vote. \n", VoteResultManager.Number(vote.BlockHash), len(round.Peers)/2+1)
 	}
 }
