@@ -68,6 +68,11 @@ func (dpos DPOSConsensus) BlockFromPeer(block blockchain.Block) {
 }
 
 func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
+	if time.Now().UnixNano()/1e6-dpos.Blockchain.BlockManager.GetVoteTime(block.Height) < int64(dpos.Blockchain.BlockInterval) {
+		log.GetLogInst().LogDebug("This height has voted in paste interval, return. Block info: %s", string(block.Bytes()))
+		return
+	}
+	dpos.Blockchain.BlockManager.SetVoteTime(block.Height, time.Now().UnixNano()/1e6)
 	// 签名
 	vote := &blockchain.BlockVote{
 		BlockchainId: dpos.Blockchain.ChainId,
