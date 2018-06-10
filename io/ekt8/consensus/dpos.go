@@ -62,7 +62,33 @@ func (dpos DPOSConsensus) BlockFromPeer(block blockchain.Block) {
 	if !dpos.PeerTurn(block.Timestamp, block.Round.Peers[block.Round.CurrentIndex]) {
 		fmt.Println("This is not the right node, return false.")
 	}
-	dpos.Blockchain.BlockFromPeer(block)
+	if dpos.Blockchain.BlockFromPeer(block) {
+		dpos.SendVote(block)
+	}
+}
+
+func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
+	// 签名
+	vote := &blockchain.BlockVote{
+		BlockchainId: dpos.Blockchain.ChainId,
+		BlockHash:    block.Hash(),
+		BlockHeight:  block.Height,
+		VoteResult:   true,
+		Peer:         conf.EKTConfig.Node,
+	}
+	err := vote.Sign(conf.EKTConfig.PrivateKey)
+	if err != nil {
+		log.GetLogInst().LogCrit("Sign vote failed, recorded. %v", err)
+		fmt.Println("Sign vote failed, recorded.")
+		return
+	}
+	fmt.Println("Sending vote result to other peers.")
+	for i, peer := range block.Round.Peers {
+		if (i-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) <= len(block.Round.Peers)/2 {
+			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
+			util.HttpPost(url, vote.Bytes())
+		}
+	}
 }
 
 func (dpos *DPOSConsensus) Run() {
