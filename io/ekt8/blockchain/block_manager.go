@@ -18,6 +18,7 @@ type BlockManager struct {
 	Blocks        map[string]*Block
 	BlockStatus   map[string]int  // 根据区块hash计算，主要是从peer来的区块 100：待处理 	101：已经处理成功，未写入区块 	400：错误的区块头 		200：处理成功，已经写入区块
 	HeightManager map[int64]int64 // 根据block的height进行计算，主要是防止内部多次进行打包 100代表未打包，101代表已打包
+	HeightVote    map[int64]int64 //上次在某个高度的投票时间，防止重复投票
 	locker        sync.RWMutex
 }
 
@@ -26,6 +27,7 @@ func NewBlockManager() *BlockManager {
 		Blocks:        make(map[string]*Block),
 		BlockStatus:   make(map[string]int),
 		HeightManager: make(map[int64]int64),
+		HeightVote:    make(map[int64]int64),
 		locker:        sync.RWMutex{},
 	}
 }
@@ -37,6 +39,22 @@ func (manager *BlockManager) GetBlockStatus(hash []byte) int {
 		return -1
 	}
 	return status
+}
+
+func (manager *BlockManager) GetVoteTime(height int64) int64 {
+	manager.RLock()
+	defer manager.RUnlock()
+	time, exist := manager.HeightVote[height]
+	if exist {
+		return time
+	}
+	return -1
+}
+
+func (manager *BlockManager) SetVoteTime(height int64, time int64) {
+	manager.Lock()
+	defer manager.Unlock()
+	manager.HeightVote[height] = time
 }
 
 // 根据区块高度判断自己是否可以对此高度进行打包
