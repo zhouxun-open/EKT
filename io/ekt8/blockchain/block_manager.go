@@ -42,6 +42,8 @@ func (manager *BlockManager) GetBlockStatus(hash []byte) int {
 // 根据区块高度判断自己是否可以对此高度进行打包
 // 一个区块在2个interval内不可以对同一个高度的区块进行打包
 func (manager *BlockManager) GetBlockStatusByHeight(height, interval int64) bool {
+	manager.locker.RLock()
+	defer manager.locker.RUnlock()
 	status, exist := manager.HeightManager[height]
 	if !exist {
 		return true

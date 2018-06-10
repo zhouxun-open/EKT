@@ -10,7 +10,6 @@ import (
 
 	"errors"
 
-	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
@@ -262,11 +261,11 @@ func (blockchain *BlockChain) Pack(block *Block) {
 	fmt.Printf("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
 }
 
-func (blockchain *BlockChain) BlockFromPeer(block Block) {
+func (blockchain *BlockChain) BlockFromPeer(block Block) bool {
 	fmt.Printf("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
 	if err := block.Validate(); err != nil {
 		fmt.Printf("Block validate failed, %s. \n", err.Error())
-		return
+		return false
 	}
 	status := blockchain.Police.BlockFromPeer(block)
 	//收到了当前节点的其他区块
@@ -287,33 +286,13 @@ func (blockchain *BlockChain) BlockFromPeer(block Block) {
 	if time.Now().UnixNano()/1e6-block.Timestamp > int64(blockchain.BlockInterval/1500) {
 		fmt.Printf("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(blockchain.BlockInterval/1500))
 		fmt.Println("Block timestamp is more than 2/3 block interval, abort vote.")
-		return
+		return false
 	}
 	if !blockchain.CurrentBlock.ValidateNextBlock(block, blockchain.BlockInterval) {
 		fmt.Println("This block from peer can not recover by last block, abort.")
-		return
+		return false
 	}
-	// 签名
-	vote := &BlockVote{
-		BlockchainId: blockchain.ChainId,
-		BlockHash:    block.Hash(),
-		BlockHeight:  block.Height,
-		VoteResult:   true,
-		Peer:         conf.EKTConfig.Node,
-	}
-	err := vote.Sign(conf.EKTConfig.PrivateKey)
-	if err != nil {
-		log.GetLogInst().LogCrit("Sign vote failed, recorded. %v", err)
-		fmt.Println("Sign vote failed, recorded.")
-		return
-	}
-	fmt.Println("Sending vote result to other peers.")
-	for i, peer := range block.Round.Peers {
-		if (i-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) <= len(block.Round.Peers)/2 {
-			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
-			util.HttpPost(url, vote.Bytes())
-		}
-	}
+	return true
 }
 
 func (blockchain BlockChain) NewTransaction(tx *common.Transaction) bool {
