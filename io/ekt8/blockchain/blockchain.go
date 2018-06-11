@@ -10,6 +10,7 @@ import (
 
 	"errors"
 
+	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
@@ -89,7 +90,11 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 			}
 			blockchain.Status = InitStatus
 		}()
+		log.GetLogInst().LogInfo("Start pack block at height %d .\n", height)
+		log.GetLogInst().LogDebug("Start pack block at height %d .\n", height)
 		block := blockchain.WaitAndPack()
+		log.GetLogInst().LogInfo("Packed a block at height %d, block info: %s .\n", height, string(block.Bytes()))
+		log.GetLogInst().LogDebug("Packed a block at height %d, block info: %s .\n", height, string(block.Bytes()))
 		hash := hex.EncodeToString(block.CurrentHash)
 		blockchain.BlockManager.Lock()
 		blockchain.BlockManager.Blocks[hash] = block
@@ -98,6 +103,7 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 		blockchain.BlockManager.Unlock()
 		if err := block.Sign(); err != nil {
 			fmt.Println("Sign block failed.", err)
+			log.GetLogInst().LogCrit("Sign block failed. %v", err)
 		} else {
 			if err := blockchain.broadcastBlock(block); err != nil {
 				fmt.Println("broadcast block failed, reason: ", err)
@@ -201,6 +207,7 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 	if blockchain.CurrentBlock.Height != 0 {
 		round = blockchain.CurrentBlock.Round.MyRound(blockchain.CurrentBlock.CurrentHash)
 	}
+	log.GetLogInst().LogDebug("")
 	block := NewBlock(blockchain.CurrentBlock, round)
 	fmt.Println("Packing transaction and other events.")
 	for {
@@ -261,9 +268,10 @@ func (blockchain *BlockChain) Pack(block *Block) {
 	fmt.Printf("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
 }
 
-func (blockchain *BlockChain) BlockFromPeer(block Block) bool {
+func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block Block) bool {
 	fmt.Printf("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
 	if err := block.Validate(); err != nil {
+		cLog.Log("InvalidBlock", true)
 		fmt.Printf("Block validate failed, %s. \n", err.Error())
 		return false
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
+	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
@@ -42,27 +43,21 @@ func NewDPoSConsensus(Blockchain *blockchain.BlockChain) *DPOSConsensus {
 	}
 }
 
-func (dpos DPOSConsensus) Start() {
-	for {
-		select {
-		case block := <-dpos.Block:
-			dpos.BlockFromPeer(block)
-			//case
-		}
-	}
-}
-
-func (dpos DPOSConsensus) BlockFromPeer(block blockchain.Block) {
+func (dpos DPOSConsensus) BlockFromPeer(cLog *context_log.ContextLog, block blockchain.Block) {
 	dpos.Locker.Lock()
 	defer dpos.Locker.Unlock()
 	if int(time.Now().UnixNano()/1e6-block.Timestamp) > int(dpos.Blockchain.BlockInterval/1e6) {
 		fmt.Println(time.Now().UnixNano()/1e6, block.Timestamp, dpos.Blockchain.BlockInterval/1e6)
 		fmt.Println("Recieved a block packed before 1 second, return.")
+		cLog.Log("More than 1 second", true)
+		return
 	}
-	if !dpos.PeerTurn(block.Timestamp, block.Round.Peers[block.Round.CurrentIndex]) {
+	if !dpos.PeerTurn(cLog, block.Timestamp, dpos.Blockchain.CurrentBlock.Timestamp, block.Round.Peers[block.Round.CurrentIndex]) {
 		fmt.Println("This is not the right node, return false.")
+		cLog.Log("Right Node?", false)
+		return
 	}
-	if dpos.Blockchain.BlockFromPeer(block) {
+	if dpos.Blockchain.BlockFromPeer(cLog, block) {
 		dpos.SendVote(block)
 	}
 }
@@ -111,7 +106,7 @@ func (dpos *DPOSConsensus) Run() {
 
 func (dpos DPOSConsensus) DPoSRun() {
 	fmt.Println("DPoS started.")
-	interval := dpos.Blockchain.BlockInterval / 10
+	interval := dpos.Blockchain.BlockInterval / 4
 	for {
 		defer func() {
 			if r := recover(); r != nil {
@@ -131,8 +126,10 @@ func (dpos DPOSConsensus) DPoSRun() {
 		log.GetLogInst().LogInfo(`Timer tick: is my turn?`)
 		if dpos.IsMyTurn() {
 			fmt.Printf("This is my turn, current heigth is %d. \n", dpos.Blockchain.CurrentHeight)
-			log.GetLogInst().LogInfo("Yes.")
+			log.GetLogInst().LogInfo("This is my turn, current height is %d. \n", dpos.Blockchain.CurrentHeight)
+			log.GetLogInst().LogDebug("This is my turn, current height is %d. \n", dpos.Blockchain.CurrentHeight)
 			dpos.Pack(dpos.Blockchain.CurrentHeight)
+			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(dpos.Blockchain.CurrentBlock.Round.Peers)-1)))
 		} else {
 			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
 		}
@@ -140,7 +137,7 @@ func (dpos DPOSConsensus) DPoSRun() {
 	}
 }
 
-func (dpos DPOSConsensus) PeerTurn(packTime int64, peer p2p.Peer) bool {
+func (dpos DPOSConsensus) PeerTurn(cLog *context_log.ContextLog, packTime, lastBlockTime int64, peer p2p.Peer) bool {
 	fmt.Println("Validating peer has the right to pack block.")
 	round := &i_consensus.Round{
 		Peers:        param.MainChainDPosNode,
@@ -154,17 +151,24 @@ func (dpos DPOSConsensus) PeerTurn(packTime int64, peer p2p.Peer) bool {
 		fmt.Println("Current height is 0, waiting for the first node pack block.")
 		if round.Peers[0].Equal(peer) {
 			fmt.Println("This is the first node, return true.")
+			cLog.Log("result", true)
 			return true
 		} else {
 			fmt.Println("This is not the first node, return true.")
 			return false
 		}
 	}
-	time, interval := int(packTime-dpos.Blockchain.CurrentBlock.Timestamp), int(dpos.Blockchain.BlockInterval/1e6)
+	cLog.Log("lastRound", round)
+	time, interval := int(packTime-lastBlockTime), int(dpos.Blockchain.BlockInterval/1e6)
+	cLog.LogTiming("packTime", packTime)
+	cLog.LogTiming("lastBlockTime", lastBlockTime)
+	cLog.Log("CurrentNode", peer)
 	if time >= interval*round.Len() {
+		cLog.Log("Time More than a round time", true)
 		fmt.Println("More than a round time, waiting for the next node pack block.")
 		if round.NextPeerRight(peer, dpos.Blockchain.CurrentBlock.CurrentHash) {
 			fmt.Println("This is the next node, return true.")
+			cLog.Log("result", true)
 			return true
 		} else {
 			fmt.Println("This is not the next node, return false.")
@@ -176,6 +180,10 @@ func (dpos DPOSConsensus) PeerTurn(packTime int64, peer p2p.Peer) bool {
 		if remainder > int(interval)/2 {
 			n++
 		}
+		if n == 0 {
+			cLog.Log("Less than an interval", true)
+			return false
+		}
 		fmt.Printf("Current round is %s \n", round.String())
 		if round.CurrentIndex+n >= round.Len() {
 			round = round.NewRandom(dpos.Blockchain.CurrentBlock.CurrentHash)
@@ -185,6 +193,7 @@ func (dpos DPOSConsensus) PeerTurn(packTime int64, peer p2p.Peer) bool {
 		fmt.Printf("Next round is %s, is my turn? \n", round.String())
 		if round.Peers[round.CurrentIndex].Equal(peer) {
 			fmt.Println("This is the next node, return true.")
+			cLog.Log("result", true)
 			return true
 		} else {
 			fmt.Println("This is not the next node, return false.")
@@ -195,7 +204,9 @@ func (dpos DPOSConsensus) PeerTurn(packTime int64, peer p2p.Peer) bool {
 }
 
 func (dpos DPOSConsensus) IsMyTurn() bool {
-	return dpos.PeerTurn(time.Now().UnixNano()/1e6, conf.EKTConfig.Node)
+	cLog := context_log.NewContextLog("DPoS is my turn ?")
+	defer cLog.Finish()
+	return dpos.PeerTurn(cLog, time.Now().UnixNano()/1e6, dpos.Blockchain.CurrentBlock.Timestamp, conf.EKTConfig.Node)
 }
 
 func (dpos *DPOSConsensus) RUN() {
@@ -275,8 +286,7 @@ func (dpos *DPOSConsensus) startDPOS() {
 
 // 共识向blockchain发送signal进行下一个区块的打包
 func (dpos DPOSConsensus) Pack(height int64) {
-	bc := dpos.Blockchain
-	bc.PackSignal(height)
+	dpos.Blockchain.PackSignal(height)
 }
 
 func (dpos DPOSConsensus) BlockMinedCallBack(block *blockchain.Block) {

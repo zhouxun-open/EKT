@@ -9,6 +9,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
+	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -38,12 +39,16 @@ func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	cLog := context_log.NewContextLog("Block from peer")
+	defer cLog.Finish()
 	var block blockchain.Block
 	json.Unmarshal(req.Body, &block)
+	cLog.Log("block", block)
 	fmt.Printf("Recieved new block : block=%v, blockHash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
-	lastBlock := blockchain_manager.GetMainChain().CurrentBlock
-	if lastBlock.Height+1 != block.Height {
-		fmt.Printf("Block height is not right, want %d, get %d, give up voting. \n", lastBlock.Height+1, block.Height)
+	lastHeight := blockchain_manager.GetMainChain().CurrentHeight
+	if lastHeight+1 != block.Height {
+		cLog.Log("Invalid height", true)
+		fmt.Printf("Block height is not right, want %d, get %d, give up voting. \n", lastHeight+1, block.Height)
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
 	IP := strings.Split(req.R.RemoteAddr, ":")[0]
@@ -59,9 +64,6 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 			fmt.Println("Forward block to other succeed.")
 		}
 	}
-	go func() {
-		blockchain_manager.MainBlockChainConsensus.BlockFromPeer(block)
-		//blockchain_manager.MainBlockChainConsensus.Block <- block
-	}()
+	blockchain_manager.MainBlockChainConsensus.BlockFromPeer(cLog, block)
 	return x_resp.Return("recieved", nil)
 }
