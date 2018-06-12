@@ -17,19 +17,16 @@ func NewBlockPolice() BlockPolice {
 // 返回 0表示已经记录过此区块
 // 返回 1表示未记录过此区块，需要进行投票
 func (police BlockPolice) BlockFromPeer(block Block) int {
-	if blocks, exist := police.PeerBlocks[block.Height]; exist {
-		blocks = append(blocks, &block)
-		police.PeerBlocks[block.Height] = blocks
+	blocks, exist := police.PeerBlocks[block.Height]
+	if exist {
 		for _, _block := range blocks {
 			if !bytes.Equal(block.CurrentHash, _block.CurrentHash) && block.Round.Equal(_block.Round) {
 				return -1
 			}
 		}
-	} else {
-		blocks = append(blocks, &block)
-		police.PeerBlocks[block.Height] = blocks
-		return 1
 	}
+	blocks = append(blocks, &block)
+	police.PeerBlocks[block.Height] = blocks
 	return 0
 }
 

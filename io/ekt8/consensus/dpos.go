@@ -129,11 +129,11 @@ func (dpos DPOSConsensus) DPoSRun() {
 			log.GetLogInst().LogInfo("This is my turn, current height is %d. \n", dpos.Blockchain.CurrentHeight)
 			log.GetLogInst().LogDebug("This is my turn, current height is %d. \n", dpos.Blockchain.CurrentHeight)
 			dpos.Pack(dpos.Blockchain.CurrentHeight)
-			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(dpos.Blockchain.CurrentBlock.Round.Peers)-1)))
+			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)-1)))
 		} else {
 			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
+			time.Sleep(interval)
 		}
-		time.Sleep(interval)
 	}
 }
 
