@@ -230,7 +230,6 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 	}
 	//根据上一个区块头生成一个新的区块
 	_next := NewBlock(block, next.GetRound())
-	_next.Round = next.GetRound()
 	//让新生成的区块执行peer传过来的body中的events进行计算
 	for _, eventResult := range next.BlockBody.EventResults {
 		evtId, _ := hex.DecodeString(eventResult.EventId)

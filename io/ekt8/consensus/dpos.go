@@ -52,18 +52,24 @@ func (dpos DPOSConsensus) BlockFromPeer(cLog *context_log.ContextLog, block bloc
 		cLog.Log("More than 1 second", true)
 		return
 	}
+	fmt.Println("Validating is the right node.")
 	if !dpos.PeerTurn(cLog, block.Timestamp, dpos.Blockchain.CurrentBlock.Timestamp, block.GetRound().Peers[block.GetRound().CurrentIndex]) {
 		fmt.Println("This is not the right node, return false.")
 		cLog.Log("Right Node?", false)
 		return
 	}
+	fmt.Println("This block has the right.")
 	if dpos.Blockchain.BlockFromPeer(cLog, block) {
+		fmt.Println("Block is is recovered, waiting send to other peers.")
 		dpos.SendVote(block)
+		fmt.Println("Send vote to other peer succeed.")
 	}
 }
 
 func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
+	fmt.Println("Validating send vote interval.")
 	if time.Now().UnixNano()/1e6-dpos.Blockchain.BlockManager.GetVoteTime(block.Height) < int64(dpos.Blockchain.BlockInterval) {
+		fmt.Printf("This height has voted in paste interval, return. Block info: %s \n", string(block.Bytes()))
 		log.GetLogInst().LogDebug("This height has voted in paste interval, return. Block info: %s", string(block.Bytes()))
 		return
 	}
@@ -76,13 +82,14 @@ func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 		VoteResult:   true,
 		Peer:         conf.EKTConfig.Node,
 	}
+	fmt.Println("Signing this vote.")
 	err := vote.Sign(conf.EKTConfig.PrivateKey)
 	if err != nil {
 		log.GetLogInst().LogCrit("Sign vote failed, recorded. %v", err)
 		fmt.Println("Sign vote failed, recorded.")
 		return
 	}
-	fmt.Println("Sending vote result to other peers.")
+	fmt.Println("Signed this vote, sending vote result to other peers.")
 	for i, peer := range block.GetRound().Peers {
 		if (i-block.GetRound().CurrentIndex+len(block.GetRound().Peers))%len(block.GetRound().Peers) <= len(block.GetRound().Peers)/2 {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
