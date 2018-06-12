@@ -96,6 +96,7 @@ func (round Round) NextPeerRight(peer p2p.Peer, hash []byte) bool {
 		return false
 	} else {
 		_round := round.NewRandom(hash)
+		sort.Sort(_round)
 		return _round.Peers[0].Equal(peer)
 	}
 }
