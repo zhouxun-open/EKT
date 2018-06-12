@@ -52,7 +52,7 @@ func (dpos DPOSConsensus) BlockFromPeer(cLog *context_log.ContextLog, block bloc
 		cLog.Log("More than 1 second", true)
 		return
 	}
-	if !dpos.PeerTurn(cLog, block.Timestamp, dpos.Blockchain.CurrentBlock.Timestamp, block.Round.Peers[block.Round.CurrentIndex]) {
+	if !dpos.PeerTurn(cLog, block.Timestamp, dpos.Blockchain.CurrentBlock.Timestamp, block.GetRound().Peers[block.GetRound().CurrentIndex]) {
 		fmt.Println("This is not the right node, return false.")
 		cLog.Log("Right Node?", false)
 		return
@@ -83,8 +83,8 @@ func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 		return
 	}
 	fmt.Println("Sending vote result to other peers.")
-	for i, peer := range block.Round.Peers {
-		if (i-block.Round.CurrentIndex+len(block.Round.Peers))%len(block.Round.Peers) <= len(block.Round.Peers)/2 {
+	for i, peer := range block.GetRound().Peers {
+		if (i-block.GetRound().CurrentIndex+len(block.GetRound().Peers))%len(block.GetRound().Peers) <= len(block.GetRound().Peers)/2 {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
 			util.HttpPost(url, vote.Bytes())
 		}
@@ -116,7 +116,7 @@ func (dpos DPOSConsensus) DPoSRun() {
 		}()
 		round := &i_consensus.Round{Peers: param.MainChainDPosNode, CurrentIndex: -1}
 		if dpos.Blockchain.CurrentHeight > 0 {
-			round = dpos.Blockchain.CurrentBlock.Round
+			round = dpos.Blockchain.CurrentBlock.GetRound()
 		}
 		if AliveDPoSPeerCount(round.Peers, false) <= len(round.Peers)/2 {
 			fmt.Println("Alive node is less than half, waiting for other DPoS node restart.")
@@ -128,7 +128,7 @@ func (dpos DPOSConsensus) DPoSRun() {
 			fmt.Printf("This is my turn, current heigth is %d. \n", dpos.Blockchain.CurrentHeight)
 			log.GetLogInst().LogInfo("This is my turn, current height is %d. \n", dpos.Blockchain.CurrentHeight)
 			log.GetLogInst().LogDebug("This is my turn, current height is %d. \n", dpos.Blockchain.CurrentHeight)
-			dpos.Pack(dpos.Blockchain.CurrentHeight)
+			dpos.Pack(dpos.Blockchain.CurrentHeight + 1)
 			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)-1)))
 		} else {
 			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
@@ -146,7 +146,7 @@ func (dpos DPOSConsensus) PeerTurn(cLog *context_log.ContextLog, packTime, lastB
 	dpos.Blockchain.Locker.RLock()
 	defer dpos.Blockchain.Locker.RUnlock()
 	if dpos.Blockchain.CurrentHeight > 0 {
-		round = dpos.Blockchain.CurrentBlock.Round
+		round = dpos.Blockchain.CurrentBlock.GetRound()
 	} else {
 		fmt.Println("Current height is 0, waiting for the first node pack block.")
 		if round.Peers[0].Equal(peer) {
@@ -184,6 +184,7 @@ func (dpos DPOSConsensus) PeerTurn(cLog *context_log.ContextLog, packTime, lastB
 			cLog.Log("Less than an interval", true)
 			return false
 		}
+		n++
 		fmt.Printf("Current round is %s \n", round.String())
 		if round.CurrentIndex+n >= round.Len() {
 			round = round.NewRandom(dpos.Blockchain.CurrentBlock.CurrentHash)
@@ -249,7 +250,7 @@ WaitingNodes:
 				CurrentIndex: -1,
 			}
 			if dpos.Blockchain.CurrentHeight > 0 {
-				round = dpos.Blockchain.CurrentBlock.Round
+				round = dpos.Blockchain.CurrentBlock.GetRound()
 			}
 			if AliveDPoSPeerCount(peers, false) <= len(round.Peers)/2 {
 				goto WaitingNodes
@@ -291,8 +292,8 @@ func (dpos DPOSConsensus) Pack(height int64) {
 
 func (dpos DPOSConsensus) BlockMinedCallBack(block *blockchain.Block) {
 	fmt.Println("Mined block, sending block to other dpos  peer.")
-	fmt.Println(dpos.Blockchain.CurrentBlock.Round)
-	for _, peer := range block.Round.Peers {
+	fmt.Println(dpos.Blockchain.CurrentBlock.GetRound())
+	for _, peer := range block.GetRound().Peers {
 		url := fmt.Sprintf("http://%s:%d/block/api/newBlock", peer.Address, peer.Port)
 		resp, err := util.HttpPost(url, block.Bytes())
 		fmt.Println(string(resp), err)
@@ -314,7 +315,6 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 			CurrentHash:  nil,
 			BlockBody:    blockchain.NewBlockBody(0),
 			Body:         nil,
-			Round:        nil,
 			Timestamp:    0,
 			Locker:       sync.RWMutex{},
 			StatTree:     MPTPlus.NewMTP(db.GetDBInst()),
@@ -353,12 +353,15 @@ func AliveDPoSPeerCount(peers p2p.Peers, print bool) int {
 
 func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	fmt.Printf("Synchronizing block at height %d \n", height)
+	if dpos.Blockchain.CurrentHeight >= height {
+		return true
+	}
 	round := &i_consensus.Round{
 		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
 	if dpos.Blockchain.CurrentHeight > 0 {
-		round = dpos.Blockchain.CurrentBlock.Round
+		round = dpos.Blockchain.CurrentBlock.GetRound()
 	}
 	peers := param.MainChainDPosNode
 	if dpos.Blockchain.CurrentHeight > 0 {
@@ -400,7 +403,7 @@ func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 		CurrentIndex: -1,
 	}
 	if dpos.Blockchain.CurrentHeight > 0 {
-		round = dpos.Blockchain.CurrentBlock.Round
+		round = dpos.Blockchain.CurrentBlock.GetRound()
 	}
 	fmt.Println("Is current vote number more than half node?")
 	if dpos.VoteResults.Number(vote.BlockHash) > len(round.Peers)/2 {
@@ -436,6 +439,9 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 			dpos.Blockchain.NotifyPool(block)
 			dpos.Blockchain.SaveBlock(block)
 			blockchain.BlockRecorder.SetStatus(hex.EncodeToString(block.CurrentHash), 200)
+			if block.GetRound().NextPeerRight(conf.EKTConfig.Node, block.CurrentHash) {
+				dpos.Pack(block.Height + 1)
+			}
 		} else if status == 200 {
 			// 已经写入区块链中
 			fmt.Println("This block is already wrote to blockchain.")
@@ -456,7 +462,7 @@ func (dpos DPOSConsensus) ValidateVotes(votes blockchain.Votes) bool {
 		CurrentIndex: -1,
 	}
 	if dpos.Blockchain.CurrentHeight > 0 {
-		round = dpos.Blockchain.CurrentBlock.Round
+		round = dpos.Blockchain.CurrentBlock.GetRound()
 	}
 	if votes.Len() <= len(round.Peers)/2 {
 		return false

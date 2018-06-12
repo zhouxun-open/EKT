@@ -54,9 +54,20 @@ func (round *Round) NewRandom(CurrentHash []byte) *Round {
 	return round1
 }
 
+func (round *Round) NewRound() *Round {
+	if round == nil {
+		return nil
+	}
+	return &Round{
+		Peers:        round.Peers,
+		CurrentIndex: round.CurrentIndex,
+		Random:       round.Random,
+	}
+}
+
 func (round *Round) MyRound(CurrentHash []byte) *Round {
 	log.GetLogInst().LogDebug("Current Round is %s", round.String())
-	_round := round
+	_round := round.NewRound()
 	if round.CurrentIndex == round.Len()-1 {
 		_round = round.NewRandom(CurrentHash)
 		sort.Sort(_round)

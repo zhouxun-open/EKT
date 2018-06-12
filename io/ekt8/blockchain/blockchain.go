@@ -79,6 +79,12 @@ func NewBlockChain(chainId []byte, consensusType i_consensus.ConsensusType, fee 
 	}
 }
 
+func (blockchain *BlockChain) GetLastBlock() *Block {
+	blockchain.Locker.RLock()
+	defer blockchain.Locker.RUnlock()
+	return blockchain.CurrentBlock
+}
+
 func (blockchain *BlockChain) PackSignal(height int64) {
 	blockchain.PackLock.Lock()
 	defer blockchain.PackLock.Unlock()
@@ -150,7 +156,7 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 func (blockchain *BlockChain) broadcastBlock(block *Block) error {
 	fmt.Println("Broadcasting block to the other peers.")
 	data := block.Bytes()
-	for _, peer := range block.Round.Peers {
+	for _, peer := range block.GetRound().Peers {
 		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
 		go util.HttpPost(url, data)
 	}
@@ -194,18 +200,23 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 	return buffer.Bytes()
 }
 
+func (blockchain *BlockChain) PackTime() time.Duration {
+	d := blockchain.BlockInterval / 3
+	if blockchain.BlockInterval > 3*time.Second {
+		d = blockchain.BlockInterval - 2*time.Second
+	}
+	return d
+}
+
 func (blockchain *BlockChain) WaitAndPack() *Block {
 	// 打包10500个交易大概需要0.95秒
-	eventTimeout := time.After(blockchain.BlockInterval / 3)
-	if blockchain.BlockInterval > 3*time.Second {
-		eventTimeout = time.After(blockchain.BlockInterval - 2*time.Second)
-	}
+	eventTimeout := time.After(blockchain.PackTime())
 	round := &i_consensus.Round{
 		Peers:        param.MainChainDPosNode,
 		CurrentIndex: 0,
 	}
 	if blockchain.CurrentBlock.Height != 0 {
-		round = blockchain.CurrentBlock.Round.MyRound(blockchain.CurrentBlock.CurrentHash)
+		round = blockchain.CurrentBlock.GetRound().MyRound(blockchain.CurrentBlock.CurrentHash)
 	}
 	log.GetLogInst().LogDebug("")
 	block := NewBlock(blockchain.CurrentBlock, round)
@@ -275,11 +286,11 @@ func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block 
 		fmt.Printf("Block validate failed, %s. \n", err.Error())
 		return false
 	}
-	status := blockchain.Police.BlockFromPeer(block)
+	status := blockchain.Police.BlockFromPeer(block, blockchain.BlockInterval)
 	//收到了当前节点的其他区块
 	if status == -1 {
 		evilBlock := blockchain.Police.GetEvilBlock(block)
-		for _, peer := range block.Round.Peers {
+		for _, peer := range block.GetRound().Peers {
 			fmt.Println("Recieve Evil block, notify other peer.")
 			defer func() {
 				if r := recover(); r != nil {

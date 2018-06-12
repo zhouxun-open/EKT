@@ -14,7 +14,7 @@ func init() {
 }
 
 func dposPeers(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	peers := blockchain_manager.MainBlockChain.CurrentBlock.Round.Peers
+	peers := blockchain_manager.MainBlockChain.CurrentBlock.GetRound().Peers
 	return x_resp.Success(peers), x_err.NewXErr(nil)
 }
 
