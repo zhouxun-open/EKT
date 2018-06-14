@@ -113,6 +113,14 @@ func (dpos *DPOSConsensus) Run() {
 
 func (dpos DPOSConsensus) DPoSRun() {
 	fmt.Println("DPoS started.")
+	round := &i_consensus.Round{Peers: param.MainChainDPosNode, CurrentIndex: -1}
+	if dpos.Blockchain.CurrentHeight > 0 {
+		round = dpos.Blockchain.CurrentBlock.GetRound()
+	}
+	if AliveDPoSPeerCount(round.Peers, false) <= len(round.Peers)/2 {
+		fmt.Println("Alive node is less than half, waiting for other DPoS node restart.")
+		time.Sleep(3 * time.Second)
+	}
 	interval := dpos.Blockchain.BlockInterval / 4
 	for {
 		defer func() {
@@ -121,21 +129,13 @@ func (dpos DPOSConsensus) DPoSRun() {
 				log.GetLogInst().LogDebug("A panic occurred, %v.\n", r)
 			}
 		}()
-		round := &i_consensus.Round{Peers: param.MainChainDPosNode, CurrentIndex: -1}
-		if dpos.Blockchain.CurrentHeight > 0 {
-			round = dpos.Blockchain.CurrentBlock.GetRound()
-		}
-		if AliveDPoSPeerCount(round.Peers, false) <= len(round.Peers)/2 {
-			fmt.Println("Alive node is less than half, waiting for other DPoS node restart.")
-			time.Sleep(3 * time.Second)
-			continue
-		}
 		log.GetLogInst().LogInfo(`Timer tick: is my turn?`)
 		if dpos.IsMyTurn() {
 			fmt.Printf("This is my turn, current heigth is %d. \n", dpos.Blockchain.CurrentHeight)
 			log.GetLogInst().LogInfo("This is my turn, current height is %d. \n", dpos.Blockchain.CurrentHeight)
 			log.GetLogInst().LogDebug("This is my turn, current height is %d. \n", dpos.Blockchain.CurrentHeight)
-			dpos.Pack(dpos.Blockchain.CurrentHeight + 1)
+			dpos.Pack()
+			//time.Sleep(dpos.Blockchain.BlockInterval)
 			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)-1)))
 		} else {
 			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
@@ -164,6 +164,12 @@ func (dpos DPOSConsensus) PeerTurn(cLog *context_log.ContextLog, packTime, lastB
 			fmt.Println("This is not the first node, return true.")
 			return false
 		}
+	}
+	if dpos.Blockchain.CurrentHeight > 0 {
+		if round.NextPeerRight(peer, dpos.Blockchain.CurrentBlock.CurrentHash) {
+			return true
+		}
+		return false
 	}
 	cLog.Log("lastRound", round)
 	time, interval := int(packTime-lastBlockTime), int(dpos.Blockchain.BlockInterval/1e6)
@@ -212,6 +218,7 @@ func (dpos DPOSConsensus) PeerTurn(cLog *context_log.ContextLog, packTime, lastB
 }
 
 func (dpos DPOSConsensus) IsMyTurn() bool {
+	//return false
 	cLog := context_log.NewContextLog("DPoS is my turn ?")
 	defer cLog.Finish()
 	return dpos.PeerTurn(cLog, time.Now().UnixNano()/1e6, dpos.Blockchain.CurrentBlock.Timestamp, conf.EKTConfig.Node)
@@ -245,6 +252,7 @@ WaitingNodes:
 
 	fmt.Println("Synchronizing blockchain...")
 	interval, failCount := 50*time.Millisecond, 0
+	dposStart := false
 	for height := dpos.Blockchain.CurrentHeight + 1; ; {
 		if dpos.SyncHeight(height) {
 			fmt.Printf("Synchronizing block at height %d successed. \n", height)
@@ -269,7 +277,14 @@ WaitingNodes:
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
 				if round.MyIndex() != -1 {
 					fmt.Println("This peer is DPoS node, start DPoS thread.")
-					dpos.startDPOS()
+					if !dposStart {
+						dposStart = true
+						dpos.startDPOS()
+						return
+						//for {
+						//	time.Sleep(24 * time.Hour)
+						//}
+					}
 				}
 				interval = 3 * time.Second
 			}
@@ -279,22 +294,47 @@ WaitingNodes:
 }
 
 func (dpos *DPOSConsensus) startDPOS() {
-	dpos.Locker.Lock()
-	if dpos.DPoSStatus == 100 {
-		dpos.Locker.Unlock()
-		fmt.Println("Dpos goroutine is already running, return.")
-		return
-	} else {
-		fmt.Printf("Status is %d, starting dpos goroutine.", dpos.DPoSStatus)
-		dpos.DPoSStatus = 100
-		go dpos.DPoSRun()
-		dpos.Locker.Unlock()
+	go dpos.DPoSRun()
+	height := dpos.Blockchain.CurrentHeight
+	for {
+		_height := dpos.Blockchain.CurrentHeight
+		if _height == height {
+			if dpos.SyncHeight(height + 1) {
+				continue
+			} else {
+				time.Sleep(dpos.Blockchain.BlockInterval)
+			}
+		}
 	}
 }
 
 // 共识向blockchain发送signal进行下一个区块的打包
-func (dpos DPOSConsensus) Pack(height int64) {
-	dpos.Blockchain.PackSignal(height)
+func (dpos DPOSConsensus) Pack() {
+	block := dpos.Blockchain.PackSignal()
+	if block != nil {
+		block.CaculateHash()
+		hash := hex.EncodeToString(block.CurrentHash)
+		dpos.Blockchain.BlockManager.Lock()
+		dpos.Blockchain.BlockManager.Blocks[hash] = block
+		dpos.Blockchain.BlockManager.BlockStatus[hash] = blockchain.BODY_SAVED
+		dpos.Blockchain.BlockManager.HeightManager[block.Height] = block.Timestamp
+		dpos.Blockchain.BlockManager.Unlock()
+		if err := block.Sign(); err != nil {
+			fmt.Println("Sign block failed.", err)
+			log.GetLogInst().LogCrit("Sign block failed. %v", err)
+		} else {
+			dpos.broadcastBlock(block)
+		}
+	}
+}
+
+func (dpos DPOSConsensus) broadcastBlock(block *blockchain.Block) {
+	fmt.Println("Broadcasting block to the other peers.")
+	data := block.Bytes()
+	for _, peer := range block.GetRound().Peers {
+		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
+		go util.HttpPost(url, data)
+	}
 }
 
 func (dpos DPOSConsensus) BlockMinedCallBack(block *blockchain.Block) {
@@ -447,7 +487,7 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 			dpos.Blockchain.SaveBlock(block)
 			blockchain.BlockRecorder.SetStatus(hex.EncodeToString(block.CurrentHash), 200)
 			if block.GetRound().NextPeerRight(conf.EKTConfig.Node, block.CurrentHash) {
-				dpos.Pack(block.Height + 1)
+				dpos.Pack()
 			}
 		} else if status == 200 {
 			// 已经写入区块链中

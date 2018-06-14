@@ -85,7 +85,7 @@ func (blockchain *BlockChain) GetLastBlock() *Block {
 	return blockchain.CurrentBlock
 }
 
-func (blockchain *BlockChain) PackSignal(height int64) {
+func (blockchain *BlockChain) PackSignal() *Block {
 	blockchain.PackLock.Lock()
 	defer blockchain.PackLock.Unlock()
 	if blockchain.Status != StartPackStatus {
@@ -96,26 +96,14 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 			}
 			blockchain.Status = InitStatus
 		}()
-		log.GetLogInst().LogInfo("Start pack block at height %d .\n", height)
-		log.GetLogInst().LogDebug("Start pack block at height %d .\n", height)
+		log.GetLogInst().LogInfo("Start pack block at height %d .\n", blockchain.CurrentHeight+1)
+		log.GetLogInst().LogDebug("Start pack block at height %d .\n", blockchain.CurrentHeight+1)
 		block := blockchain.WaitAndPack()
-		log.GetLogInst().LogInfo("Packed a block at height %d, block info: %s .\n", height, string(block.Bytes()))
-		log.GetLogInst().LogDebug("Packed a block at height %d, block info: %s .\n", height, string(block.Bytes()))
-		hash := hex.EncodeToString(block.CurrentHash)
-		blockchain.BlockManager.Lock()
-		blockchain.BlockManager.Blocks[hash] = block
-		blockchain.BlockManager.BlockStatus[hash] = BODY_SAVED
-		blockchain.BlockManager.HeightManager[block.Height] = block.Timestamp
-		blockchain.BlockManager.Unlock()
-		if err := block.Sign(); err != nil {
-			fmt.Println("Sign block failed.", err)
-			log.GetLogInst().LogCrit("Sign block failed. %v", err)
-		} else {
-			if err := blockchain.broadcastBlock(block); err != nil {
-				fmt.Println("broadcast block failed, reason: ", err)
-			}
-		}
+		log.GetLogInst().LogInfo("Packed a block at height %d, block info: %s .\n", blockchain.CurrentHeight+1, string(block.Bytes()))
+		log.GetLogInst().LogDebug("Packed a block at height %d, block info: %s .\n", blockchain.CurrentHeight+1, string(block.Bytes()))
+		return block
 	}
+	return nil
 }
 
 func (blockchain *BlockChain) PackHeightValidate(height int64) bool {
@@ -151,16 +139,6 @@ func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
 
 func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 	return []byte(fmt.Sprint(`GetBlockByHeight: _%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
-}
-
-func (blockchain *BlockChain) broadcastBlock(block *Block) error {
-	fmt.Println("Broadcasting block to the other peers.")
-	data := block.Bytes()
-	for _, peer := range block.GetRound().Peers {
-		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
-		go util.HttpPost(url, data)
-	}
-	return nil
 }
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
@@ -240,7 +218,10 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			break
 		}
 	}
-	blockchain.Pack(block)
+	bodyData, _ := json.Marshal(block.BlockBody)
+	block.Body = crypto.Sha3_256(bodyData)
+	db.GetDBInst().Set(block.Body, bodyData)
+	block.UpdateMPTPlusRoot()
 	return block
 }
 
@@ -261,22 +242,6 @@ func (blockchain *BlockChain) NotifyPool(block *Block) {
 			blockchain.Pool.NotifyEvent(eventResult.EventId)
 		}
 	}
-}
-
-// consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法
-func (blockchain *BlockChain) Pack(block *Block) {
-	block.Locker.Lock()
-	defer block.Locker.Unlock()
-	bodyData, _ := json.Marshal(block.BlockBody)
-	block.Body = crypto.Sha3_256(bodyData)
-	db.GetDBInst().Set(block.Body, bodyData)
-	start := time.Now().Nanosecond()
-	fmt.Println("Caculating block hash.")
-	block.UpdateMPTPlusRoot()
-	for ; !bytes.HasPrefix(block.CaculateHash(), blockchain.Difficulty); block.NewNonce() {
-	}
-	end := time.Now().Nanosecond()
-	fmt.Printf("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
 }
 
 func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block Block) bool {
