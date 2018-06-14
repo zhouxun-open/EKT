@@ -280,10 +280,6 @@ WaitingNodes:
 					if !dposStart {
 						dposStart = true
 						dpos.startDPOS()
-						return
-						//for {
-						//	time.Sleep(24 * time.Hour)
-						//}
 					}
 				}
 				interval = 3 * time.Second
