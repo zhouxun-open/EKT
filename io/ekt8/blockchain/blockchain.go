@@ -10,6 +10,7 @@ import (
 
 	"errors"
 
+	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
@@ -17,7 +18,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/EKT/io/ekt8/pool"
-	"github.com/EducationEKT/EKT/io/ekt8/util"
 )
 
 var BackboneChainId []byte
@@ -45,13 +45,14 @@ const (
 type BlockChain struct {
 	ChainId       []byte
 	Consensus     i_consensus.ConsensusType
-	CurrentBlock  *Block
+	currentLocker sync.RWMutex
+	currentBlock  *Block
+	currentHeight int64
 	Locker        sync.RWMutex
 	Status        int
 	Fee           int64
 	Difficulty    []byte
 	Pool          *pool.Pool
-	CurrentHeight int64
 	Validator     *BlockValidator
 	BlockInterval time.Duration
 	Police        BlockPolice
@@ -63,13 +64,14 @@ func NewBlockChain(chainId []byte, consensusType i_consensus.ConsensusType, fee 
 	return &BlockChain{
 		ChainId:       chainId,
 		Consensus:     consensusType,
-		CurrentBlock:  nil,
+		currentBlock:  nil,
 		Locker:        sync.RWMutex{},
+		currentLocker: sync.RWMutex{},
 		Status:        InitStatus, // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
 		Fee:           fee,
 		Difficulty:    difficulty,
 		Pool:          pool.NewPool(),
-		CurrentHeight: 0,
+		currentHeight: 0,
 		Validator:     nil,
 		BlockInterval: interval,
 		Police:        NewBlockPolice(),
@@ -78,7 +80,31 @@ func NewBlockChain(chainId []byte, consensusType i_consensus.ConsensusType, fee 
 	}
 }
 
-func (blockchain *BlockChain) PackSignal(height int64) {
+func (blockchain *BlockChain) GetLastBlock() *Block {
+	blockchain.currentLocker.RLock()
+	defer blockchain.currentLocker.RUnlock()
+	return blockchain.currentBlock
+}
+
+func (blockchain *BlockChain) SetLastBlock(block *Block) {
+	blockchain.currentLocker.Lock()
+	defer blockchain.currentLocker.Unlock()
+	blockchain.currentBlock = block
+}
+
+func (blockchain *BlockChain) GetLastHeight() int64 {
+	blockchain.currentLocker.RLock()
+	defer blockchain.currentLocker.RUnlock()
+	return blockchain.currentHeight
+}
+
+func (blockchain *BlockChain) SetLastHeight(height int64) {
+	blockchain.currentLocker.RLock()
+	defer blockchain.currentLocker.RUnlock()
+	blockchain.currentHeight = height
+}
+
+func (blockchain *BlockChain) PackSignal() *Block {
 	blockchain.PackLock.Lock()
 	defer blockchain.PackLock.Unlock()
 	if blockchain.Status != StartPackStatus {
@@ -89,25 +115,18 @@ func (blockchain *BlockChain) PackSignal(height int64) {
 			}
 			blockchain.Status = InitStatus
 		}()
+		log.GetLogInst().LogInfo("Start pack block at height %d .\n", blockchain.GetLastHeight()+1)
+		log.GetLogInst().LogDebug("Start pack block at height %d .\n", blockchain.GetLastHeight()+1)
 		block := blockchain.WaitAndPack()
-		hash := hex.EncodeToString(block.CurrentHash)
-		blockchain.BlockManager.Lock()
-		blockchain.BlockManager.Blocks[hash] = block
-		blockchain.BlockManager.BlockStatus[hash] = BODY_SAVED
-		blockchain.BlockManager.HeightManager[block.Height] = block.Timestamp
-		blockchain.BlockManager.Unlock()
-		if err := block.Sign(); err != nil {
-			fmt.Println("Sign block failed.", err)
-		} else {
-			if err := blockchain.broadcastBlock(block); err != nil {
-				fmt.Println("broadcast block failed, reason: ", err)
-			}
-		}
+		log.GetLogInst().LogInfo("Packed a block at height %d, block info: %s .\n", blockchain.GetLastHeight()+1, string(block.Bytes()))
+		log.GetLogInst().LogDebug("Packed a block at height %d, block info: %s .\n", blockchain.GetLastHeight()+1, string(block.Bytes()))
+		return block
 	}
+	return nil
 }
 
 func (blockchain *BlockChain) PackHeightValidate(height int64) bool {
-	if blockchain.CurrentHeight+1 != height {
+	if blockchain.GetLastHeight()+1 != height {
 		return false
 	}
 	blockchain.BlockManager.RLock()
@@ -119,7 +138,7 @@ func (blockchain *BlockChain) PackHeightValidate(height int64) bool {
 }
 
 func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
-	if height > blockchain.CurrentHeight {
+	if height > blockchain.GetLastHeight() {
 		return nil, errors.New("Invalid height")
 	}
 	key := blockchain.GetBlockByHeightKey(height)
@@ -141,25 +160,19 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 	return []byte(fmt.Sprint(`GetBlockByHeight: _%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
 }
 
-func (blockchain *BlockChain) broadcastBlock(block *Block) error {
-	fmt.Println("Broadcasting block to the other peers.")
-	data := block.Bytes()
-	for _, peer := range block.Round.Peers {
-		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
-		go util.HttpPost(url, data)
-	}
-	return nil
-}
-
 func (blockchain *BlockChain) SaveBlock(block *Block) {
-	fmt.Println("Saving block to database.")
-	db.GetDBInst().Set(block.Hash(), block.Data())
-	data, _ := json.Marshal(block)
-	db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
-	db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
-	blockchain.CurrentBlock = block
-	blockchain.CurrentHeight = block.Height
-	fmt.Println("Save block to database succeed.")
+	blockchain.Locker.Lock()
+	defer blockchain.Locker.Unlock()
+	if blockchain.GetLastHeight()+1 == block.Height {
+		fmt.Println("Saving block to database.")
+		db.GetDBInst().Set(block.Hash(), block.Data())
+		data, _ := json.Marshal(block)
+		db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
+		db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
+		blockchain.SetLastBlock(block)
+		blockchain.SetLastHeight(block.Height)
+		fmt.Println("Save block to database succeed.")
+	}
 }
 
 func (blockchain *BlockChain) LastBlock() (*Block, error) {
@@ -188,20 +201,26 @@ func (blockchain *BlockChain) CurrentBlockKey() []byte {
 	return buffer.Bytes()
 }
 
+func (blockchain *BlockChain) PackTime() time.Duration {
+	d := blockchain.BlockInterval / 3
+	if blockchain.BlockInterval > 3*time.Second {
+		d = blockchain.BlockInterval - 2*time.Second
+	}
+	return d
+}
+
 func (blockchain *BlockChain) WaitAndPack() *Block {
 	// 打包10500个交易大概需要0.95秒
-	eventTimeout := time.After(blockchain.BlockInterval / 3)
-	if blockchain.BlockInterval > 3*time.Second {
-		eventTimeout = time.After(blockchain.BlockInterval - 2*time.Second)
-	}
+	eventTimeout := time.After(blockchain.PackTime())
 	round := &i_consensus.Round{
 		Peers:        param.MainChainDPosNode,
 		CurrentIndex: 0,
 	}
-	if blockchain.CurrentBlock.Height != 0 {
-		round = blockchain.CurrentBlock.Round.MyRound(blockchain.CurrentBlock.CurrentHash)
+	if blockchain.GetLastHeight() != 0 {
+		round = blockchain.GetLastBlock().GetRound().MyRound(blockchain.GetLastBlock().CurrentHash)
 	}
-	block := NewBlock(blockchain.CurrentBlock, round)
+	log.GetLogInst().LogDebug("")
+	block := NewBlock(blockchain.GetLastBlock(), round)
 	fmt.Println("Packing transaction and other events.")
 	for {
 		flag := false
@@ -222,7 +241,10 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			break
 		}
 	}
-	blockchain.Pack(block)
+	bodyData, _ := json.Marshal(block.BlockBody)
+	block.Body = crypto.Sha3_256(bodyData)
+	db.GetDBInst().Set(block.Body, bodyData)
+	block.UpdateMPTPlusRoot()
 	return block
 }
 
@@ -245,50 +267,35 @@ func (blockchain *BlockChain) NotifyPool(block *Block) {
 	}
 }
 
-// consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法
-func (blockchain *BlockChain) Pack(block *Block) {
-	block.Locker.Lock()
-	defer block.Locker.Unlock()
-	bodyData, _ := json.Marshal(block.BlockBody)
-	block.Body = crypto.Sha3_256(bodyData)
-	db.GetDBInst().Set(block.Body, bodyData)
-	start := time.Now().Nanosecond()
-	fmt.Println("Caculating block hash.")
-	block.UpdateMPTPlusRoot()
-	for ; !bytes.HasPrefix(block.CaculateHash(), blockchain.Difficulty); block.NewNonce() {
-	}
-	end := time.Now().Nanosecond()
-	fmt.Printf("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
-}
-
-func (blockchain *BlockChain) BlockFromPeer(block Block) bool {
+func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block Block) bool {
 	fmt.Printf("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
 	if err := block.Validate(); err != nil {
+		cLog.Log("InvalidBlock", true)
 		fmt.Printf("Block validate failed, %s. \n", err.Error())
 		return false
 	}
-	status := blockchain.Police.BlockFromPeer(block)
+	//status := blockchain.Police.BlockFromPeer(block, blockchain.BlockInterval)
 	//收到了当前节点的其他区块
-	if status == -1 {
-		evilBlock := blockchain.Police.GetEvilBlock(block)
-		for _, peer := range block.Round.Peers {
-			fmt.Println("Recieve Evil block, notify other peer.")
-			defer func() {
-				if r := recover(); r != nil {
-					log.GetLogInst().LogCrit("Sending evil block fail, recovered.", r)
-				}
-			}()
-			url := fmt.Sprintf(`http://%s:%d/block/api/evilBlock`, peer.Address, peer.Port)
-			util.HttpPost(url, evilBlock.Bytes())
-		}
-	}
+	//if status == -1 {
+	//	evilBlock := blockchain.Police.GetEvilBlock(block)
+	//	for _, peer := range block.GetRound().Peers {
+	//		fmt.Println("Recieve Evil block, notify other peer.")
+	//		defer func() {
+	//			if r := recover(); r != nil {
+	//				log.GetLogInst().LogCrit("Sending evil block fail, recovered.", r)
+	//			}
+	//		}()
+	//		url := fmt.Sprintf(`http://%s:%d/block/api/evilBlock`, peer.Address, peer.Port)
+	//		util.HttpPost(url, evilBlock.Bytes())
+	//	}
+	//}
 	// 1500是毫秒和纳秒的单位乘以2/3计算得来的
 	if time.Now().UnixNano()/1e6-block.Timestamp > int64(blockchain.BlockInterval/1500) {
 		fmt.Printf("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(blockchain.BlockInterval/1500))
 		fmt.Println("Block timestamp is more than 2/3 block interval, abort vote.")
 		return false
 	}
-	if !blockchain.CurrentBlock.ValidateNextBlock(block, blockchain.BlockInterval) {
+	if !blockchain.GetLastBlock().ValidateNextBlock(block, blockchain.BlockInterval) {
 		fmt.Println("This block from peer can not recover by last block, abort.")
 		return false
 	}
@@ -297,7 +304,7 @@ func (blockchain *BlockChain) BlockFromPeer(block Block) bool {
 
 func (blockchain BlockChain) NewTransaction(tx *common.Transaction) bool {
 	from, _ := hex.DecodeString(tx.From)
-	if account, err := blockchain.CurrentBlock.GetAccount(from); err == nil && account != nil {
+	if account, err := blockchain.GetLastBlock().GetAccount(from); err == nil && account != nil {
 		if account.Nonce+1 == tx.Nonce {
 			blockchain.Pool.ParkTx(tx, pool.Ready)
 			return true

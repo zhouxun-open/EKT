@@ -38,7 +38,7 @@ func (validator BlockValidator) NewBlock(block *Block) bool {
 		if !bytes.Equal(_block.Hash(), block.Hash()) {
 			// 相同节点的打包
 			// note： 是否是某一个节点的校验在network层会进行校验，如果签名校验失败会进行拦截
-			if _block.Round.Peers[_block.Round.CurrentIndex].Equal(block.Round.Peers[block.Round.CurrentIndex]) {
+			if _block.GetRound().Peers[_block.GetRound().CurrentIndex].Equal(block.GetRound().Peers[block.GetRound().CurrentIndex]) {
 
 			} else {
 				continue

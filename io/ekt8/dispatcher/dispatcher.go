@@ -47,7 +47,7 @@ func NewTransaction(transaction *common.Transaction) error {
 		if err != nil {
 			return err
 		}
-		currentBlock := blockchain_manager.GetMainChain().CurrentBlock
+		currentBlock := blockchain_manager.GetMainChain().GetLastBlock()
 		var token common.Token
 		err = currentBlock.TokenTree.GetInterfaceValue(tokenAddress, &token)
 		if err != nil || token.Name == "" || token.Decimals <= 0 || token.Total <= 0 {
@@ -70,7 +70,7 @@ func (dispatcher DefaultDispatcher) NewTransaction(transaction *common.Transacti
 		if err != nil {
 			return err
 		}
-		currentBlock := dispatcher.GetBackBoneBlockChain().CurrentBlock
+		currentBlock := dispatcher.GetBackBoneBlockChain().GetLastBlock()
 		var token common.Token
 		err = currentBlock.TokenTree.GetInterfaceValue(tokenAddress, &token)
 		if err != nil || token.Name == "" || token.Decimals <= 0 || token.Total <= 0 {
@@ -92,7 +92,7 @@ func (dispatcher DefaultDispatcher) NewEvent(evt *event.Event) {
 	}
 	if evt.EventType == event.NewAccountEvent {
 		accountParam := (evt.EventParam).(event.NewAccountParam)
-		block := blockchain_manager.MainBlockChain.CurrentBlock
+		block := blockchain_manager.MainBlockChain.GetLastBlock()
 		address, err := hex.DecodeString(accountParam.Address)
 		if err != nil && !block.ExistAddress(address) {
 			pubKey, err := hex.DecodeString(accountParam.PubKey)

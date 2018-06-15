@@ -44,6 +44,10 @@ type Block struct {
 	TokenRoot    []byte             `json:"tokenRoot"`
 }
 
+func (block Block) GetRound() *i_consensus.Round {
+	return block.Round.NewRound()
+}
+
 func (block *Block) Bytes() []byte {
 	block.UpdateMPTPlusRoot()
 	data, _ := json.Marshal(block)
@@ -53,7 +57,7 @@ func (block *Block) Bytes() []byte {
 func (block *Block) Data() []byte {
 	round := ""
 	if block.Height > 0 {
-		round = block.Round.String()
+		round = block.GetRound().String()
 	}
 	return []byte(fmt.Sprintf(
 		`{"height": %d, "timestamp": %d, "nonce": %d, "fee": %d, "totalFee": %d, "previousHash": "%s", "body": "%s", "round": %s, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "tokenRoot": "%s"}`,
@@ -210,11 +214,23 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 	return block.ValidateBlockStat(next)
 }
 
+// consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法
+func (block *Block) Pack(difficulty []byte) {
+	block.Locker.Lock()
+	defer block.Locker.Unlock()
+	start := time.Now().Nanosecond()
+	fmt.Println("Caculating block hash.")
+	for ; !bytes.HasPrefix(block.CaculateHash(), difficulty); block.NewNonce() {
+	}
+	end := time.Now().Nanosecond()
+	fmt.Printf("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
+}
+
 func (block *Block) ValidateBlockStat(next Block) bool {
 	BlockRecorder.SetBlock(&next)
 	fmt.Println("Validating block stat merkler proof.")
 	// 从打包节点获取body
-	body, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(next.Body)
+	body, err := next.GetRound().Peers[next.GetRound().CurrentIndex].GetDBValue(next.Body)
 	if err != nil {
 		fmt.Println("Can not get body from mining node, return false.")
 		return false
@@ -225,14 +241,13 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 		return false
 	}
 	//根据上一个区块头生成一个新的区块
-	_next := NewBlock(block, next.Round)
-	_next.Round = next.Round
+	_next := NewBlock(block, next.GetRound())
 	//让新生成的区块执行peer传过来的body中的events进行计算
 	for _, eventResult := range next.BlockBody.EventResults {
 		evtId, _ := hex.DecodeString(eventResult.EventId)
 		evt := event.GetEvent(evtId)
 		if evt == nil {
-			data, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(evtId)
+			data, err := next.GetRound().Peers[next.GetRound().CurrentIndex].GetDBValue(evtId)
 			if err != nil {
 				fmt.Println("Can not get this event, validate false.")
 				return false
@@ -251,7 +266,7 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 		txId, _ := hex.DecodeString(txResult.TxId)
 		tx := common.GetTransaction(txId)
 		if tx == nil {
-			data, err := next.Round.Peers[next.Round.CurrentIndex].GetDBValue(txId)
+			data, err := next.GetRound().Peers[next.GetRound().CurrentIndex].GetDBValue(txId)
 			if err != nil {
 				fmt.Println("Can not get this transaction, validate false.")
 				return false
@@ -318,7 +333,7 @@ func (block Block) Validate() error {
 		fmt.Println("Recover public key failed.", err)
 		return err
 	} else {
-		if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubkey)), block.Round.Peers[block.Round.CurrentIndex].PeerId) {
+		if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubkey)), block.GetRound().Peers[block.GetRound().CurrentIndex].PeerId) {
 			return errors.New("Invalid signature")
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
+	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 )
@@ -53,13 +54,26 @@ func (round *Round) NewRandom(CurrentHash []byte) *Round {
 	return round1
 }
 
+func (round *Round) NewRound() *Round {
+	if round == nil {
+		return nil
+	}
+	return &Round{
+		Peers:        round.Peers,
+		CurrentIndex: round.CurrentIndex,
+		Random:       round.Random,
+	}
+}
+
 func (round *Round) MyRound(CurrentHash []byte) *Round {
-	_round := round
+	log.GetLogInst().LogDebug("Current Round is %s", round.String())
+	_round := round.NewRound()
 	if round.CurrentIndex == round.Len()-1 {
 		_round = round.NewRandom(CurrentHash)
 		sort.Sort(_round)
 	}
 	_round.CurrentIndex = _round.MyIndex()
+	log.GetLogInst().LogDebug("My Round is %s", _round.String())
 	return _round
 }
 
@@ -93,6 +107,7 @@ func (round Round) NextPeerRight(peer p2p.Peer, hash []byte) bool {
 		return false
 	} else {
 		_round := round.NewRandom(hash)
+		sort.Sort(_round)
 		return _round.Peers[0].Equal(peer)
 	}
 }
