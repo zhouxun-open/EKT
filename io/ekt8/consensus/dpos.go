@@ -258,7 +258,7 @@ WaitingNodes:
 
 	fmt.Println("Synchronizing blockchain...")
 	interval, failCount := 50*time.Millisecond, 0
-	dposStart := false
+	//dposStart := false
 	for height := dpos.Blockchain.GetLastHeight() + 1; ; {
 		defer func() {
 			if r := recover(); r != nil {
@@ -292,10 +292,11 @@ WaitingNodes:
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
 				if round.MyIndex() != -1 {
 					fmt.Println("This peer is DPoS node, start DPoS thread.")
-					if !dposStart {
-						dposStart = true
-						dpos.startDPOS()
-					}
+					//if !dposStart {
+					//	dposStart = true
+					dpos.startDPOS()
+					return
+					//}
 				}
 				interval = 3 * time.Second
 			}
@@ -306,19 +307,31 @@ WaitingNodes:
 
 func (dpos *DPOSConsensus) startDPOS() {
 	go dpos.DPoSRun()
-	height := dpos.Blockchain.GetLastHeight()
+	go dpos.dposSync()
+}
+
+func (dpos *DPOSConsensus) dposSync() {
 	for {
-		_height := dpos.Blockchain.GetLastHeight()
-		if _height == height {
-			log.GetLogInst().LogDebug("Height has not change for an interval, synchronizing block.")
-			if dpos.SyncHeight(height + 1) {
-				log.GetLogInst().LogDebug("Synchronized block at height %d.", height+1)
-				height = dpos.Blockchain.GetLastHeight()
-				continue
-			} else {
-				log.GetLogInst().LogDebug("Synchronize block at height %d failed.", height+1)
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Printf("Panic occured, %v. \n", r)
+				log.GetLogInst().LogCrit("Panic occured, %v. \n", r)
 			}
-			time.Sleep(dpos.Blockchain.BlockInterval)
+		}()
+		height := dpos.Blockchain.GetLastHeight()
+		for {
+			_height := dpos.Blockchain.GetLastHeight()
+			if _height == height {
+				log.GetLogInst().LogDebug("Height has not change for an interval, synchronizing block.")
+				if dpos.SyncHeight(height + 1) {
+					log.GetLogInst().LogDebug("Synchronized block at height %d.", height+1)
+					height = dpos.Blockchain.GetLastHeight()
+					continue
+				} else {
+					log.GetLogInst().LogDebug("Synchronize block at height %d failed.", height+1)
+				}
+				time.Sleep(dpos.Blockchain.BlockInterval)
+			}
 		}
 	}
 }

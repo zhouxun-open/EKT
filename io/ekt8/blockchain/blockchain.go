@@ -18,7 +18,6 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/EKT/io/ekt8/pool"
-	"github.com/EducationEKT/EKT/io/ekt8/util"
 )
 
 var BackboneChainId []byte
@@ -162,14 +161,18 @@ func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 }
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
-	fmt.Println("Saving block to database.")
-	db.GetDBInst().Set(block.Hash(), block.Data())
-	data, _ := json.Marshal(block)
-	db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
-	db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
-	blockchain.SetLastBlock(block)
-	blockchain.currentHeight = block.Height
-	fmt.Println("Save block to database succeed.")
+	blockchain.Locker.Lock()
+	defer blockchain.Locker.Unlock()
+	if blockchain.GetLastHeight()+1 == block.Height {
+		fmt.Println("Saving block to database.")
+		db.GetDBInst().Set(block.Hash(), block.Data())
+		data, _ := json.Marshal(block)
+		db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
+		db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
+		blockchain.SetLastBlock(block)
+		blockchain.SetLastHeight(block.Height)
+		fmt.Println("Save block to database succeed.")
+	}
 }
 
 func (blockchain *BlockChain) LastBlock() (*Block, error) {
@@ -271,21 +274,21 @@ func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block 
 		fmt.Printf("Block validate failed, %s. \n", err.Error())
 		return false
 	}
-	status := blockchain.Police.BlockFromPeer(block, blockchain.BlockInterval)
+	//status := blockchain.Police.BlockFromPeer(block, blockchain.BlockInterval)
 	//收到了当前节点的其他区块
-	if status == -1 {
-		evilBlock := blockchain.Police.GetEvilBlock(block)
-		for _, peer := range block.GetRound().Peers {
-			fmt.Println("Recieve Evil block, notify other peer.")
-			defer func() {
-				if r := recover(); r != nil {
-					log.GetLogInst().LogCrit("Sending evil block fail, recovered.", r)
-				}
-			}()
-			url := fmt.Sprintf(`http://%s:%d/block/api/evilBlock`, peer.Address, peer.Port)
-			util.HttpPost(url, evilBlock.Bytes())
-		}
-	}
+	//if status == -1 {
+	//	evilBlock := blockchain.Police.GetEvilBlock(block)
+	//	for _, peer := range block.GetRound().Peers {
+	//		fmt.Println("Recieve Evil block, notify other peer.")
+	//		defer func() {
+	//			if r := recover(); r != nil {
+	//				log.GetLogInst().LogCrit("Sending evil block fail, recovered.", r)
+	//			}
+	//		}()
+	//		url := fmt.Sprintf(`http://%s:%d/block/api/evilBlock`, peer.Address, peer.Port)
+	//		util.HttpPost(url, evilBlock.Bytes())
+	//	}
+	//}
 	// 1500是毫秒和纳秒的单位乘以2/3计算得来的
 	if time.Now().UnixNano()/1e6-block.Timestamp > int64(blockchain.BlockInterval/1500) {
 		fmt.Printf("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(blockchain.BlockInterval/1500))
