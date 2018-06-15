@@ -295,7 +295,9 @@ WaitingNodes:
 					//if !dposStart {
 					//	dposStart = true
 					dpos.startDPOS()
-					return
+					for {
+						time.Sleep(24 * time.Hour)
+					}
 					//}
 				}
 				interval = 3 * time.Second
@@ -321,6 +323,7 @@ func (dpos *DPOSConsensus) dposSync() {
 		height := dpos.Blockchain.GetLastHeight()
 		for {
 			_height := dpos.Blockchain.GetLastHeight()
+			log.GetLogInst().LogDebug("Last interval height is %d, height is %d now.", height, _height)
 			if _height == height {
 				log.GetLogInst().LogDebug("Height has not change for an interval, synchronizing block.")
 				if dpos.SyncHeight(height + 1) {
@@ -330,8 +333,9 @@ func (dpos *DPOSConsensus) dposSync() {
 				} else {
 					log.GetLogInst().LogDebug("Synchronize block at height %d failed.", height+1)
 				}
-				time.Sleep(dpos.Blockchain.BlockInterval)
 			}
+			height = dpos.Blockchain.GetLastHeight()
+			time.Sleep(dpos.Blockchain.BlockInterval)
 		}
 	}
 }
