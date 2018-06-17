@@ -1,5 +1,5 @@
 {
-    "version": "v0.3",
+    "version": "v0.5",
     "dbPath": "/data/EKT/db",
     "logPath": "/data/EKT/log",
     "env": "testnet",
@@ -8,20 +8,16 @@
         "port": 19951,
         "addressVersion": 4
     },
-    "blockchainManagePwd": "helloworld",
     "genesisBlock": [
         {
-            "address": "d7190eb194ff9494625514b6d178c87f99c5973e28c398969d2233f2960a573e",
-            "amount": 1000000,
-            "nonce": 0
+            "address": "968b10ebc111ea3434de7333d82e54890c4a2d8c34577e0e54f3464eb88e3b2f",
+            "amount": 50000000000000000
         },{
-            "address": "d7190eb194ff9494625514b6d178c87f99c5973e28c398969d2233f2960a573f",
-            "amount": 1000000,
-            "nonce": 0
+            "address": "ae0ec97c589ff55b856cbad8ba54586453ce2cd17cc202ee7fec30524f33d407",
+            "amount": 30000000000000000
         },{
-            "address": "d7190eb194ff9494625514b6d178c87f99c5973e28c398969d2233f2960a57aa",
-            "amount": 100000000000000,
-            "nonce": 0
+            "address": "04707c449c822a1172003f262ab77607d3f91cafa17e1abbab7a880807bdac0c",
+            "amount": 20000000000000000
         }
     ]
 }

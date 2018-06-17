@@ -214,6 +214,18 @@ func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 	return block.ValidateBlockStat(next)
 }
 
+// consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法
+func (block *Block) Pack(difficulty []byte) {
+	block.Locker.Lock()
+	defer block.Locker.Unlock()
+	start := time.Now().Nanosecond()
+	fmt.Println("Caculating block hash.")
+	for ; !bytes.HasPrefix(block.CaculateHash(), difficulty); block.NewNonce() {
+	}
+	end := time.Now().Nanosecond()
+	fmt.Printf("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
+}
+
 func (block *Block) ValidateBlockStat(next Block) bool {
 	BlockRecorder.SetBlock(&next)
 	fmt.Println("Validating block stat merkler proof.")

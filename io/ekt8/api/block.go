@@ -24,16 +24,16 @@ func init() {
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	block := blockchain_manager.GetMainChain().CurrentBlock
+	block := blockchain_manager.GetMainChain().GetLastBlock()
 	return x_resp.Return(block, nil)
 }
 
 func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	bc := blockchain_manager.MainBlockChain
 	height := req.MustGetInt64("height")
-	if bc.CurrentHeight < height {
-		fmt.Printf("Heigth %d is heigher than current height, current height is %d \n", height, bc.CurrentHeight)
-		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d \n ", height, bc.CurrentHeight))
+	if bc.GetLastHeight() < height {
+		fmt.Printf("Heigth %d is heigher than current height, current height is %d \n", height, bc.GetLastHeight())
+		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d \n ", height, bc.GetLastHeight()))
 	}
 	return x_resp.Return(bc.GetBlockByHeight(height))
 }
@@ -45,7 +45,7 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	json.Unmarshal(req.Body, &block)
 	cLog.Log("block", block)
 	fmt.Printf("Recieved new block : block=%v, blockHash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
-	lastHeight := blockchain_manager.GetMainChain().CurrentHeight
+	lastHeight := blockchain_manager.GetMainChain().GetLastHeight()
 	if lastHeight+1 != block.Height {
 		cLog.Log("Invalid height", true)
 		fmt.Printf("Block height is not right, want %d, get %d, give up voting. \n", lastHeight+1, block.Height)
