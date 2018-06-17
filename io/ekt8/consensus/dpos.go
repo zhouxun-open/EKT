@@ -68,7 +68,7 @@ func (dpos DPOSConsensus) BlockFromPeer(cLog *context_log.ContextLog, block bloc
 
 func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 	fmt.Println("Validating send vote interval.")
-	if time.Now().UnixNano()/1e6-dpos.Blockchain.BlockManager.GetVoteTime(block.Height) < int64(dpos.Blockchain.BlockInterval) {
+	if time.Now().UnixNano()/1e6-dpos.Blockchain.BlockManager.GetVoteTime(block.Height) < int64(dpos.Blockchain.BlockInterval/1e6) {
 		fmt.Printf("This height has voted in paste interval, return. Block info: %s \n", string(block.Bytes()))
 		log.GetLogInst().LogDebug("This height has voted in paste interval, return. Block info: %s", string(block.Bytes()))
 		return
