@@ -274,21 +274,6 @@ func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block 
 		fmt.Printf("Block validate failed, %s. \n", err.Error())
 		return false
 	}
-	//status := blockchain.Police.BlockFromPeer(block, blockchain.BlockInterval)
-	//收到了当前节点的其他区块
-	//if status == -1 {
-	//	evilBlock := blockchain.Police.GetEvilBlock(block)
-	//	for _, peer := range block.GetRound().Peers {
-	//		fmt.Println("Recieve Evil block, notify other peer.")
-	//		defer func() {
-	//			if r := recover(); r != nil {
-	//				log.GetLogInst().LogCrit("Sending evil block fail, recovered.", r)
-	//			}
-	//		}()
-	//		url := fmt.Sprintf(`http://%s:%d/block/api/evilBlock`, peer.Address, peer.Port)
-	//		util.HttpPost(url, evilBlock.Bytes())
-	//	}
-	//}
 	// 1500是毫秒和纳秒的单位乘以2/3计算得来的
 	if time.Now().UnixNano()/1e6-block.Timestamp > int64(blockchain.BlockInterval/1500) {
 		fmt.Printf("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(blockchain.BlockInterval/1500))
@@ -305,13 +290,12 @@ func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block 
 func (blockchain BlockChain) NewTransaction(tx *common.Transaction) bool {
 	from, _ := hex.DecodeString(tx.From)
 	if account, err := blockchain.GetLastBlock().GetAccount(from); err == nil && account != nil {
+		status:=pool.Block
 		if account.Nonce+1 == tx.Nonce {
-			blockchain.Pool.ParkTx(tx, pool.Ready)
-			return true
-		} else if account.Nonce+1 < tx.Nonce {
-			blockchain.Pool.ParkTx(tx, pool.Block)
-			return true
+			status=pool.Ready
 		}
+		blockchain.Pool.ParkTx(tx, status)
+		return true
 	}
 	return false
 }

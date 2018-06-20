@@ -97,6 +97,14 @@ func (tx *Transaction) Validate() bool {
 	if err != nil {
 		return false
 	}
+	_,err=hex.DecodeString(tx.From)
+	if err!=nil {
+		return false
+	}
+	_,err=hex.DecodeString(tx.To)
+	if err!=nil {
+		return false
+	}
 	data := crypto.Sha3_256([]byte(tx.String()))
 	if pubKey, err := crypto.RecoverPubKey(data, sign); err != nil {
 		return false
