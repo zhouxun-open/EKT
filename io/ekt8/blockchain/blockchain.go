@@ -104,11 +104,15 @@ func (blockchain *BlockChain) SetLastHeight(height int64) {
 	blockchain.currentHeight = height
 }
 
-func (blockchain *BlockChain) PackSignal() *Block {
+func (blockchain *BlockChain) PackSignal(height int64) *Block {
 	blockchain.PackLock.Lock()
 	defer blockchain.PackLock.Unlock()
 	if blockchain.Status != StartPackStatus {
+		if !blockchain.BlockManager.GetBlockStatusByHeight(height, int64(blockchain.BlockInterval)) {
+			return nil
+		}
 		blockchain.Status = StartPackStatus
+		blockchain.BlockManager.SetBlockStatusByHeight(height, time.Now().UnixNano())
 		defer func() {
 			if r := recover(); r != nil {
 				log.GetLogInst().LogCrit("Panic while pack. %v", r)
@@ -241,7 +245,7 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			break
 		}
 	}
-	bodyData, _ := json.Marshal(block.BlockBody)
+	bodyData := block.BlockBody.Bytes()
 	block.Body = crypto.Sha3_256(bodyData)
 	db.GetDBInst().Set(block.Body, bodyData)
 	block.UpdateMPTPlusRoot()
@@ -290,9 +294,9 @@ func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block 
 func (blockchain BlockChain) NewTransaction(tx *common.Transaction) bool {
 	from, _ := hex.DecodeString(tx.From)
 	if account, err := blockchain.GetLastBlock().GetAccount(from); err == nil && account != nil {
-		status:=pool.Block
+		status := pool.Block
 		if account.Nonce+1 == tx.Nonce {
-			status=pool.Ready
+			status = pool.Ready
 		}
 		blockchain.Pool.ParkTx(tx, status)
 		return true

@@ -124,23 +124,45 @@ func (block *Block) newAccount(address []byte, pubKey []byte) {
 }
 
 func (block *Block) NewTransaction(tx *common.Transaction, fee int64) *common.TxResult {
+
 	fromAddress, _ := hex.DecodeString(tx.From)
 	toAddress, _ := hex.DecodeString(tx.To)
 	account, _ := block.GetAccount(fromAddress)
-	recieverAccount, _ := block.GetAccount(toAddress)
+	recieverAccount, err := block.GetAccount(toAddress)
+	if err != nil || nil == recieverAccount {
+		account_ := common.CreateAccount(hex.EncodeToString(toAddress), 0)
+		recieverAccount = &account_
+	}
 	var txResult *common.TxResult
 	if fee < block.Fee {
 		return common.NewTransactionResult(tx, fee, false, "fee is too less")
 	}
-	if account.GetAmount() < tx.Amount+fee {
-		txResult = common.NewTransactionResult(tx, fee, false, "no enough amount")
+	if tx.TokenAddress == "" {
+		if account.GetAmount() < tx.Amount+fee {
+			txResult = common.NewTransactionResult(tx, fee, false, "no enough gas")
+		} else {
+			account.ReduceAmount(tx.Amount)
+			recieverAccount.AddAmount(tx.Amount)
+			block.StatTree.MustInsert(fromAddress, account.ToBytes())
+			block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+		}
 	} else {
-		txResult = common.NewTransactionResult(tx, fee, true, "")
-		account.ReduceAmount(tx.Amount + block.Fee)
-		block.TotalFee += block.Fee
-		recieverAccount.AddAmount(tx.Amount)
-		block.StatTree.MustInsert(fromAddress, account.ToBytes())
-		block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+		if account.Balances[tx.TokenAddress] < tx.Amount {
+			txResult = common.NewTransactionResult(tx, fee, false, "no enough amount")
+		} else if account.GetAmount() < fee {
+			txResult = common.NewTransactionResult(tx, fee, false, "no enough gas")
+		} else {
+			account.Balances[tx.TokenAddress] -= tx.Amount
+			account.ReduceAmount(fee)
+			if recieverAccount.Balances == nil {
+				recieverAccount.Balances = make(map[string]int64)
+				recieverAccount.Balances[tx.TokenAddress] = 0
+			}
+			recieverAccount.Balances[tx.TokenAddress] += tx.Amount
+			block.StatTree.MustInsert(fromAddress, account.ToBytes())
+			block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+			txResult = common.NewTransactionResult(tx, fee, true, "")
+		}
 	}
 	txId, _ := hex.DecodeString(tx.TransactionId())
 	block.TxTree.MustInsert(txId, txResult.ToBytes())

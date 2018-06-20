@@ -69,6 +69,12 @@ func (manager *BlockManager) GetBlockStatusByHeight(height, interval int64) bool
 	return status < (time.Now().UnixNano()-interval*2)/1e6
 }
 
+func (manager *BlockManager) SetBlockStatusByHeight(height, nanoSecond int64) {
+	manager.Lock()
+	defer manager.Unlock()
+	manager.HeightManager[height] = nanoSecond
+}
+
 //将指定区块插入，默认是100
 func (manager *BlockManager) Insert(block *Block) {
 	hash := hex.EncodeToString(block.CurrentHash)
