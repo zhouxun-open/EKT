@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"errors"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/xserver/x_err"
@@ -15,24 +16,47 @@ import (
 
 func init() {
 	x_router.Post("/db/api/get", GetValue)
+	x_router.Get("/db/api/getByHex", GetValueByHexHash)
+}
+
+var (
+	InvalidKey = errors.New("Invalid Key")
+	NotFound   = errors.New("Not found")
+)
+
+func GetValueByHexHash(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	hash := req.MustGetString("hash")
+	key, err := hex.DecodeString(hash)
+	if err != nil {
+		return x_resp.Return(key, err)
+	}
+	v, err := GetValueByHash(key)
+	return validate(key, v, err)
 }
 
 func GetValue(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	if len(req.Body) != 32 {
-		fmt.Println("Remote peer want a db value that len(key) is not 32 byte, return fail.", hex.EncodeToString(req.Body))
-		return x_resp.Fail(-403, "Invalid Key", hex.EncodeToString(req.Body)), nil
+	v, err := GetValueByHash(req.Body)
+	return validate(req.Body, v, err)
+}
+
+func GetValueByHash(key []byte) ([]byte, error) {
+	if len(key) != 32 {
+		fmt.Println("Remote peer want a db value that len(key) is not 32 byte, return fail.", hex.EncodeToString(key))
+		return nil, InvalidKey
 	}
-	v, err := db.GetDBInst().Get(req.Body)
+	return db.GetDBInst().Get(key)
+}
+
+func validate(k, v []byte, err error) (*x_resp.XRespContainer, *x_err.XErr) {
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
-	if !bytes.Equal(crypto.Sha3_256(v), req.Body) {
-		fmt.Println("This key is not the hash of the db value, return fail.", hex.EncodeToString(req.Body))
-		return x_resp.Fail(-403, "Invalid Key", string(v)), nil
+	if !bytes.Equal(crypto.Sha3_256(v), k) {
+		fmt.Println("This key is not the hash of the db value, return fail.", hex.EncodeToString(k))
+		return x_resp.Fail(-403, "Invalid Key", string(k)), nil
 	}
-	resp := &x_resp.XRespContainer{
+	return &x_resp.XRespContainer{
 		HttpCode: 200,
 		Body:     v,
-	}
-	return resp, x_err.NewXErr(err)
+	}, nil
 }

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 )
 
@@ -14,8 +15,8 @@ import (
 *如果当前节点不是叶子节点,则Sons的长度大于等于1,存储的是子节点的Hash值和PathValue
  */
 type TrieSonInfo struct {
-	Hash      []byte
-	PathValue []byte
+	Hash      common.HexBytes
+	PathValue common.HexBytes
 }
 
 /*
@@ -26,17 +27,17 @@ type TrieNode struct {
 	Sons      SortedSon
 	Leaf      bool
 	Root      bool
-	PathValue []byte
+	PathValue common.HexBytes
 }
 
 type MTP struct {
-	Lock sync.RWMutex
-	Root []byte
+	Lock *sync.RWMutex
+	Root common.HexBytes
 	DB   *db.LevelDB
 }
 
 func MTP_Tree(db *db.LevelDB, root []byte) *MTP {
-	return &MTP{DB: db, Root: root, Lock: sync.RWMutex{}}
+	return &MTP{DB: db, Root: root, Lock: &sync.RWMutex{}}
 }
 
 func NewMTP(db *db.LevelDB) *MTP {

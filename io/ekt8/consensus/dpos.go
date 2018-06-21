@@ -47,7 +47,7 @@ func (dpos DPOSConsensus) BlockFromPeer(cLog *context_log.ContextLog, block bloc
 	dpos.Locker.Lock()
 	defer dpos.Locker.Unlock()
 	if int(time.Now().UnixNano()/1e6-block.Timestamp) > int(dpos.Blockchain.BlockInterval/1e6) {
-		fmt.Println(time.Now().UnixNano()/1e6, block.Timestamp, dpos.Blockchain.BlockInterval/1e6)
+		fmt.Println(time.Now().UnixNano()/1e6, block.Timestamp, int(dpos.Blockchain.BlockInterval/1e6))
 		fmt.Println("Recieved a block packed before 1 second, return.")
 		cLog.Log("More than 1 second", true)
 		return
@@ -111,7 +111,7 @@ func (dpos *DPOSConsensus) Run() {
 	}
 }
 
-func (dpos DPOSConsensus) DPoSRun() {
+func (dpos DPOSConsensus) DelegateRun() {
 	fmt.Println("DPoS started.")
 	round := &i_consensus.Round{Peers: param.MainChainDPosNode, CurrentIndex: -1}
 	if dpos.Blockchain.GetLastHeight() > 0 {
@@ -258,7 +258,6 @@ WaitingNodes:
 
 	fmt.Println("Synchronizing blockchain...")
 	interval, failCount := 50*time.Millisecond, 0
-	//dposStart := false
 	for height := dpos.Blockchain.GetLastHeight() + 1; ; {
 		defer func() {
 			if r := recover(); r != nil {
@@ -292,13 +291,10 @@ WaitingNodes:
 				// 如果当前节点是DPoS节点，则不再根据区块高度同步区块，而是通过投票结果来同步区块
 				if round.MyIndex() != -1 {
 					fmt.Println("This peer is DPoS node, start DPoS thread.")
-					//if !dposStart {
-					//	dposStart = true
-					dpos.startDPOS()
+					dpos.startDelegateThread()
 					for {
 						time.Sleep(24 * time.Hour)
 					}
-					//}
 				}
 				interval = 3 * time.Second
 			}
@@ -307,8 +303,8 @@ WaitingNodes:
 	}
 }
 
-func (dpos *DPOSConsensus) startDPOS() {
-	go dpos.DPoSRun()
+func (dpos *DPOSConsensus) startDelegateThread() {
+	go dpos.DelegateRun()
 	go dpos.dposSync()
 }
 
@@ -342,7 +338,7 @@ func (dpos *DPOSConsensus) dposSync() {
 
 // 共识向blockchain发送signal进行下一个区块的打包
 func (dpos DPOSConsensus) Pack() {
-	block := dpos.Blockchain.PackSignal()
+	block := dpos.Blockchain.PackSignal(dpos.Blockchain.GetLastHeight() + 1)
 	if block != nil {
 		block.CaculateHash()
 		hash := hex.EncodeToString(block.CurrentHash)

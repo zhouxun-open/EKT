@@ -16,8 +16,8 @@ type Transaction struct {
 	From         string `json:"from"`
 	To           string `json:"to"`
 	TimeStamp    int64  `json:"time"` // UnixTimeStamp
-	Amount       int64  `json:"Amount"`
-	Nonce        int64  `json:"Nonce"`
+	Amount       int64  `json:"amount"`
+	Nonce        int64  `json:"nonce"`
 	Data         string `json:"data"`
 	TokenAddress string `json:"tokenAddress"`
 	Sign         string `json:"sign"`
@@ -79,7 +79,7 @@ func (transactions Transactions) Swap(i, j int) {
 
 func (tx *Transaction) TransactionId() string {
 	txData, _ := json.Marshal(tx)
-	return string(crypto.Sha3_256(txData))
+	return hex.EncodeToString(crypto.Sha3_256(txData))
 }
 
 func (tx *Transaction) String() string {
@@ -94,6 +94,14 @@ func (tx Transaction) Bytes() []byte {
 
 func (tx *Transaction) Validate() bool {
 	sign, err := hex.DecodeString(tx.Sign)
+	if err != nil {
+		return false
+	}
+	_, err = hex.DecodeString(tx.From)
+	if err != nil {
+		return false
+	}
+	_, err = hex.DecodeString(tx.To)
 	if err != nil {
 		return false
 	}
