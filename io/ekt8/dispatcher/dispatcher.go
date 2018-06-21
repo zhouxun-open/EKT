@@ -5,12 +5,14 @@ import (
 	"errors"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
+	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 )
 
-func NewTransaction(transaction *common.Transaction) error {
+func NewTransaction(log *context_log.ContextLog, transaction *common.Transaction) error {
 	// 主币的tokenAddress为空
 	if transaction.TokenAddress != "" {
+		log.Log("tokenAdddress", transaction.TokenAddress)
 		tokenAddress, err := hex.DecodeString(transaction.TokenAddress)
 		if err != nil {
 			return err
@@ -22,11 +24,16 @@ func NewTransaction(transaction *common.Transaction) error {
 			return err
 		}
 	}
+	log.Log("transfer EKT", true)
 	if !transaction.Validate() {
+		log.Log("validate", "error signature")
 		return errors.New("error signature")
 	}
-	if !blockchain_manager.GetMainChain().NewTransaction(transaction) {
+	log.Log("Validate Success", true)
+	if !blockchain_manager.GetMainChain().NewTransaction(log, transaction) {
+		log.Log("Error", true)
 		return errors.New("error transaction")
 	}
+	log.Log("success", true)
 	return nil
 }
