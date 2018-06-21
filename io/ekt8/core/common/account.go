@@ -14,10 +14,10 @@ const (
 
 type Account struct {
 	HexAddress    string           `json:"address"`
-	HexPublickKey string           `json:"publicKey"`
-	CryptoMethod  string           `json:"CryptoMethod"`
+	HexPublickKey string           `json:"-"`
+	CryptoMethod  string           `json:"-"`
 	Amount        int64            `json:"amount"`
-	Nonce         int64            `json:"monce"`
+	Nonce         int64            `json:"nonce"`
 	Balances      map[string]int64 `json:"balances"`
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
+	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
@@ -27,21 +28,21 @@ type Block struct {
 	Nonce        int64              `json:"nonce"`
 	Fee          int64              `json:"fee"`
 	TotalFee     int64              `json:"totalFee"`
-	PreviousHash []byte             `json:"previousHash"`
-	CurrentHash  []byte             `json:"currentHash"`
+	PreviousHash common.HexBytes    `json:"previousHash"`
+	CurrentHash  common.HexBytes    `json:"currentHash"`
 	Signature    string             `json:"signature"`
 	BlockBody    *BlockBody         `json:"-"`
-	Body         []byte             `json:"body"`
+	Body         common.HexBytes    `json:"body"`
 	Round        *i_consensus.Round `json:"round"`
 	Locker       sync.RWMutex       `json:"-"`
 	StatTree     *MPTPlus.MTP       `json:"-"`
-	StatRoot     []byte             `json:"statRoot"`
+	StatRoot     common.HexBytes    `json:"statRoot"`
 	TxTree       *MPTPlus.MTP       `json:"-"`
-	TxRoot       []byte             `json:"txRoot"`
+	TxRoot       common.HexBytes    `json:"txRoot"`
 	EventTree    *MPTPlus.MTP       `json:"-"`
-	EventRoot    []byte             `json:"eventRoot"`
+	EventRoot    common.HexBytes    `json:"eventRoot"`
 	TokenTree    *MPTPlus.MTP       `json:"-"`
-	TokenRoot    []byte             `json:"tokenRoot"`
+	TokenRoot    common.HexBytes    `json:"tokenRoot"`
 }
 
 func (block Block) GetRound() *i_consensus.Round {
@@ -80,7 +81,10 @@ func (block *Block) NewNonce() {
 	block.Nonce++
 }
 
-func (block *Block) GetAccount(address []byte) (*common.Account, error) {
+func (block *Block) GetAccount(log *context_log.ContextLog, address []byte) (*common.Account, error) {
+	if block.StatTree == nil {
+		block.StatTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.StatRoot)
+	}
 	value, err := block.StatTree.GetValue(address)
 	if err != nil {
 		return nil, err
@@ -94,6 +98,9 @@ func (block *Block) GetAccount(address []byte) (*common.Account, error) {
 }
 
 func (block *Block) ExistAddress(address []byte) bool {
+	if block.StatTree == nil {
+		block.StatTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.StatRoot)
+	}
 	return block.StatTree.ContainsKey(address)
 }
 
@@ -123,25 +130,54 @@ func (block *Block) newAccount(address []byte, pubKey []byte) {
 	block.UpdateMPTPlusRoot()
 }
 
-func (block *Block) NewTransaction(tx *common.Transaction, fee int64) *common.TxResult {
+func (block *Block) NewTransaction(log *context_log.ContextLog, tx *common.Transaction, fee int64) *common.TxResult {
 	fromAddress, _ := hex.DecodeString(tx.From)
 	toAddress, _ := hex.DecodeString(tx.To)
-	account, _ := block.GetAccount(fromAddress)
-	recieverAccount, _ := block.GetAccount(toAddress)
+	account, _ := block.GetAccount(log, fromAddress)
+	recieverAccount, err := block.GetAccount(log, toAddress)
+	if err != nil || nil == recieverAccount {
+		account_ := common.CreateAccount(hex.EncodeToString(toAddress), 0)
+		recieverAccount = &account_
+	}
+	log.Log("from", account)
+	log.Log("to", recieverAccount)
 	var txResult *common.TxResult
 	if fee < block.Fee {
+		log.Log("fee<block.Fee", true)
 		return common.NewTransactionResult(tx, fee, false, "fee is too less")
 	}
-	if account.GetAmount() < tx.Amount+fee {
-		txResult = common.NewTransactionResult(tx, fee, false, "no enough amount")
+	if tx.Nonce != account.Nonce+1 {
+		txResult = common.NewTransactionResult(tx, fee, false, "invalid nonce")
+	} else if tx.TokenAddress == "" {
+		if account.GetAmount() < tx.Amount+fee {
+			txResult = common.NewTransactionResult(tx, fee, false, "no enough gas")
+		} else {
+			account.ReduceAmount(tx.Amount)
+			recieverAccount.AddAmount(tx.Amount)
+			block.StatTree.MustInsert(fromAddress, account.ToBytes())
+			block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+			txResult = common.NewTransactionResult(tx, fee, true, "")
+		}
 	} else {
-		txResult = common.NewTransactionResult(tx, fee, true, "")
-		account.ReduceAmount(tx.Amount + block.Fee)
-		block.TotalFee += block.Fee
-		recieverAccount.AddAmount(tx.Amount)
-		block.StatTree.MustInsert(fromAddress, account.ToBytes())
-		block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+		if account.Balances[tx.TokenAddress] < tx.Amount {
+			txResult = common.NewTransactionResult(tx, fee, false, "no enough amount")
+		} else if account.GetAmount() < fee {
+			txResult = common.NewTransactionResult(tx, fee, false, "no enough gas")
+		} else {
+			account.Balances[tx.TokenAddress] -= tx.Amount
+			account.ReduceAmount(fee)
+			if recieverAccount.Balances == nil {
+				recieverAccount.Balances = make(map[string]int64)
+				recieverAccount.Balances[tx.TokenAddress] = 0
+			}
+			recieverAccount.Balances[tx.TokenAddress] += tx.Amount
+			block.StatTree.MustInsert(fromAddress, account.ToBytes())
+			block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+			txResult = common.NewTransactionResult(tx, fee, true, "")
+		}
 	}
+	log.Log("txId", tx.TransactionId())
+	log.Log("txResult", txResult)
 	txId, _ := hex.DecodeString(tx.TransactionId())
 	block.TxTree.MustInsert(txId, txResult.ToBytes())
 	block.UpdateMPTPlusRoot()
@@ -262,6 +298,8 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 	}
 
 	//让新生成的区块执行peer传过来的body中的transactions进行计算
+	cLog := context_log.NewContextLog("block recover txs")
+	defer cLog.Finish()
 	for _, txResult := range next.BlockBody.TxResults {
 		txId, _ := hex.DecodeString(txResult.TxId)
 		tx := common.GetTransaction(txId)
@@ -277,7 +315,7 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 				return false
 			}
 		}
-		_next.NewTransaction(tx, block.Fee)
+		_next.NewTransaction(cLog, tx, block.Fee)
 	}
 	_next.UpdateMPTPlusRoot()
 	if !bytes.Equal(next.TxRoot, _next.TxRoot) ||
