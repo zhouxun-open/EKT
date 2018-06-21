@@ -43,7 +43,7 @@ const (
 )
 
 type BlockChain struct {
-	ChainId       []byte
+	ChainId       common.HexBytes
 	Consensus     i_consensus.ConsensusType
 	currentLocker sync.RWMutex
 	currentBlock  *Block
@@ -236,7 +236,13 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			// 因为要进行以太坊ERC20的映射和冷钱包，因此一期不支持地址的申请和加密算法的替换，只能打包转账交易 和 token发行
 			tx := blockchain.Pool.FetchTx()
 			if tx != nil {
-				txResult := block.NewTransaction(tx, block.Fee)
+				log := context_log.NewContextLog("BlockFromTxPool")
+				defer log.Finish()
+				log.Log("tx", tx)
+				log.Log("block.StatRoot_p", block.StatTree.Root)
+				txResult := block.NewTransaction(log, tx, block.Fee)
+				log.Log("txResult", txResult)
+				log.Log("block.StatRoot_a", block.StatTree.Root)
 				blockchain.Pool.Notify(tx.TransactionId())
 				block.BlockBody.AddTxResult(*txResult)
 			}
@@ -289,17 +295,4 @@ func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block 
 		return false
 	}
 	return true
-}
-
-func (blockchain BlockChain) NewTransaction(tx *common.Transaction) bool {
-	from, _ := hex.DecodeString(tx.From)
-	if account, err := blockchain.GetLastBlock().GetAccount(from); err == nil && account != nil {
-		status := pool.Block
-		if account.Nonce+1 == tx.Nonce {
-			status = pool.Ready
-		}
-		blockchain.Pool.ParkTx(tx, status)
-		return true
-	}
-	return false
 }

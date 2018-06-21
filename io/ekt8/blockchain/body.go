@@ -3,8 +3,11 @@ package blockchain
 import (
 	"encoding/json"
 
+	"encoding/hex"
+	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
+	"github.com/EducationEKT/EKT/io/ekt8/pool"
 )
 
 type BlockBody struct {
@@ -42,4 +45,20 @@ func (body *BlockBody) AddEventResult(eventResult event.EventResult) {
 
 func (body *BlockBody) Size() int {
 	return len(body.EventResults) + len(body.TxResults)
+}
+func (blockchain BlockChain) NewTransaction(log *context_log.ContextLog, tx *common.Transaction) bool {
+	from, _ := hex.DecodeString(tx.From)
+	log.Log("from", tx.From)
+	if account, err := blockchain.GetLastBlock().GetAccount(log, from); err == nil && account != nil {
+		log.Log("account", account)
+		status := pool.Block
+		if account.Nonce+1 == tx.Nonce {
+			status = pool.Ready
+		}
+		log.Log("txStatus", status)
+		blockchain.Pool.ParkTx(tx, status)
+		log.Log("parked", true)
+		return true
+	}
+	return false
 }

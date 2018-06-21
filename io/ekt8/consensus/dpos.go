@@ -169,14 +169,14 @@ func (dpos DPOSConsensus) PeerTurn(cLog *context_log.ContextLog, packTime, lastB
 	}
 	cLog.Log("lastRound", round)
 	cLog.Log("This node", peer)
-	//if dpos.Blockchain.GetLastHeight() > 0 {
-	//	if round.NextPeerRight(peer, dpos.Blockchain.GetLastBlock().CurrentHash) {
-	//		cLog.Log("result", true)
-	//		return true
-	//	}
-	//	cLog.Log("result", false)
-	//	return false
-	//}
+	if dpos.Blockchain.GetLastHeight() > 0 {
+		if round.NextPeerRight(peer, dpos.Blockchain.GetLastBlock().CurrentHash) {
+			cLog.Log("result", true)
+			return true
+		}
+		cLog.Log("result", false)
+		return false
+	}
 	cLog.Log("lastRound", round)
 	time, interval := int(packTime-lastBlockTime), int(dpos.Blockchain.BlockInterval/1e6)
 	cLog.LogTiming("packTime", packTime)
