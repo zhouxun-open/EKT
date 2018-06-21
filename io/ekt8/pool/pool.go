@@ -102,6 +102,11 @@ func (pool Pool) ParkTx(tx *common.Transaction, reason int) {
 		pool.txReady[tx.TransactionId()] = tx
 	} else if reason == Block {
 		txs_slice := pool.txBlock[tx.From]
+		for _, _tx:=range txs_slice {
+			if _tx.String() == tx.String() {
+				return
+			}
+		}
 		txs_slice = append(txs_slice, tx)
 		sort.Sort(txs_slice)
 		pool.txBlock[tx.From] = txs_slice
