@@ -12,9 +12,9 @@ import (
 
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
-	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/ctxlog"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/event"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
@@ -81,7 +81,7 @@ func (block *Block) NewNonce() {
 	block.Nonce++
 }
 
-func (block *Block) GetAccount(log *context_log.ContextLog, address []byte) (*common.Account, error) {
+func (block *Block) GetAccount(log *ctxlog.ContextLog, address []byte) (*common.Account, error) {
 	if block.StatTree == nil {
 		block.StatTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.StatRoot)
 	}
@@ -130,7 +130,7 @@ func (block *Block) newAccount(address []byte, pubKey []byte) {
 	block.UpdateMPTPlusRoot()
 }
 
-func (block *Block) NewTransaction(log *context_log.ContextLog, tx *common.Transaction, fee int64) *common.TxResult {
+func (block *Block) NewTransaction(log *ctxlog.ContextLog, tx *common.Transaction, fee int64) *common.TxResult {
 	fromAddress, _ := hex.DecodeString(tx.From)
 	toAddress, _ := hex.DecodeString(tx.To)
 	account, _ := block.GetAccount(log, fromAddress)
@@ -220,7 +220,7 @@ func FromBytes2Block(data []byte) (*Block, error) {
 	return &block, nil
 }
 
-func NewBlock(last *Block, newRound *i_consensus.Round) *Block {
+func NewBlock(last *Block) *Block {
 	block := &Block{
 		Height:       last.Height + 1,
 		Nonce:        0,
@@ -231,7 +231,6 @@ func NewBlock(last *Block, newRound *i_consensus.Round) *Block {
 		CurrentHash:  nil,
 		BlockBody:    NewBlockBody(last.Height + 1),
 		Body:         nil,
-		Round:        newRound,
 		Locker:       sync.RWMutex{},
 		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), last.StatRoot),
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
@@ -277,7 +276,7 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 		return false
 	}
 	//根据上一个区块头生成一个新的区块
-	_next := NewBlock(block, next.GetRound())
+	_next := NewBlock(block)
 	//让新生成的区块执行peer传过来的body中的events进行计算
 	for _, eventResult := range next.BlockBody.EventResults {
 		evtId, _ := hex.DecodeString(eventResult.EventId)
@@ -298,7 +297,7 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 	}
 
 	//让新生成的区块执行peer传过来的body中的transactions进行计算
-	cLog := context_log.NewContextLog("block recover txs")
+	cLog := ctxlog.NewContextLog("block recover txs")
 	defer cLog.Finish()
 	for _, txResult := range next.BlockBody.TxResults {
 		txId, _ := hex.DecodeString(txResult.TxId)

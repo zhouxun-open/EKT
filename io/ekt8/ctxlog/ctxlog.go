@@ -1,4 +1,4 @@
-package context_log
+package ctxlog
 
 import (
 	"encoding/json"
