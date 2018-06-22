@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"bytes"
 	_ "github.com/EducationEKT/EKT/io/ekt8/api"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
@@ -58,14 +59,21 @@ func InitService() error {
 }
 
 func initPeerId() error {
+	if !bytes.Equal(conf.EKTConfig.PrivateKey, []byte("")) {
+		fmt.Printf("Current peerId is: %s . \n", conf.EKTConfig.Node.PeerId)
+		return nil
+	}
 	peerInfoKey := []byte("peerIdInfo")
 	v, err := db.GetDBInst().Get(peerInfoKey)
 	if err != nil || nil == v || 0 == len(v) {
 		pub, priv := crypto.GenerateKeyPair()
 		conf.EKTConfig.PrivateKey = priv
 		conf.EKTConfig.Node.PeerId = hex.EncodeToString(crypto.Sha3_256(pub))
-		fmt.Printf("Current peerId is: %s . \n", conf.EKTConfig.Node.PeerId)
-		return db.GetDBInst().Set(peerInfoKey, priv)
+		err = db.GetDBInst().Set(peerInfoKey, priv)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
 	} else {
 		conf.EKTConfig.PrivateKey = v
 		data := crypto.Sha3_256(v)
@@ -76,8 +84,10 @@ func initPeerId() error {
 		}
 		pub, err := crypto.RecoverPubKey(data, cryptoData)
 		conf.EKTConfig.Node.PeerId = hex.EncodeToString(crypto.Sha3_256(pub))
-		fmt.Printf("Current peerId is %s. \n", conf.EKTConfig.Node.PeerId)
 	}
+
+	fmt.Println("Peer private key is: ", hex.EncodeToString(conf.EKTConfig.PrivateKey))
+	fmt.Printf("Current peerId is %s . \n", conf.EKTConfig.Node.PeerId)
 
 	return nil
 }

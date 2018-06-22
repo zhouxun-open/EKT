@@ -120,7 +120,6 @@ func (blockchain *BlockChain) PackSignal(height int64) *Block {
 		log.GetLogInst().LogInfo("Start pack block at height %d .\n", blockchain.GetLastHeight()+1)
 		log.GetLogInst().LogDebug("Start pack block at height %d .\n", blockchain.GetLastHeight()+1)
 		block := blockchain.WaitAndPack()
-		time.Sleep(1 * time.Second)
 		log.GetLogInst().LogInfo("Packed a block at height %d, block info: %s .\n", blockchain.GetLastHeight()+1, string(block.Bytes()))
 		log.GetLogInst().LogDebug("Packed a block at height %d, block info: %s .\n", blockchain.GetLastHeight()+1, string(block.Bytes()))
 		return block
