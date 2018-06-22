@@ -338,9 +338,10 @@ func (dpos *DPOSConsensus) dposSync() {
 
 // 共识向blockchain发送signal进行下一个区块的打包
 func (dpos DPOSConsensus) Pack() {
-	block := dpos.Blockchain.PackSignal(dpos.Blockchain.GetLastHeight() + 1)
+	lastBlock := dpos.Blockchain.GetLastBlock()
+	block := dpos.Blockchain.PackSignal(lastBlock.Height + 1)
 	if block != nil {
-		block.Round = i_consensus.MyRound(dpos.Blockchain.GetLastBlock().Round, dpos.Blockchain.GetLastBlock().CurrentHash)
+		block.Round = i_consensus.MyRound(lastBlock.Round, lastBlock.CurrentHash)
 		block.CaculateHash()
 		hash := hex.EncodeToString(block.CurrentHash)
 		dpos.Blockchain.BlockManager.Lock()
