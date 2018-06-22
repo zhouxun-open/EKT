@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
 
 	"bytes"
+
 	_ "github.com/EducationEKT/EKT/io/ekt8/api"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
@@ -17,8 +19,32 @@ import (
 	"github.com/EducationEKT/xserver/x_http"
 )
 
+const (
+	version = "0.1"
+)
+
 func init() {
-	err := InitService()
+	var (
+		help bool
+		ver  bool
+		cfg  string
+	)
+	flag.BoolVar(&help, "h", false, "this help")
+	flag.BoolVar(&ver, "v", false, "show version and exit")
+	flag.StringVar(&cfg, "c", "genesis.json", "set genesis.json file and start")
+	flag.Parse()
+
+	if help {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	if ver {
+		fmt.Println(version)
+		os.Exit(0)
+	}
+
+	err := InitService(cfg)
 	if err != nil {
 		fmt.Printf("Init service failed, %v \n", err)
 		os.Exit(-1)
@@ -34,8 +60,8 @@ func main() {
 	}
 }
 
-func InitService() error {
-	err := initConfig()
+func InitService(confPath string) error {
+	err := initConfig(confPath)
 	if err != nil {
 		return err
 	}
@@ -92,16 +118,8 @@ func initPeerId() error {
 	return nil
 }
 
-func initConfig() error {
-	var confPath string
-	if len(os.Args) < 2 {
-		confPath = "genesis.json"
-		fmt.Println("No conf file specified, genesis.json will be default one.")
-	} else {
-		confPath = os.Args[1]
-	}
-	err := conf.InitConfig(confPath)
-	return err
+func initConfig(confPath string) error {
+	return conf.InitConfig(confPath)
 }
 
 func initDB() error {
