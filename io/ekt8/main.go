@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
-	"github.com/EducationEKT/EKT/io/ekt8/log"
+	xlog "github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/xserver/x_http"
 )
@@ -53,6 +54,10 @@ func init() {
 }
 
 func main() {
+	if conf.EKTConfig.Debug {
+		log.SetOutput(os.Stdout)
+	}
+
 	fmt.Printf("server listen on :%d \n", conf.EKTConfig.Node.Port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", conf.EKTConfig.Node.Port), nil)
 	if err != nil {
@@ -127,5 +132,5 @@ func initDB() error {
 }
 
 func initLog() error {
-	return log.InitLog()
+	return xlog.InitLog()
 }

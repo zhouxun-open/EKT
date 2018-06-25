@@ -12,6 +12,6 @@ def get_version():
         if len(items) != 2 or items[0] != "version":
             continue
 
-        return items[1].strip('"')
+        return items[1][1:-1]
 
 print get_version()
