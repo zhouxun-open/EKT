@@ -33,5 +33,5 @@ func (cLog *ContextLog) Finish() {
 	sticker, _ := json.Marshal(cLog.Sticker)
 	timings, _ := json.Marshal(cLog.Timings)
 	result := fmt.Sprintf(`%s : {"sticker": %s, "timings": %s}`, cLog.ContextInfo, string(sticker), string(timings))
-	log.GetLogInst().LogCrit(result)
+	log.Debug(result)
 }

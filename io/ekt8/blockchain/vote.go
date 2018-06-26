@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 )
 
@@ -138,7 +139,7 @@ func (vote Votes) Bytes() []byte {
 
 func (votes Votes) Validate() bool {
 	if len(votes) == 0 {
-		fmt.Println("Votes.Validate: length of votes is 0, return false.")
+		log.Debug("Votes.Validate: length of votes is 0, return false.")
 		return false
 	}
 	for i, vote := range votes {

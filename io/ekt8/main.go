@@ -65,16 +65,13 @@ func InitService(confPath string) error {
 	if err != nil {
 		return err
 	}
+	log.InitLog()
 	fmt.Printf("Current EKT version is %s. \n", conf.EKTConfig.Version)
 	err = initDB()
 	if err != nil {
 		return err
 	}
 	err = initPeerId()
-	if err != nil {
-		return err
-	}
-	err = initLog()
 	if err != nil {
 		return err
 	}
@@ -124,8 +121,4 @@ func initConfig(confPath string) error {
 
 func initDB() error {
 	return db.InitEKTDB(conf.EKTConfig.DBPath)
-}
-
-func initLog() error {
-	return log.InitLog()
 }

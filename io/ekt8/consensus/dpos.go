@@ -70,7 +70,7 @@ func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 	fmt.Println("Validating send vote interval.")
 	if time.Now().UnixNano()/1e6-dpos.Blockchain.BlockManager.GetVoteTime(block.Height) < int64(dpos.Blockchain.BlockInterval/1e6) {
 		fmt.Printf("This height has voted in paste interval, return. Block info: %s \n", string(block.Bytes()))
-		log.GetLogInst().LogDebug("This height has voted in paste interval, return. Block info: %s", string(block.Bytes()))
+		log.Debug("This height has voted in paste interval, return. Block info: %s", string(block.Bytes()))
 		return
 	}
 	dpos.Blockchain.BlockManager.SetVoteTime(block.Height, time.Now().UnixNano()/1e6)
@@ -85,7 +85,7 @@ func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 	fmt.Println("Signing this vote.")
 	err := vote.Sign(conf.EKTConfig.PrivateKey)
 	if err != nil {
-		log.GetLogInst().LogCrit("Sign vote failed, recorded. %v", err)
+		log.Crit("Sign vote failed, recorded. %v", err)
 		fmt.Println("Sign vote failed, recorded.")
 		return
 	}
@@ -102,8 +102,8 @@ func (dpos *DPOSConsensus) Run() {
 	for {
 		defer func() {
 			if r := recover(); r != nil {
-				log.GetLogInst().LogDebug(`Consensus occured an unknown error, recovered. %v`, r)
-				log.GetLogInst().LogCrit(`Consensus occured an unknown error, recovered. %v`, r)
+				log.Debug(`Consensus occured an unknown error, recovered. %v`, r)
+				log.Crit(`Consensus occured an unknown error, recovered. %v`, r)
 				fmt.Println(r)
 			}
 		}()
@@ -127,19 +127,19 @@ func (dpos DPOSConsensus) DelegateRun() {
 		defer func() {
 			if r := recover(); r != nil {
 				fmt.Println("A panic occurred.", r)
-				log.GetLogInst().LogDebug("A panic occurred, %v.\n", r)
+				log.Debug("A panic occurred, %v.\n", r)
 			}
 		}()
-		log.GetLogInst().LogInfo(`Timer tick: is my turn?`)
+		log.Info(`Timer tick: is my turn?`)
 		if dpos.IsMyTurn() {
 			fmt.Printf("This is my turn, current heigth is %d. \n", dpos.Blockchain.GetLastHeight())
-			log.GetLogInst().LogInfo("This is my turn, current height is %d. \n", dpos.Blockchain.GetLastHeight())
-			log.GetLogInst().LogDebug("This is my turn, current height is %d. \n", dpos.Blockchain.GetLastHeight())
+			log.Info("This is my turn, current height is %d. \n", dpos.Blockchain.GetLastHeight())
+			log.Debug("This is my turn, current height is %d. \n", dpos.Blockchain.GetLastHeight())
 			dpos.Pack()
 			//time.Sleep(dpos.Blockchain.BlockInterval)
 			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)-1)))
 		} else {
-			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
+			log.Info("No, sleeping %d nano second.", interval)
 		}
 	}
 }
@@ -261,18 +261,18 @@ WaitingNodes:
 	for height := dpos.Blockchain.GetLastHeight() + 1; ; {
 		defer func() {
 			if r := recover(); r != nil {
-				log.GetLogInst().LogCrit("Panic occured when synchronizing block, %v", r)
+				log.Crit("Panic occured when synchronizing block, %v", r)
 				fmt.Errorf("Panic occured, %v", r)
 			}
 		}()
-		log.GetLogInst().LogInfo("Synchronizing block at height %d.", height)
+		log.Info("Synchronizing block at height %d.", height)
 		if dpos.SyncHeight(height) {
-			log.GetLogInst().LogInfo("Synchronized block at height %d.", height)
+			log.Info("Synchronized block at height %d.", height)
 			fmt.Printf("Synchronizing block at height %d successed. \n", height)
 			height++
 			failCount = 0
 		} else {
-			log.GetLogInst().LogInfo("Synchronize block at height %d failed.", height)
+			log.Info("Synchronize block at height %d failed.", height)
 			fmt.Printf("Synchronizing block at height %d failed. \n", height)
 			round := &i_consensus.Round{
 				Peers:        param.MainChainDPosNode,
@@ -313,21 +313,21 @@ func (dpos *DPOSConsensus) dposSync() {
 		defer func() {
 			if r := recover(); r != nil {
 				fmt.Printf("Panic occured, %v. \n", r)
-				log.GetLogInst().LogCrit("Panic occured, %v. \n", r)
+				log.Crit("Panic occured, %v. \n", r)
 			}
 		}()
 		height := dpos.Blockchain.GetLastHeight()
 		for {
 			_height := dpos.Blockchain.GetLastHeight()
-			log.GetLogInst().LogDebug("Last interval height is %d, height is %d now.", height, _height)
+			log.Debug("Last interval height is %d, height is %d now.", height, _height)
 			if _height == height {
-				log.GetLogInst().LogDebug("Height has not change for an interval, synchronizing block.")
+				log.Debug("Height has not change for an interval, synchronizing block.")
 				if dpos.SyncHeight(height + 1) {
-					log.GetLogInst().LogDebug("Synchronized block at height %d.", height+1)
+					log.Debug("Synchronized block at height %d.", height+1)
 					height = dpos.Blockchain.GetLastHeight()
 					continue
 				} else {
-					log.GetLogInst().LogDebug("Synchronize block at height %d failed.", height+1)
+					log.Debug("Synchronize block at height %d failed.", height+1)
 				}
 			}
 			height = dpos.Blockchain.GetLastHeight()
@@ -351,7 +351,7 @@ func (dpos DPOSConsensus) Pack() {
 		dpos.Blockchain.BlockManager.Unlock()
 		if err := block.Sign(); err != nil {
 			fmt.Println("Sign block failed.", err)
-			log.GetLogInst().LogCrit("Sign block failed. %v", err)
+			log.Crit("Sign block failed. %v", err)
 		} else {
 			dpos.broadcastBlock(block)
 		}
@@ -489,7 +489,7 @@ func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 		for _, peer := range round.Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
 			resp, err := util.HttpPost(url, votes.Bytes())
-			log.GetLogInst().LogDebug(`Resp: %s, err: %v`, string(resp), err)
+			log.Debug(`Resp: %s, err: %v`, string(resp), err)
 		}
 	} else {
 		fmt.Printf("Current vote results: %s", string(dpos.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash)).Bytes()))
