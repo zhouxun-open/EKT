@@ -14,7 +14,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/MPTPlus"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
-	"github.com/EducationEKT/EKT/io/ekt8/context_log"
+	"github.com/EducationEKT/EKT/io/ekt8/ctxlog"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
@@ -43,7 +43,7 @@ func NewDPoSConsensus(Blockchain *blockchain.BlockChain) *DPOSConsensus {
 	}
 }
 
-func (dpos DPOSConsensus) BlockFromPeer(cLog *context_log.ContextLog, block blockchain.Block) {
+func (dpos DPOSConsensus) BlockFromPeer(cLog *ctxlog.ContextLog, block blockchain.Block) {
 	dpos.Locker.Lock()
 	defer dpos.Locker.Unlock()
 	if int(time.Now().UnixNano()/1e6-block.Timestamp) > int(dpos.Blockchain.BlockInterval/1e6) {
@@ -123,9 +123,10 @@ func (dpos DPOSConsensus) DelegateRun() {
 	}
 	interval := dpos.Blockchain.BlockInterval / 4
 	for {
+		time.Sleep(interval)
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Println("A panic occurred.")
+				fmt.Println("A panic occurred.", r)
 				log.GetLogInst().LogDebug("A panic occurred, %v.\n", r)
 			}
 		}()
@@ -139,12 +140,11 @@ func (dpos DPOSConsensus) DelegateRun() {
 			time.Sleep(time.Duration(int64(dpos.Blockchain.BlockInterval) * int64(len(round.Peers)-1)))
 		} else {
 			log.GetLogInst().LogInfo("No, sleeping %d nano second.", interval)
-			time.Sleep(interval)
 		}
 	}
 }
 
-func (dpos DPOSConsensus) PeerTurn(cLog *context_log.ContextLog, packTime, lastBlockTime int64, peer p2p.Peer) bool {
+func (dpos DPOSConsensus) PeerTurn(cLog *ctxlog.ContextLog, packTime, lastBlockTime int64, peer p2p.Peer) bool {
 	fmt.Println("Validating peer has the right to pack block.")
 	round := &i_consensus.Round{
 		Peers:        param.MainChainDPosNode,
@@ -225,7 +225,7 @@ func (dpos DPOSConsensus) PeerTurn(cLog *context_log.ContextLog, packTime, lastB
 
 func (dpos DPOSConsensus) IsMyTurn() bool {
 	//return false
-	cLog := context_log.NewContextLog("DPoS is my turn ?")
+	cLog := ctxlog.NewContextLog("DPoS is my turn ?")
 	defer cLog.Finish()
 	return dpos.PeerTurn(cLog, time.Now().UnixNano()/1e6, dpos.Blockchain.GetLastBlock().Timestamp, conf.EKTConfig.Node)
 }
@@ -338,8 +338,10 @@ func (dpos *DPOSConsensus) dposSync() {
 
 // 共识向blockchain发送signal进行下一个区块的打包
 func (dpos DPOSConsensus) Pack() {
-	block := dpos.Blockchain.PackSignal(dpos.Blockchain.GetLastHeight() + 1)
+	lastBlock := dpos.Blockchain.GetLastBlock()
+	block := dpos.Blockchain.PackSignal(lastBlock.Height + 1)
 	if block != nil {
+		block.Round = i_consensus.MyRound(lastBlock.Round, lastBlock.CurrentHash)
 		block.CaculateHash()
 		hash := hex.EncodeToString(block.CurrentHash)
 		dpos.Blockchain.BlockManager.Lock()

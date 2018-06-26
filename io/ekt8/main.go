@@ -2,9 +2,12 @@ package main
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
+
+	"bytes"
 
 	_ "github.com/EducationEKT/EKT/io/ekt8/api"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
@@ -16,8 +19,32 @@ import (
 	"github.com/EducationEKT/xserver/x_http"
 )
 
+const (
+	version = "0.1"
+)
+
 func init() {
-	err := InitService()
+	var (
+		help bool
+		ver  bool
+		cfg  string
+	)
+	flag.BoolVar(&help, "h", false, "this help")
+	flag.BoolVar(&ver, "v", false, "show version and exit")
+	flag.StringVar(&cfg, "c", "genesis.json", "set genesis.json file and start")
+	flag.Parse()
+
+	if help {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	if ver {
+		fmt.Println(version)
+		os.Exit(0)
+	}
+
+	err := InitService(cfg)
 	if err != nil {
 		fmt.Printf("Init service failed, %v \n", err)
 		os.Exit(-1)
@@ -33,8 +60,8 @@ func main() {
 	}
 }
 
-func InitService() error {
-	err := initConfig()
+func InitService(confPath string) error {
+	err := initConfig(confPath)
 	if err != nil {
 		return err
 	}
@@ -58,14 +85,21 @@ func InitService() error {
 }
 
 func initPeerId() error {
+	if !bytes.Equal(conf.EKTConfig.PrivateKey, []byte("")) {
+		fmt.Printf("Current peerId is: %s . \n", conf.EKTConfig.Node.PeerId)
+		return nil
+	}
 	peerInfoKey := []byte("peerIdInfo")
 	v, err := db.GetDBInst().Get(peerInfoKey)
 	if err != nil || nil == v || 0 == len(v) {
 		pub, priv := crypto.GenerateKeyPair()
 		conf.EKTConfig.PrivateKey = priv
 		conf.EKTConfig.Node.PeerId = hex.EncodeToString(crypto.Sha3_256(pub))
-		fmt.Printf("Current peerId is: %s . \n", conf.EKTConfig.Node.PeerId)
-		return db.GetDBInst().Set(peerInfoKey, priv)
+		err = db.GetDBInst().Set(peerInfoKey, priv)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
 	} else {
 		conf.EKTConfig.PrivateKey = v
 		data := crypto.Sha3_256(v)
@@ -76,22 +110,16 @@ func initPeerId() error {
 		}
 		pub, err := crypto.RecoverPubKey(data, cryptoData)
 		conf.EKTConfig.Node.PeerId = hex.EncodeToString(crypto.Sha3_256(pub))
-		fmt.Printf("Current peerId is %s. \n", conf.EKTConfig.Node.PeerId)
 	}
+
+	fmt.Println("Peer private key is: ", hex.EncodeToString(conf.EKTConfig.PrivateKey))
+	fmt.Printf("Current peerId is %s . \n", conf.EKTConfig.Node.PeerId)
 
 	return nil
 }
 
-func initConfig() error {
-	var confPath string
-	if len(os.Args) < 2 {
-		confPath = "genesis.json"
-		fmt.Println("No conf file specified, genesis.json will be default one.")
-	} else {
-		confPath = os.Args[1]
-	}
-	err := conf.InitConfig(confPath)
-	return err
+func initConfig(confPath string) error {
+	return conf.InitConfig(confPath)
 }
 
 func initDB() error {

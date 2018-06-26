@@ -5,11 +5,11 @@ import (
 	"errors"
 
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
-	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
+	"github.com/EducationEKT/EKT/io/ekt8/ctxlog"
 )
 
-func NewTransaction(log *context_log.ContextLog, transaction *common.Transaction) error {
+func NewTransaction(log *ctxlog.ContextLog, transaction *common.Transaction) error {
 	// 主币的tokenAddress为空
 	if transaction.TokenAddress != "" {
 		log.Log("tokenAdddress", transaction.TokenAddress)
