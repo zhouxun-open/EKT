@@ -10,13 +10,12 @@ import (
 
 	"errors"
 
-	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/ctxlog"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/i_consensus"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
-	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/EKT/io/ekt8/pool"
 )
 
@@ -108,17 +107,16 @@ func (blockchain *BlockChain) PackSignal(height int64) *Block {
 	blockchain.PackLock.Lock()
 	defer blockchain.PackLock.Unlock()
 	if blockchain.Status != StartPackStatus {
-		if !blockchain.BlockManager.GetBlockStatusByHeight(height, int64(blockchain.BlockInterval)) {
-			return nil
-		}
-		blockchain.Status = StartPackStatus
-		blockchain.BlockManager.SetBlockStatusByHeight(height, time.Now().UnixNano())
 		defer func() {
 			if r := recover(); r != nil {
 				log.GetLogInst().LogCrit("Panic while pack. %v", r)
 			}
 			blockchain.Status = InitStatus
 		}()
+		if !blockchain.PackHeightValidate(height) {
+			fmt.Println("This height is packed within an interval, return nil.")
+			return nil
+		}
 		log.GetLogInst().LogInfo("Start pack block at height %d .\n", blockchain.GetLastHeight()+1)
 		log.GetLogInst().LogDebug("Start pack block at height %d .\n", blockchain.GetLastHeight()+1)
 		block := blockchain.WaitAndPack()
@@ -216,15 +214,7 @@ func (blockchain *BlockChain) PackTime() time.Duration {
 func (blockchain *BlockChain) WaitAndPack() *Block {
 	// 打包10500个交易大概需要0.95秒
 	eventTimeout := time.After(blockchain.PackTime())
-	round := &i_consensus.Round{
-		Peers:        param.MainChainDPosNode,
-		CurrentIndex: 0,
-	}
-	if blockchain.GetLastHeight() != 0 {
-		round = blockchain.GetLastBlock().GetRound().MyRound(blockchain.GetLastBlock().CurrentHash)
-	}
-	log.GetLogInst().LogDebug("")
-	block := NewBlock(blockchain.GetLastBlock(), round)
+	block := NewBlock(blockchain.GetLastBlock())
 	fmt.Println("Packing transaction and other events.")
 	for {
 		flag := false
@@ -236,7 +226,7 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			// 因为要进行以太坊ERC20的映射和冷钱包，因此一期不支持地址的申请和加密算法的替换，只能打包转账交易 和 token发行
 			tx := blockchain.Pool.FetchTx()
 			if tx != nil {
-				log := context_log.NewContextLog("BlockFromTxPool")
+				log := ctxlog.NewContextLog("BlockFromTxPool")
 				defer log.Finish()
 				log.Log("tx", tx)
 				log.Log("block.StatRoot_p", block.StatTree.Root)
@@ -277,7 +267,7 @@ func (blockchain *BlockChain) NotifyPool(block *Block) {
 	}
 }
 
-func (blockchain *BlockChain) BlockFromPeer(cLog *context_log.ContextLog, block Block) bool {
+func (blockchain *BlockChain) BlockFromPeer(cLog *ctxlog.ContextLog, block Block) bool {
 	fmt.Printf("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
 	if err := block.Validate(); err != nil {
 		cLog.Log("InvalidBlock", true)

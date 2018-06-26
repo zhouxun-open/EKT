@@ -5,9 +5,9 @@ import (
 
 	"fmt"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
-	"github.com/EducationEKT/EKT/io/ekt8/context_log"
 	"github.com/EducationEKT/EKT/io/ekt8/core/common"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
+	"github.com/EducationEKT/EKT/io/ekt8/ctxlog"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
 	"github.com/EducationEKT/EKT/io/ekt8/dispatcher"
 	"github.com/EducationEKT/EKT/io/ekt8/param"
@@ -24,7 +24,7 @@ func init() {
 }
 
 func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	log := context_log.NewContextLog("NewTransaction")
+	log := ctxlog.NewContextLog("NewTransaction")
 	defer log.Finish()
 	log.Log("body", req.Body)
 	var tx common.Transaction

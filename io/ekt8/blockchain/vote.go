@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/EducationEKT/EKT/io/ekt8/b_search"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
 )
@@ -155,11 +154,4 @@ func (votes Votes) Validate() bool {
 		}
 	}
 	return true
-}
-
-func (vote Votes) Index(index int) b_search.Interface {
-	if index > vote.Len() || index < 0 {
-		panic("Index out of bound.")
-	}
-	return vote[index]
 }

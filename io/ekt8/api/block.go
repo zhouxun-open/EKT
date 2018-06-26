@@ -9,7 +9,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
-	"github.com/EducationEKT/EKT/io/ekt8/context_log"
+	"github.com/EducationEKT/EKT/io/ekt8/ctxlog"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -39,7 +39,7 @@ func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	cLog := context_log.NewContextLog("Block from peer")
+	cLog := ctxlog.NewContextLog("Block from peer")
 	defer cLog.Finish()
 	var block blockchain.Block
 	json.Unmarshal(req.Body, &block)

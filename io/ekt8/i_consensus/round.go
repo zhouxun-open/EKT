@@ -8,6 +8,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/p2p"
+	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/EKT/io/ekt8/util"
 )
 
@@ -62,6 +63,18 @@ func (round *Round) NewRound() *Round {
 		Peers:        round.Peers,
 		CurrentIndex: round.CurrentIndex,
 		Random:       round.Random,
+	}
+}
+
+func MyRound(round_ *Round, Hash []byte) *Round {
+	if round_ == nil {
+		return &Round{
+			Peers:        param.MainChainDPosNode,
+			CurrentIndex: 0,
+			Random:       util.BytesToInt(Hash[22:]),
+		}
+	} else {
+		return round_.MyRound(Hash)
 	}
 }
 

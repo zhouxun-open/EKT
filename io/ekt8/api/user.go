@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/hex"
 	"github.com/EducationEKT/EKT/io/ekt8/blockchain_manager"
-	"github.com/EducationEKT/EKT/io/ekt8/context_log"
+	"github.com/EducationEKT/EKT/io/ekt8/ctxlog"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -16,7 +16,7 @@ func init() {
 
 func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	address := req.MustGetString("address")
-	log := context_log.NewContextLog("userInfo")
+	log := ctxlog.NewContextLog("userInfo")
 	defer log.Finish()
 	hexAddress, err := hex.DecodeString(address)
 	if err != nil {
