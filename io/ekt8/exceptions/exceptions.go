@@ -26,6 +26,6 @@ func PanicTrace() string {
 		stack = stack[:end]
 	}
 	stack = bytes.TrimRight(stack, "\n")
-	log.GetLogInst().LogCrit(string(stack))
+	log.Error(string(stack))
 	return string(stack)
 }

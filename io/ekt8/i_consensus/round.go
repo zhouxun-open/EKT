@@ -79,14 +79,14 @@ func MyRound(round_ *Round, Hash []byte) *Round {
 }
 
 func (round *Round) MyRound(CurrentHash []byte) *Round {
-	log.GetLogInst().LogDebug("Current Round is %s", round.String())
+	log.Debug("Current Round is %s", round.String())
 	_round := round.NewRound()
 	if round.CurrentIndex == round.Len()-1 {
 		_round = round.NewRandom(CurrentHash)
 		sort.Sort(_round)
 	}
 	_round.CurrentIndex = _round.MyIndex()
-	log.GetLogInst().LogDebug("My Round is %s", _round.String())
+	log.Debug("My Round is %s", _round.String())
 	return _round
 }
 

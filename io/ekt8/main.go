@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -15,7 +14,7 @@ import (
 	"github.com/EducationEKT/EKT/io/ekt8/conf"
 	"github.com/EducationEKT/EKT/io/ekt8/crypto"
 	"github.com/EducationEKT/EKT/io/ekt8/db"
-	xlog "github.com/EducationEKT/EKT/io/ekt8/log"
+	"github.com/EducationEKT/EKT/io/ekt8/log"
 	"github.com/EducationEKT/EKT/io/ekt8/param"
 	"github.com/EducationEKT/xserver/x_http"
 )
@@ -54,10 +53,6 @@ func init() {
 }
 
 func main() {
-	if conf.EKTConfig.Debug {
-		log.SetOutput(os.Stdout)
-	}
-
 	fmt.Printf("server listen on :%d \n", conf.EKTConfig.Node.Port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", conf.EKTConfig.Node.Port), nil)
 	if err != nil {
@@ -70,16 +65,13 @@ func InitService(confPath string) error {
 	if err != nil {
 		return err
 	}
+	log.InitLog()
 	fmt.Printf("Current EKT version is %s. \n", conf.EKTConfig.Version)
 	err = initDB()
 	if err != nil {
 		return err
 	}
 	err = initPeerId()
-	if err != nil {
-		return err
-	}
-	err = initLog()
 	if err != nil {
 		return err
 	}
@@ -129,8 +121,4 @@ func initConfig(confPath string) error {
 
 func initDB() error {
 	return db.InitEKTDB(conf.EKTConfig.DBPath)
-}
-
-func initLog() error {
-	return xlog.InitLog()
 }
