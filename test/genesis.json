@@ -2,8 +2,8 @@
     "version": "v0.5",
     "dbPath": "/data/EKT/db",
     "logPath": "/data/EKT/log/ekt8.log",
-    "debug": false,
-    "env": "testnet",
+    "debug": true,
+    "env": "localnet",
     "node": {
         "address": "127.0.0.1",
         "port": 19951,
