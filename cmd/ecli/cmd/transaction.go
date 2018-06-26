@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/EducationEKT/EKT/cmd/ecli/param"
-	"github.com/EducationEKT/EKT/io/ekt8/core/common"
-	"github.com/EducationEKT/EKT/io/ekt8/crypto"
-	"github.com/EducationEKT/EKT/io/ekt8/util"
+	"github.com/EducationEKT/EKT/core/common"
+	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/util"
 	"github.com/spf13/cobra"
 )
 

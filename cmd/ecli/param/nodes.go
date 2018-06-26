@@ -1,8 +1,8 @@
 package param
 
 import (
-	"github.com/EducationEKT/EKT/io/ekt8/p2p"
-	"github.com/EducationEKT/EKT/io/ekt8/param"
+	"github.com/EducationEKT/EKT/p2p"
+	"github.com/EducationEKT/EKT/param"
 )
 
 var (
