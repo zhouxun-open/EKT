@@ -7,7 +7,7 @@ COPY . $BUILD_HOME
 RUN echo "https://mirrors.aliyun.com/alpine/v3.7/main" > /etc/apk/repositories \
     && echo "https://mirrors.aliyun.com/alpine/v3.7/community" >> /etc/apk/repositories \
     && apk update && apk add --no-cache gcc libc-dev
-RUN cd $BUILD_HOME && go build -o ekt8 io/ekt8/main.go
+RUN cd $BUILD_HOME && go build -o ekt8 cmd/enode/main.go
 
 # pack
 FROM alpine:3.7
