@@ -1,18 +1,16 @@
 package main
 
 import (
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
 
-	"bytes"
+	"strings"
 
 	_ "github.com/EducationEKT/EKT/api"
 	"github.com/EducationEKT/EKT/blockchain_manager"
 	"github.com/EducationEKT/EKT/conf"
-	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/param"
@@ -53,7 +51,7 @@ func init() {
 }
 
 func main() {
-	fmt.Printf("server listen on :%d \n", conf.EKTConfig.Node.Port)
+	log.Info("server listen on :%d \n", conf.EKTConfig.Node.Port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", conf.EKTConfig.Node.Port), nil)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -65,7 +63,7 @@ func InitService(confPath string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Current EKT version is %s. \n", conf.EKTConfig.Version)
+	log.Info("Current EKT version is %s. \n", conf.EKTConfig.Version)
 	err = initDB()
 	if err != nil {
 		return err
@@ -85,36 +83,12 @@ func InitService(confPath string) error {
 }
 
 func initPeerId() error {
-	if !bytes.Equal(conf.EKTConfig.PrivateKey, []byte("")) {
-		fmt.Printf("Current peerId is: %s . \n", conf.EKTConfig.Node.PeerId)
-		return nil
-	}
-	peerInfoKey := []byte("peerIdInfo")
-	v, err := db.GetDBInst().Get(peerInfoKey)
-	if err != nil || nil == v || 0 == len(v) {
-		pub, priv := crypto.GenerateKeyPair()
-		conf.EKTConfig.PrivateKey = priv
-		conf.EKTConfig.Node.PeerId = hex.EncodeToString(crypto.Sha3_256(pub))
-		err = db.GetDBInst().Set(peerInfoKey, priv)
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
+	if !strings.EqualFold(conf.EKTConfig.PrivateKey, "") {
+		log.Info("Peer private key is: %s .", conf.EKTConfig.PrivateKey)
+		log.Info("Current peerId is: %s .", conf.EKTConfig.Node.PeerId)
 	} else {
-		conf.EKTConfig.PrivateKey = v
-		data := crypto.Sha3_256(v)
-		cryptoData, err := crypto.Crypto(data, v)
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		pub, err := crypto.RecoverPubKey(data, cryptoData)
-		conf.EKTConfig.Node.PeerId = hex.EncodeToString(crypto.Sha3_256(pub))
+		log.Info("This is not delegate node.")
 	}
-
-	fmt.Println("Peer private key is: ", hex.EncodeToString(conf.EKTConfig.PrivateKey))
-	fmt.Printf("Current peerId is %s . \n", conf.EKTConfig.Node.PeerId)
-
 	return nil
 }
 
