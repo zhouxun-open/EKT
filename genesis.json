@@ -5,6 +5,7 @@
     "debug": false,
     "env": "testnet",
     "node": {
+        "peerId": "",
         "address": "127.0.0.1",
         "port": 19951,
         "addressVersion": 4

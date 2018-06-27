@@ -3,13 +3,14 @@
     "dbPath": "/data/EKT/db",
     "logPath": "/data/EKT/log/ekt8.log",
     "debug": true,
-    "env": "localnet",
+    "env": "{{.env}}",
     "node": {
-        "address": "127.0.0.1",
-        "port": 19951,
-        "addressVersion": 4
+        "peerId": "{{.peerId}}",
+        "address": "{{.addr}}",
+        "port": {{.port}},
+        "addressVersion": {{.addrVer}}
     },
-    "privateKey": "",
+    "privateKey": "{{.privateKey}}",
     "genesisBlock": [
         {
             "address": "968b10ebc111ea3434de7333d82e54890c4a2d8c34577e0e54f3464eb88e3b2f",
