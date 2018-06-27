@@ -59,24 +59,37 @@ func main() {
 }
 
 func InitService(confPath string) error {
+	// init config
+	// 初始化配置文件
 	err := initConfig(confPath)
 	if err != nil {
 		return err
 	}
-	log.Info("Current EKT version is %s. \n", conf.EKTConfig.Version)
-	err = initDB()
-	if err != nil {
-		return err
-	}
-	err = initPeerId()
-	if err != nil {
-		return err
-	}
+
+	// init log service
+	// 初始化日志服务
 	err = initLog()
 	if err != nil {
 		return err
 	}
+
+	// init database service
+	// 初始化levelDB服务
+	err = initDB()
+	if err != nil {
+		return err
+	}
+
+	// 初始化节点信息，包括私钥和peerId
+	err = initPeerId()
+	if err != nil {
+		return err
+	}
+
+	// 初始化委托人节点
 	param.InitBootNodes()
+
+	// 启动多链
 	blockchain_manager.Init()
 
 	return nil
