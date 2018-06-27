@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-# by yangbin
 
 import os
 import json
 import glob
 
 from fabric import Connection, SerialGroup
+
+EKTCLI = './ecli'
+assert os.path.exists(EKTCLI), 'ecli not found'
 
 HOST_ADDR = [
     '192.168.6.54',
@@ -33,13 +35,9 @@ def debug(msg):
     if DEBUG:
         print msg
 
-# ecli path
-ecli = './ecli'
-assert ecli, 'ecli not found'
-
 
 def _gen_peers(num):
-    cmd = '%s node init' % ecli
+    cmd = '%s node init' % EKTCLI
     ret = [] 
     for _ in range(num):
         data = os.popen(cmd).read().strip()

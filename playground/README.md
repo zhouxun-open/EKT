@@ -13,8 +13,9 @@ pip install -r requirement.txt
 ## deploy.py 帮助脚本
 
 目前支持可以自定义配置如下
+- `EKTCLI`: 指定ecli 执行路径
 - `HOST_ADDR`: 指定一组用于部署节点的机器（需要保证已安装并启动docker）
-- `NODE_NUM`： 每台机器上安装节点的个数（节点会安装在容器中做隔离）
+- `NODE_NUM`: 每台机器上安装节点的个数（节点会安装在容器中做隔离）
 - `PORT_RANGE`: 每台机器上节点可以使用的端口号，个数需要与`NODE_NUM` 一致
 配置完成后即可执行以下几部进行部署
 
