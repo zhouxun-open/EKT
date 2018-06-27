@@ -1,6 +1,7 @@
 package conf
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
 
@@ -16,7 +17,7 @@ type EKTConf struct {
 	Node                 p2p.Peer         `json:"node"`
 	BlockchainManagePwd  string           `json:"blockchainManagePwd"`
 	GenesisBlockAccounts []common.Account `json:"genesisBlock"`
-	PrivateKey           []byte           `json:"privateKey"`
+	PrivateKey           string           `json:"privateKey"`
 	Env                  string           `json:"env"`
 }
 
@@ -29,4 +30,12 @@ func InitConfig(filePath string) error {
 	}
 	err = json.Unmarshal(data, &EKTConfig)
 	return err
+}
+
+func (conf EKTConf) GetPrivateKey() []byte {
+	privKey, err := hex.DecodeString(conf.PrivateKey)
+	if err != nil {
+		panic(err)
+	}
+	return privKey
 }

@@ -83,7 +83,7 @@ func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 		Peer:         conf.EKTConfig.Node,
 	}
 	fmt.Println("Signing this vote.")
-	err := vote.Sign(conf.EKTConfig.PrivateKey)
+	err := vote.Sign(conf.EKTConfig.GetPrivateKey())
 	if err != nil {
 		log.Crit("Sign vote failed, recorded. %v", err)
 		fmt.Println("Sign vote failed, recorded.")

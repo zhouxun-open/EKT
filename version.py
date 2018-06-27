@@ -1,6 +1,6 @@
 import os
 
-main = "io/ekt8/main.go"
+main = "cmd/enode/main.go"
 
 def get_version():
     for line in open(main):
