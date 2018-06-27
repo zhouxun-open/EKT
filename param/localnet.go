@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"runtime"
 
 	"github.com/EducationEKT/EKT/p2p"
 )
@@ -32,7 +31,6 @@ func loadLocalNet() {
 	}
 	log.Println("Found localnet.json, loading it")
 	peers := [][]interface{}{}
-	runtime.Breakpoint()
 	err = json.Unmarshal(data, &peers)
 	if err != nil {
 		log.Println("Invalid localnet.json format, ingore it")
