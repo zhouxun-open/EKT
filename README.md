@@ -24,7 +24,7 @@
 
 ```
 export GOROOT=/usr/local/go
-export GOPATH=/opt/gopath
+export GOPATH=/opt/go
 export PATH=$GOROOT/bin:$PATH:$GOPATH/bin
 ```
 
@@ -46,12 +46,12 @@ export PATH=$GOROOT/bin:$PATH:$GOPATH/bin
 ```
     vim genesis.json
 ```
-把dbPath、logPath、node和blockchainManagePwd修改成自己的。
+把dbPath、logPath、node修改成自己的。
 
 4. 启动节点,在测试阶段可以不用打包，直接命令行运行就可以了
 ```
     mkdir -p /var/log/EKT
-    go run io/ekt8/main.go genesis.json 1>/var/log/EKT/stdout 2>/var/log/EKT/stderr &
+    go run cmd/cnode/main.go genesis.json 1>/var/log/EKT/stdout 2>/var/log/EKT/stderr &
 ```
 
 5. 查看stdout或者stderr可以使用 `tail -f /var/log/EKT/stdout`, 如果需要看其他日志，可以cd到genesis.json中配置的日志的目录中进行查看
