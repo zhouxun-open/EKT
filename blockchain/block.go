@@ -352,7 +352,7 @@ func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
 }
 
 func (block *Block) Sign() error {
-	Signature, err := crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.PrivateKey)
+	Signature, err := crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.GetPrivateKey())
 	block.Signature = hex.EncodeToString(Signature)
 	return err
 }
