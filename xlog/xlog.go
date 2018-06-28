@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 )
 
 const (
@@ -24,16 +25,21 @@ type XLog interface {
 	Crit(msg string, args ...interface{})
 }
 
-func mustFile(path string) {
-	fileinfo, err := os.Stat(path)
+func checklogPath(filename string) {
+	fileinfo, err := os.Stat(filename)
 	if err == nil && fileinfo.IsDir() {
 		panic("log path must be is file")
+	}
+	dir := path.Dir(filename)
+	err = os.MkdirAll(dir, 0777)
+	if err != nil {
+		panic(fmt.Sprintf("create log dir failed, %s", err.Error()))
 	}
 }
 
 // NewDailyLog create a daily log wrapper
 func NewDailyLog(path string) XLog {
-	mustFile(path)
+	checklogPath(path)
 	_log := xlog{w: log.New(NewDailyWriter(path), "", log.LstdFlags), c: make(chan string, logChanSize)}
 	go _log.writer()
 	return &_log
