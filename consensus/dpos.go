@@ -126,12 +126,14 @@ func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 // for循环+recover保证DPoS线程的安全性
 func (dpos *DPOSConsensus) Run() {
 	for {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Crit(`Consensus occured an unknown error, recovered. %v`, r)
-			}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Crit(`Consensus occured an unknown error, recovered. %v`, r)
+				}
+			}()
+			dpos.RUN()
 		}()
-		dpos.RUN()
 	}
 }
 
