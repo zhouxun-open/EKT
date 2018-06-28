@@ -27,5 +27,8 @@ func init() {
 func GeneratePeerId(cmd *cobra.Command, args []string) {
 	pubKey, privateKey := crypto.GenerateKeyPair()
 	fmt.Println("Please save your peer private key: ", hex.EncodeToString(privateKey))
+	pubKey1, _ := crypto.PubKey(privateKey)
+	fmt.Println(hex.EncodeToString(pubKey))
+	fmt.Println(hex.EncodeToString(pubKey1))
 	fmt.Println("Your peerId is: ", hex.EncodeToString(crypto.Sha3_256(pubKey)))
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/event"
 	"github.com/EducationEKT/EKT/i_consensus"
+	"github.com/EducationEKT/EKT/log"
 )
 
 var currentBlock *Block = nil
@@ -243,7 +244,7 @@ func NewBlock(last *Block) *Block {
 func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
 	// 如果不是当前的块的下一个区块，则返回false
 	if !bytes.Equal(next.PreviousHash, block.Hash()) || block.Height+1 != next.Height {
-		fmt.Printf("This block's previous hash is unexpected, want %s, get %s. \n", hex.EncodeToString(block.Hash()), hex.EncodeToString(next.PreviousHash))
+		log.Info("This block's previous hash is unexpected, want %s, get %s. \n", hex.EncodeToString(block.Hash()), hex.EncodeToString(next.PreviousHash))
 		return false
 	}
 	return block.ValidateBlockStat(next)
@@ -254,25 +255,25 @@ func (block *Block) Pack(difficulty []byte) {
 	block.Locker.Lock()
 	defer block.Locker.Unlock()
 	start := time.Now().Nanosecond()
-	fmt.Println("Caculating block hash.")
+	log.Info("Caculating block hash.")
 	for ; !bytes.HasPrefix(block.CaculateHash(), difficulty); block.NewNonce() {
 	}
 	end := time.Now().Nanosecond()
-	fmt.Printf("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
+	log.Info("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
 }
 
 func (block *Block) ValidateBlockStat(next Block) bool {
 	BlockRecorder.SetBlock(&next)
-	fmt.Println("Validating block stat merkler proof.")
+	log.Info("Validating block stat merkler proof.")
 	// 从打包节点获取body
 	body, err := next.GetRound().Peers[next.GetRound().CurrentIndex].GetDBValue(next.Body)
 	if err != nil {
-		fmt.Println("Can not get body from mining node, return false.")
+		log.Info("Can not get body from mining node, return false.")
 		return false
 	}
 	next.BlockBody, err = FromBytes(body)
 	if err != nil {
-		fmt.Println("Get an error body, return false.")
+		log.Info("Get an error body, return false.")
 		return false
 	}
 	//根据上一个区块头生成一个新的区块
@@ -284,12 +285,12 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 		if evt == nil {
 			data, err := next.GetRound().Peers[next.GetRound().CurrentIndex].GetDBValue(evtId)
 			if err != nil {
-				fmt.Println("Can not get this event, validate false.")
+				log.Info("Can not get this event, validate false.")
 				return false
 			}
 			evt = event.FromBytes(data)
 			if evt == nil {
-				fmt.Println("Can not get this event, validate false.")
+				log.Info("Can not get this event, validate false.")
 				return false
 			}
 		}
@@ -305,12 +306,12 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 		if tx == nil {
 			data, err := next.GetRound().Peers[next.GetRound().CurrentIndex].GetDBValue(txId)
 			if err != nil {
-				fmt.Println("Can not get this transaction, validate false.")
+				log.Info("Can not get this transaction, validate false.")
 				return false
 			}
 			tx = common.FromBytes(data)
 			if tx == nil {
-				fmt.Println("Can not get this transaction, validate false.")
+				log.Info("Can not get this transaction, validate false.")
 				return false
 			}
 		}
@@ -321,8 +322,8 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 		!bytes.Equal(next.EventRoot, _next.EventRoot) ||
 		!bytes.Equal(next.StatRoot, _next.StatRoot) ||
 		!bytes.Equal(next.TokenRoot, _next.TokenRoot) {
-		fmt.Printf("next.Data  = %s, \n_next.Data = %s", next.Data(), block.Data())
-		fmt.Printf("next.Hash  = %s, \n_next.Hash = %s \n", hex.EncodeToString(next.Hash()), hex.EncodeToString(_next.CaculateHash()))
+		log.Info("next.Data  = %s, \n_next.Data = %s", next.Data(), block.Data())
+		log.Info("next.Hash  = %s, \n_next.Hash = %s \n", hex.EncodeToString(next.Hash()), hex.EncodeToString(_next.CaculateHash()))
 		return false
 	}
 
@@ -358,19 +359,23 @@ func (block *Block) Sign() error {
 }
 
 // 校验区块头的hash值和其他字段是否匹配，以及签名是否正确
-func (block Block) Validate() error {
+func (block Block) Validate(ctxlog *ctxlog.ContextLog) error {
 	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
 		return errors.New("Invalid Hash")
 	}
+
 	sign, err := hex.DecodeString(block.Signature)
 	if err != nil {
 		return err
 	}
+
 	if pubkey, err := crypto.RecoverPubKey(crypto.Sha3_256(block.CurrentHash), sign); err != nil {
-		fmt.Println("Recover public key failed.", err)
+		ctxlog.Log("Recover pubKey failed", true)
 		return err
 	} else {
 		if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubkey)), block.GetRound().Peers[block.GetRound().CurrentIndex].PeerId) {
+			ctxlog.Log("peerId", block.GetRound().Peers[block.GetRound().CurrentIndex].PeerId)
+			ctxlog.Log("RecoverPeerId", hex.EncodeToString(crypto.Sha3_256(pubkey)))
 			return errors.New("Invalid signature")
 		}
 	}
