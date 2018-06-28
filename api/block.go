@@ -10,7 +10,9 @@ import (
 	"github.com/EducationEKT/EKT/blockchain_manager"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/ctxlog"
+	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/util"
+
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -32,7 +34,7 @@ func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	bc := blockchain_manager.MainBlockChain
 	height := req.MustGetInt64("height")
 	if bc.GetLastHeight() < height {
-		fmt.Printf("Heigth %d is heigher than current height, current height is %d \n", height, bc.GetLastHeight())
+		log.Info("Heigth %d is heigher than current height, current height is %d \n", height, bc.GetLastHeight())
 		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d \n ", height, bc.GetLastHeight()))
 	}
 	return x_resp.Return(bc.GetBlockByHeight(height))
@@ -44,11 +46,11 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	var block blockchain.Block
 	json.Unmarshal(req.Body, &block)
 	cLog.Log("block", block)
-	fmt.Printf("Recieved new block : block=%v, blockHash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
+	log.Info("Recieved new block : block=%v, blockHash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
 	lastHeight := blockchain_manager.GetMainChain().GetLastHeight()
 	if lastHeight+1 != block.Height {
 		cLog.Log("Invalid height", true)
-		fmt.Printf("Block height is not right, want %d, get %d, give up voting. \n", lastHeight+1, block.Height)
+		log.Info("Block height is not right, want %d, get %d, give up voting. \n", lastHeight+1, block.Height)
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
 	IP := strings.Split(req.R.RemoteAddr, ":")[0]
@@ -63,7 +65,7 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 				}
 				util.HttpPost(fmt.Sprintf(`http://%s:%d/block/api/newBlock?forward=true`, block.GetRound().Peers[i].Address, block.GetRound().Peers[i].Port), req.Body)
 			}
-			fmt.Println("Forward block to other succeed.")
+			log.Info("Forward block to other succeed.")
 		}
 	}
 	blockchain_manager.MainBlockChainConsensus.BlockFromPeer(cLog, block)

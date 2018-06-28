@@ -3,11 +3,12 @@ package api
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
-
 	"errors"
+
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/log"
+
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -41,7 +42,7 @@ func GetValue(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 
 func GetValueByHash(key []byte) ([]byte, error) {
 	if len(key) != 32 {
-		fmt.Println("Remote peer want a db value that len(key) is not 32 byte, return fail.", hex.EncodeToString(key))
+		log.Info("Remote peer want a db value that len(key) is not 32 byte, return fail.")
 		return nil, InvalidKey
 	}
 	return db.GetDBInst().Get(key)
@@ -52,7 +53,7 @@ func validate(k, v []byte, err error) (*x_resp.XRespContainer, *x_err.XErr) {
 		return x_resp.Return(nil, err)
 	}
 	if !bytes.Equal(crypto.Sha3_256(v), k) {
-		fmt.Println("This key is not the hash of the db value, return fail.", hex.EncodeToString(k))
+		log.Info("This key is not the hash of the db value, return fail.")
 		return x_resp.Fail(-403, "Invalid Key", string(k)), nil
 	}
 	return &x_resp.XRespContainer{
