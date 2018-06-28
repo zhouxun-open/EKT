@@ -230,7 +230,12 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 				defer log.Finish()
 				log.Log("tx", tx)
 				log.Log("block.StatRoot_p", block.StatTree.Root)
-				txResult := block.NewTransaction(log, tx, block.Fee)
+				fee := tx.Fee
+				if fee < block.Fee {
+					fee = block.Fee
+				}
+				txResult := block.NewTransaction(log, tx, fee)
+				log.Log("fee", fee)
 				log.Log("txResult", txResult)
 				log.Log("block.StatRoot_a", block.StatTree.Root)
 				blockchain.Pool.Notify(tx.TransactionId())

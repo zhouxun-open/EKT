@@ -17,6 +17,7 @@ type Transaction struct {
 	To           string `json:"to"`
 	TimeStamp    int64  `json:"time"` // UnixTimeStamp
 	Amount       int64  `json:"amount"`
+	Fee          int64  `json:"fee"`
 	Nonce        int64  `json:"nonce"`
 	Data         string `json:"data"`
 	TokenAddress string `json:"tokenAddress"`
@@ -83,8 +84,8 @@ func (tx *Transaction) TransactionId() string {
 }
 
 func (tx *Transaction) String() string {
-	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "nonce": %d, "data": "%s", "tokenAddress": "%s"}`,
-		tx.From, tx.To, tx.TimeStamp, tx.Amount, tx.Nonce, tx.Data, tx.TokenAddress)
+	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "fee": %d, "nonce": %d, "data": "%s", "tokenAddress": "%s"}`,
+		tx.From, tx.To, tx.TimeStamp, tx.Amount, tx.Fee, tx.Nonce, tx.Data, tx.TokenAddress)
 }
 
 func (tx Transaction) Bytes() []byte {
