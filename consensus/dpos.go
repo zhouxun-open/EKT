@@ -126,12 +126,14 @@ func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 // for循环+recover保证DPoS线程的安全性
 func (dpos *DPOSConsensus) Run() {
 	for {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Crit(`Consensus occured an unknown error, recovered. %v`, r)
-			}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Crit(`Consensus occured an unknown error, recovered. %v`, r)
+				}
+			}()
+			dpos.RUN()
 		}()
-		dpos.RUN()
 	}
 }
 
@@ -153,13 +155,6 @@ func (dpos DPOSConsensus) DelegateRun() {
 	// 每1/4个interval检测一次是否有漏块，如果发生漏块且当前节点可以出块，则进入打包流程
 	interval := dpos.Blockchain.BlockInterval / 4
 	for {
-		// in case panic
-		defer func() {
-			if r := recover(); r != nil {
-				log.Crit("A panic occurred, %v.", r)
-			}
-		}()
-
 		// 判断是否是当前节点打包区块
 		log.Info(`Timer tick: is my turn?`)
 		if dpos.IsMyTurn() {
@@ -267,12 +262,6 @@ func (dpos *DPOSConsensus) RUN() {
 	interval, failCount := 50*time.Millisecond, 0
 	// 同步区块
 	for height := dpos.Blockchain.GetLastHeight() + 1; ; {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Crit("Panic occured when synchronizing block, %v", r)
-			}
-		}()
-
 		log.Info("Synchronizing block at height %d.", height)
 		if dpos.SyncHeight(height) {
 			log.Info("Synchronizing block at height %d successed. \n", height)
@@ -312,12 +301,6 @@ func (dpos *DPOSConsensus) startDelegateThread() {
 // dposSync同步主要是监控在一定interval如果height没有被委托人间投票改变，则通过height进行同步
 func (dpos *DPOSConsensus) dposSync() {
 	for {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Crit("Panic occured, %v. \n", r)
-			}
-		}()
-
 		lastHeight := dpos.Blockchain.GetLastHeight()
 		for {
 			height := dpos.Blockchain.GetLastHeight()
