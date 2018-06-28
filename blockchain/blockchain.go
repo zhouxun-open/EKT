@@ -114,7 +114,7 @@ func (blockchain *BlockChain) PackSignal(height int64) *Block {
 			blockchain.Status = InitStatus
 		}()
 		if !blockchain.PackHeightValidate(height) {
-			fmt.Println("This height is packed within an interval, return nil.")
+			log.Info("This height is packed within an interval, return nil.")
 			return nil
 		}
 		log.Info("Start pack block at height %d .\n", blockchain.GetLastHeight()+1)
@@ -166,14 +166,14 @@ func (blockchain *BlockChain) SaveBlock(block *Block) {
 	blockchain.Locker.Lock()
 	defer blockchain.Locker.Unlock()
 	if blockchain.GetLastHeight()+1 == block.Height {
-		fmt.Println("Saving block to database.")
+		log.Info("Saving block to database.")
 		db.GetDBInst().Set(block.Hash(), block.Data())
 		data, _ := json.Marshal(block)
 		db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
 		db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
 		blockchain.SetLastBlock(block)
 		blockchain.SetLastHeight(block.Height)
-		fmt.Println("Save block to database succeed.")
+		log.Info("Save block to database succeed.")
 	}
 }
 
@@ -215,7 +215,7 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 	// 打包10500个交易大概需要0.95秒
 	eventTimeout := time.After(blockchain.PackTime())
 	block := NewBlock(blockchain.GetLastBlock())
-	fmt.Println("Packing transaction and other events.")
+	log.Info("Packing transaction and other events.")
 	for {
 		flag := false
 		select {
@@ -272,21 +272,23 @@ func (blockchain *BlockChain) NotifyPool(block *Block) {
 	}
 }
 
-func (blockchain *BlockChain) BlockFromPeer(cLog *ctxlog.ContextLog, block Block) bool {
-	fmt.Printf("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
-	if err := block.Validate(); err != nil {
-		cLog.Log("InvalidBlock", true)
-		fmt.Printf("Block validate failed, %s. \n", err.Error())
+func (blockchain *BlockChain) BlockFromPeer(ctxlog *ctxlog.ContextLog, block Block) bool {
+	log.Info("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
+	if err := block.Validate(ctxlog); err != nil {
+		ctxlog.Log("InvalidReason", err.Error())
 		return false
 	}
+
 	// 1500是毫秒和纳秒的单位乘以2/3计算得来的
 	if time.Now().UnixNano()/1e6-block.Timestamp > int64(blockchain.BlockInterval/1500) {
-		fmt.Printf("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(blockchain.BlockInterval/1500))
-		fmt.Println("Block timestamp is more than 2/3 block interval, abort vote.")
+		ctxlog.Log("Invalid timestamp", true)
+		log.Info("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(blockchain.BlockInterval/1500))
+		log.Info("Block timestamp is more than 2/3 block interval, abort vote.")
 		return false
 	}
+
 	if !blockchain.GetLastBlock().ValidateNextBlock(block, blockchain.BlockInterval) {
-		fmt.Println("This block from peer can not recover by last block, abort.")
+		log.Info("This block from peer can not recover by last block, abort.")
 		return false
 	}
 	return true

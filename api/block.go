@@ -41,15 +41,15 @@ func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	cLog := ctxlog.NewContextLog("Block from peer")
-	defer cLog.Finish()
+	ctxlog := ctxlog.NewContextLog("Block from peer")
+	defer ctxlog.Finish()
 	var block blockchain.Block
 	json.Unmarshal(req.Body, &block)
-	cLog.Log("block", block)
+	ctxlog.Log("block", block)
 	log.Info("Recieved new block : block=%v, blockHash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
 	lastHeight := blockchain_manager.GetMainChain().GetLastHeight()
 	if lastHeight+1 != block.Height {
-		cLog.Log("Invalid height", true)
+		ctxlog.Log("Invalid height", true)
 		log.Info("Block height is not right, want %d, get %d, give up voting. \n", lastHeight+1, block.Height)
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
@@ -68,6 +68,6 @@ func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 			log.Info("Forward block to other succeed.")
 		}
 	}
-	blockchain_manager.MainBlockChainConsensus.BlockFromPeer(cLog, block)
+	blockchain_manager.MainBlockChainConsensus.BlockFromPeer(ctxlog, block)
 	return x_resp.Return("recieved", nil)
 }
