@@ -97,8 +97,8 @@ func InitService(confPath string) error {
 
 func initPeerId() error {
 	if !strings.EqualFold(conf.EKTConfig.PrivateKey, "") {
-		log.Info("Peer private key is: %s .", conf.EKTConfig.PrivateKey)
-		log.Info("Current peerId is: %s .", conf.EKTConfig.Node.PeerId)
+		log.Info("Peer private key is: %s ", conf.EKTConfig.PrivateKey)
+		log.Info("Current peerId is: %s ", conf.EKTConfig.Node.PeerId)
 	} else {
 		log.Info("This is not delegate node.")
 	}

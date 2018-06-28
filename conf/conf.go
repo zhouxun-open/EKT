@@ -33,9 +33,6 @@ func InitConfig(filePath string) error {
 }
 
 func (conf EKTConf) GetPrivateKey() []byte {
-	privKey, err := hex.DecodeString(conf.PrivateKey)
-	if err != nil {
-		panic(err)
-	}
-	return privKey
+	priv, _ := hex.DecodeString(conf.PrivateKey)
+	return priv
 }
