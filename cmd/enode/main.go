@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-
 	"strings"
 
 	_ "github.com/EducationEKT/EKT/api"
@@ -14,6 +13,7 @@ import (
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/param"
+
 	"github.com/EducationEKT/xserver/x_http"
 )
 
@@ -51,7 +51,7 @@ func init() {
 }
 
 func main() {
-	log.Info("server listen on :%d \n", conf.EKTConfig.Node.Port)
+	fmt.Printf("server listen on :%d \n", conf.EKTConfig.Node.Port)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", conf.EKTConfig.Node.Port), nil)
 	if err != nil {
 		fmt.Println(err.Error())
