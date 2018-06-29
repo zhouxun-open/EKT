@@ -294,32 +294,63 @@ func (dpos *DPOSConsensus) RUN() {
 
 // 开启delegate线程
 func (dpos *DPOSConsensus) startDelegateThread() {
-	go dpos.DelegateRun()
-	go dpos.dposSync()
+	// 稳定启动dpos.DelegateRun()
+	go func() {
+		for {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Crit("Panic occured, %v", r)
+					}
+				}()
+				dpos.DelegateRun()
+			}()
+		}
+
+	}()
+
+	// 稳定启动dpos.dposSync()
+	go func() {
+		for {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Crit("Panic occured, %v", r)
+					}
+				}()
+				dpos.dposSync()
+			}()
+		}
+
+	}()
 }
 
 // dposSync同步主要是监控在一定interval如果height没有被委托人间投票改变，则通过height进行同步
 func (dpos *DPOSConsensus) dposSync() {
+	lastHeight := dpos.Blockchain.GetLastHeight()
 	for {
-		lastHeight := dpos.Blockchain.GetLastHeight()
-		for {
-			height := dpos.Blockchain.GetLastHeight()
-			log.Debug("Last interval lastHeight is %d, lastHeight is %d now.", lastHeight, height)
-			if height == lastHeight {
-				log.Debug("Height has not change for an interval, synchronizing block.")
+		height := dpos.Blockchain.GetLastHeight()
+		log.Debug("Last interval lastHeight is %d, lastHeight is %d now.", lastHeight, height)
+		if height == lastHeight {
+			log.Debug("Height has not change for an interval, synchronizing block.")
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Crit("Panic occured, %v", r)
+					}
+				}()
 				if dpos.SyncHeight(lastHeight + 1) {
 					log.Debug("Synchronized block at lastHeight %d.", lastHeight+1)
 					lastHeight = dpos.Blockchain.GetLastHeight()
-					continue
 				} else {
 					log.Debug("Synchronize block at lastHeight %d failed.", lastHeight+1)
 				}
-			}
-
-			lastHeight = dpos.Blockchain.GetLastHeight()
-
-			time.Sleep(dpos.Blockchain.BlockInterval)
+			}()
 		}
+
+		lastHeight = dpos.Blockchain.GetLastHeight()
+
+		time.Sleep(dpos.Blockchain.BlockInterval)
 	}
 }
 
