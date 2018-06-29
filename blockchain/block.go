@@ -47,7 +47,7 @@ type Block struct {
 }
 
 func (block Block) GetRound() *i_consensus.Round {
-	return block.Round.NewRound()
+	return block.Round.Clone()
 }
 
 func (block *Block) Bytes() []byte {
