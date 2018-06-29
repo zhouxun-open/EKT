@@ -436,12 +436,12 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	for _, peer := range peers {
 		block, err := getBlockHeader(peer, height)
 		if err != nil || block.Height != height {
-			log.Info("Geting block header by height failed.", err)
+			log.Info("Geting block header by height failed. %v", err)
 			continue
 		}
 		votes, err := getVotes(peer, hex.EncodeToString(block.CurrentHash))
 		if err != nil {
-			log.Info("Error peer has no votes.", err)
+			log.Info("Error peer has no votes. %v", err)
 			continue
 		}
 		if votes.Validate() {
@@ -492,7 +492,7 @@ func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 // 收到从其他节点发送过来的voteResult，校验之后可以写入到区块链中
 func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 	if !dpos.ValidateVotes(votes) {
-		log.Info("Votes validate failed. ", votes)
+		log.Info("Votes validate failed. %v", votes)
 		return false
 	}
 
