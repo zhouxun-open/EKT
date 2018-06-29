@@ -30,22 +30,6 @@ func (round1 *Round) Equal(round2 *Round) bool {
 	return true
 }
 
-func (round *Round) IndexPlus(CurrentHash []byte) *Round {
-	if round.CurrentIndex == len(round.Peers)-1 {
-		Random := util.BytesToInt(CurrentHash[22:])
-		round_ := &Round{
-			CurrentIndex: 0,
-			Peers:        round.Peers,
-			Random:       Random,
-		}
-		sort.Sort(round_)
-		return round_
-	} else {
-		round.CurrentIndex++
-	}
-	return round
-}
-
 func (round *Round) NewRandom(CurrentHash []byte) *Round {
 	round1 := &Round{
 		Peers:        round.Peers,
@@ -55,7 +39,7 @@ func (round *Round) NewRandom(CurrentHash []byte) *Round {
 	return round1
 }
 
-func (round *Round) NewRound() *Round {
+func (round *Round) Clone() *Round {
 	if round == nil {
 		return nil
 	}
@@ -80,7 +64,7 @@ func MyRound(round_ *Round, Hash []byte) *Round {
 
 func (round *Round) MyRound(CurrentHash []byte) *Round {
 	log.Debug("Current Round is %s", round.String())
-	_round := round.NewRound()
+	_round := round.Clone()
 	if round.CurrentIndex == round.Len()-1 {
 		_round = round.NewRandom(CurrentHash)
 		sort.Sort(_round)
