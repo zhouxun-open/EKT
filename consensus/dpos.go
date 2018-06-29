@@ -157,12 +157,15 @@ func (dpos DPOSConsensus) DelegateRun() {
 	for {
 		// 判断是否是当前节点打包区块
 		log.Info(`Timer tick: is my turn?`)
-		if dpos.IsMyTurn() {
+
+		ctxlog := ctxlog.NewContextLog("DPoS is my turn ?")
+		if dpos.IsMyTurn(ctxlog) {
 			log.Info("This is my turn, current height is %d.", dpos.Blockchain.GetLastHeight())
-			dpos.Pack()
+			dpos.Pack(ctxlog)
 		} else {
 			log.Info("No, sleeping %d nano second.", int(interval))
 		}
+		ctxlog.Finish()
 
 		time.Sleep(interval)
 	}
@@ -240,10 +243,7 @@ func (dpos DPOSConsensus) PeerTurn(ctxlog *ctxlog.ContextLog, packTime, lastBloc
 }
 
 // 用于委托人线程判断当前节点是否有打包权限
-func (dpos DPOSConsensus) IsMyTurn() bool {
-	ctxlog := ctxlog.NewContextLog("DPoS is my turn ?")
-	defer ctxlog.Finish()
-
+func (dpos DPOSConsensus) IsMyTurn(ctxlog *ctxlog.ContextLog) bool {
 	now := time.Now().UnixNano() / 1e6
 	lastPackTime := dpos.Blockchain.GetLastBlock().Timestamp
 	result := dpos.PeerTurn(ctxlog, now, lastPackTime, conf.EKTConfig.Node)
@@ -324,7 +324,7 @@ func (dpos *DPOSConsensus) dposSync() {
 }
 
 // 共识向blockchain发送signal进行下一个区块的打包
-func (dpos DPOSConsensus) Pack() {
+func (dpos DPOSConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 	// 对下一个区块进行打包
 	lastBlock := dpos.Blockchain.GetLastBlock()
 	block := dpos.Blockchain.PackSignal(lastBlock.Height + 1)
@@ -344,11 +344,12 @@ func (dpos DPOSConsensus) Pack() {
 		dpos.Blockchain.BlockManager.Unlock()
 
 		// 签名
-		if err := block.Sign(); err != nil {
+		if err := block.Sign(ctxlog); err != nil {
 			log.Crit("Sign block failed. %v", err)
 		} else {
 			// 广播
 			dpos.broadcastBlock(block)
+			ctxlog.Log("block", block)
 		}
 	}
 }
@@ -435,12 +436,12 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	for _, peer := range peers {
 		block, err := getBlockHeader(peer, height)
 		if err != nil || block.Height != height {
-			log.Info("Geting block header by height failed.", err)
+			log.Info("Geting block header by height failed. %v", err)
 			continue
 		}
 		votes, err := getVotes(peer, hex.EncodeToString(block.CurrentHash))
 		if err != nil {
-			log.Info("Error peer has no votes.", err)
+			log.Info("Error peer has no votes. %v", err)
 			continue
 		}
 		if votes.Validate() {
@@ -491,7 +492,7 @@ func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 // 收到从其他节点发送过来的voteResult，校验之后可以写入到区块链中
 func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 	if !dpos.ValidateVotes(votes) {
-		log.Info("Votes validate failed. ", votes)
+		log.Info("Votes validate failed. %v", votes)
 		return false
 	}
 
@@ -511,7 +512,9 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 			dpos.Blockchain.SaveBlock(block)
 			blockchain.BlockRecorder.SetStatus(hex.EncodeToString(block.CurrentHash), 200)
 			if block.GetRound().NextPeerRight(conf.EKTConfig.Node, block.CurrentHash) {
-				dpos.Pack()
+				ctxlog := ctxlog.NewContextLog("pack from vote result")
+				defer ctxlog.Finish()
+				dpos.Pack(ctxlog)
 			}
 		} else if status == 200 {
 			// 已经写入区块链中

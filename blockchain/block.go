@@ -352,7 +352,8 @@ func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
 	return evtResult
 }
 
-func (block *Block) Sign() error {
+func (block *Block) Sign(ctxlog *ctxlog.ContextLog) error {
+	ctxlog.Log("node.PrivKey", hex.EncodeToString(conf.EKTConfig.GetPrivateKey()))
 	Signature, err := crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.GetPrivateKey())
 	block.Signature = hex.EncodeToString(Signature)
 	return err
