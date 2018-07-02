@@ -89,18 +89,13 @@ func (blockchain *BlockChain) SetLastBlock(block *Block) {
 	blockchain.currentLocker.Lock()
 	defer blockchain.currentLocker.Unlock()
 	blockchain.currentBlock = block
+	blockchain.currentHeight = block.Height
 }
 
 func (blockchain *BlockChain) GetLastHeight() int64 {
 	blockchain.currentLocker.RLock()
 	defer blockchain.currentLocker.RUnlock()
 	return blockchain.currentHeight
-}
-
-func (blockchain *BlockChain) SetLastHeight(height int64) {
-	blockchain.currentLocker.RLock()
-	defer blockchain.currentLocker.RUnlock()
-	blockchain.currentHeight = height
 }
 
 func (blockchain *BlockChain) PackSignal(height int64) *Block {
@@ -131,8 +126,6 @@ func (blockchain *BlockChain) PackHeightValidate(height int64) bool {
 	if blockchain.GetLastHeight()+1 != height {
 		return false
 	}
-	blockchain.BlockManager.RLock()
-	defer blockchain.BlockManager.RUnlock()
 	if !blockchain.BlockManager.GetBlockStatusByHeight(height, int64(blockchain.BlockInterval)) {
 		return false
 	}
@@ -172,7 +165,6 @@ func (blockchain *BlockChain) SaveBlock(block *Block) {
 		db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
 		db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
 		blockchain.SetLastBlock(block)
-		blockchain.SetLastHeight(block.Height)
 		log.Info("Save block to database succeed.")
 	}
 }
