@@ -430,7 +430,6 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 		dpos.Blockchain.SaveBlock(block)
 	}
 	dpos.Blockchain.SetLastBlock(block)
-	dpos.Blockchain.SetLastHeight(block.Height)
 }
 
 // 获取存活的DPOS节点数量
