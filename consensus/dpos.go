@@ -124,7 +124,7 @@ func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 }
 
 // for循环+recover保证DPoS线程的安全性
-func (dpos *DPOSConsensus) Run() {
+func (dpos *DPOSConsensus) StableRun() {
 	for {
 		func() {
 			defer func() {
@@ -132,7 +132,7 @@ func (dpos *DPOSConsensus) Run() {
 					log.Crit(`Consensus occured an unknown error, recovered. %v`, r)
 				}
 			}()
-			dpos.RUN()
+			dpos.Run()
 		}()
 	}
 }
@@ -252,7 +252,7 @@ func (dpos DPOSConsensus) IsMyTurn(ctxlog *ctxlog.ContextLog) bool {
 	return result
 }
 
-func (dpos *DPOSConsensus) RUN() {
+func (dpos *DPOSConsensus) Run() {
 	// 从数据库中恢复当前节点已同步的区块
 	log.Info("Recover data from local database.")
 	dpos.RecoverFromDB()
