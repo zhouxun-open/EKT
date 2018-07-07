@@ -31,7 +31,7 @@ func Init() {
 	}
 	MainBlockChain = blockchain.NewBlockChain(blockchain.BackboneChainId, blockchain.BackboneConsensus, blockchain.BackboneChainFee, blockchain.BackboneChainDifficulty, blockchain.BackboneBlockInterval)
 	MainBlockChainConsensus = consensus.NewDPoSConsensus(MainBlockChain)
-	go MainBlockChainConsensus.Run()
+	go MainBlockChainConsensus.StableRun()
 	value, err := db.GetDBInst().Get([]byte(BlockchainManagerDBKey))
 	if err != nil {
 		return
@@ -48,11 +48,11 @@ func Init() {
 		case i_consensus.DPOS:
 			consensus := consensus.NewDPoSConsensus(blockchain)
 			blockchainManager.Consensuses[chainId] = consensus
-			go consensus.Run()
+			go consensus.StableRun()
 		default:
 			consensus := consensus.NewDPoSConsensus(blockchain)
 			blockchainManager.Consensuses[chainId] = consensus
-			go consensus.Run()
+			go consensus.StableRun()
 		}
 	}
 }

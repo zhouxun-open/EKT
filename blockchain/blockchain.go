@@ -165,7 +165,7 @@ func (blockchain *BlockChain) SaveBlock(block *Block) {
 		db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
 		db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
 		blockchain.SetLastBlock(block)
-		log.Info("Save block to database succeed.")
+		log.Info("Saved block to database.")
 	}
 }
 
