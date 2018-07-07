@@ -202,14 +202,14 @@ func (dpos DPOSConsensus) PeerTurn(ctxlog *ctxlog.ContextLog, packTime, lastBloc
 	intervalInFact, interval := int(packTime-lastBlockTime), int(dpos.Blockchain.BlockInterval/1e6)
 
 	// 如果打包时间和上次打包时间间隔大于一个round的时间，则要求当前节点是上个区块的下一个节点
-	if intervalInFact >= interval*round.Len() {
-		ctxlog.Log("Time More than a round", true)
-		if round.NextPeerRight(peer, dpos.Blockchain.GetLastBlock().CurrentHash) {
-			return true
-		} else {
-			return false
-		}
-	} else {
+	//if intervalInFact >= interval*round.Len() {
+	//	ctxlog.Log("Time More than a round", true)
+	//	if round.NextPeerRight(peer, dpos.Blockchain.GetLastBlock().CurrentHash) {
+	//		return true
+	//	} else {
+	//		return false
+	//	}
+	//} else {
 		// n表示距离上次打包的间隔
 		n := int(intervalInFact) / int(interval)
 		remainder := int(intervalInFact) % int(interval)
@@ -238,8 +238,8 @@ func (dpos DPOSConsensus) PeerTurn(ctxlog *ctxlog.ContextLog, packTime, lastBloc
 		} else {
 			return false
 		}
-	}
-	return false
+	//}
+	//return false
 }
 
 // 用于委托人线程判断当前节点是否有打包权限
