@@ -31,28 +31,28 @@ func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func userNonce(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	ctxLog:=ctxlog.NewContextLog("Get user last transaction nonce")
+	ctxLog := ctxlog.NewContextLog("Get user last transaction nonce")
 	defer ctxLog.Finish()
 
 	hexAddress := req.MustGetString("address")
-	address, err:=hex.DecodeString(hexAddress)
-	if err!=nil {
+	address, err := hex.DecodeString(hexAddress)
+	if err != nil {
 		return x_resp.Return(nil, err)
 	}
 	ctxLog.Log("address", hexAddress)
 
 	// get user nonce by user stat tree
-	account, err:=blockchain_manager.GetMainChain().GetLastBlock().GetAccount(ctxLog, address)
-	if err!=nil {
+	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(ctxLog, address)
+	if err != nil {
 		return x_resp.Return(nil, err)
 	}
-	nonce:=account.GetNonce()
+	nonce := account.GetNonce()
 
-	txs:=blockchain_manager.GetMainChain().Pool.GetTxs(hexAddress)
-	if txs!=nil &&len(txs) > 0 {
-		for _, tx:=range txs {
-			if tx.Nonce> nonce {
-				nonce=tx.Nonce
+	txs := blockchain_manager.GetMainChain().Pool.GetTxs(hexAddress)
+	if txs != nil && len(txs) > 0 {
+		for _, tx := range txs {
+			if tx.Nonce > nonce {
+				nonce = tx.Nonce
 			}
 		}
 	}
