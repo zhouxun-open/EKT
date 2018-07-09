@@ -125,6 +125,10 @@ def clean():
 def date():
     SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py date' % REMOTE_CONF_DIR)
 
+# exec cmd in ekt8 container
+def exec_cmd(cmd):
+    SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py exec_cmd "%s"' % (REMOTE_CONF_DIR, cmd))
+
 def upload(src, dst):
     for addr in HOST_ADDR:
         with Connection(addr) as conn:
@@ -134,6 +138,8 @@ def run_cmd(cmd):
     for addr in HOST_ADDR:
         with Connection(addr) as conn:
             conn.run(cmd)
+
+
 
 
 if __name__ == '__main__':
