@@ -287,7 +287,7 @@ func (dpos *DPOSConsensus) startDelegateThread() {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						log.Crit("Panic occured, %v", r)
+						log.Crit("Panic occured at delegate thread, %v", r)
 					}
 				}()
 				dpos.DelegateRun()
@@ -302,7 +302,7 @@ func (dpos *DPOSConsensus) startDelegateThread() {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						log.Crit("Panic occured, %v", r)
+						log.Crit("Panic occured at delegate sync thread, %v", r)
 					}
 				}()
 				dpos.dposSync()

@@ -36,7 +36,7 @@ func (round *Round) Clone() *Round {
 
 func (round *Round) Shuffle(random int) *Round {
 	newRound := round.Clone()
-	for high := newRound.Len(); high > 0; high-- {
+	for high := newRound.Len() - 1; high > 0; high-- {
 		low := random % high
 		if random%(low+high)%2 == 1 {
 			newRound.Swap(high, low)
