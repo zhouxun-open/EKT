@@ -4,8 +4,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"sort"
-
 	"xserver/x_http/x_resp"
 
 	"sync"
@@ -16,10 +14,10 @@ import (
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/i_consensus"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/p2p"
 	"github.com/EducationEKT/EKT/param"
+	"github.com/EducationEKT/EKT/round"
 	"github.com/EducationEKT/EKT/util"
 )
 
@@ -176,17 +174,17 @@ func (dpos DPOSConsensus) PeerTurn(ctxlog *ctxlog.ContextLog, packTime, lastBloc
 	log.Info("Validating peer has the right to pack block.")
 
 	// 如果当前高度为0，则区块中不包含round，否则从block中取round
-	round := &i_consensus.Round{
+	_round := &round.Round{
 		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
 	if dpos.Blockchain.GetLastHeight() > 0 {
-		round = dpos.Blockchain.GetLastBlock().GetRound()
+		_round = dpos.Blockchain.GetLastBlock().GetRound()
 	}
 
 	// 如果当前高度为0，则需要第一个节点进行打包
 	if dpos.Blockchain.GetLastHeight() == 0 {
-		if round.Peers[0].Equal(peer) {
+		if _round.Peers[0].Equal(peer) {
 			return true
 		} else {
 			return false
@@ -201,15 +199,6 @@ func (dpos DPOSConsensus) PeerTurn(ctxlog *ctxlog.ContextLog, packTime, lastBloc
 
 	intervalInFact, interval := int(packTime-lastBlockTime), int(dpos.Blockchain.BlockInterval/1e6)
 
-	// 如果打包时间和上次打包时间间隔大于一个round的时间，则要求当前节点是上个区块的下一个节点
-	//if intervalInFact >= interval*round.Len() {
-	//	ctxlog.Log("Time More than a round", true)
-	//	if round.NextPeerRight(peer, dpos.Blockchain.GetLastBlock().CurrentHash) {
-	//		return true
-	//	} else {
-	//		return false
-	//	}
-	//} else {
 	// n表示距离上次打包的间隔
 	n := int(intervalInFact) / int(interval)
 	remainder := int(intervalInFact) % int(interval)
@@ -226,20 +215,18 @@ func (dpos DPOSConsensus) PeerTurn(ctxlog *ctxlog.ContextLog, packTime, lastBloc
 	n++
 
 	// 如果超过了当前round，则重新计算当前round
-	if round.CurrentIndex+n >= round.Len() {
-		round = round.NewRandom(dpos.Blockchain.GetLastBlock().CurrentHash)
-		sort.Sort(round)
+	nextRound := _round.Clone()
+	if _round.CurrentIndex+n >= _round.Len() {
+		nextRound = _round.Shuffle(round.GetRandomByHash(dpos.Blockchain.GetLastBlock().CurrentHash))
 	}
 
 	// 判断peer是否拥有打包权限
-	round.CurrentIndex = (round.CurrentIndex + n) % round.Len()
-	if round.Peers[round.CurrentIndex].Equal(peer) {
+	nextRound.CurrentIndex = (_round.CurrentIndex + n) % _round.Len()
+	if _round.Peers[_round.CurrentIndex].Equal(peer) {
 		return true
 	} else {
 		return false
 	}
-	//}
-	//return false
 }
 
 // 用于委托人线程判断当前节点是否有打包权限
@@ -362,7 +349,24 @@ func (dpos DPOSConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 
 	// 如果block不为空，说明打包成功，签名后转发给其他节点
 	if block != nil {
-		block.Round = i_consensus.MyRound(lastBlock.Round, lastBlock.CurrentHash)
+		// dpos将当前round的信息更新到区块上
+		if lastBlock.Round == nil {
+			block.Round = &round.Round{
+				Peers:        param.MainChainDPosNode,
+				CurrentIndex: 0,
+			}
+		} else {
+			duration := block.Timestamp - lastBlock.Timestamp
+			intervalMs := int64(dpos.Blockchain.BlockInterval) / 1e6
+			// 判断是否需要进入下一个round
+			if int64(lastBlock.Round.MyIndex()-lastBlock.Round.CurrentIndex)*intervalMs < duration {
+				block.Round = lastBlock.Round.Shuffle(round.GetRandomByHash(lastBlock.CurrentHash))
+			} else {
+				block.Round = lastBlock.Round
+			}
+			block.Round.CurrentIndex = block.Round.MyIndex()
+		}
+
 		// 计算hash
 		block.CaculateHash()
 		hash := hex.EncodeToString(block.CurrentHash)
@@ -452,7 +456,7 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 	if dpos.Blockchain.GetLastHeight() >= height {
 		return true
 	}
-	round := &i_consensus.Round{
+	round := &round.Round{
 		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
@@ -496,7 +500,7 @@ func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 	}
 	dpos.VoteResults.Insert(vote)
 
-	round := &i_consensus.Round{
+	round := &round.Round{
 		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}
@@ -541,9 +545,9 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 			dpos.Blockchain.NotifyPool(block)
 			dpos.Blockchain.SaveBlock(block)
 			blockchain.BlockRecorder.SetStatus(hex.EncodeToString(block.CurrentHash), 200)
-			if block.GetRound().NextPeerRight(conf.EKTConfig.Node, block.CurrentHash) {
-				ctxlog := ctxlog.NewContextLog("pack from vote result")
-				defer ctxlog.Finish()
+			ctxlog := ctxlog.NewContextLog("pack from vote result")
+			defer ctxlog.Finish()
+			if dpos.IsMyTurn(ctxlog) {
 				dpos.Pack(ctxlog)
 			}
 		} else if status == 200 {
@@ -564,7 +568,7 @@ func (dpos DPOSConsensus) ValidateVotes(votes blockchain.Votes) bool {
 		return false
 	}
 
-	round := &i_consensus.Round{
+	round := &round.Round{
 		Peers:        param.MainChainDPosNode,
 		CurrentIndex: -1,
 	}

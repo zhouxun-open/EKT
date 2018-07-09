@@ -37,8 +37,8 @@ func (peer Peer) IsAlive() bool {
 	return true
 }
 
-func (peer Peer) Equal(peer_ Peer) bool {
-	if strings.EqualFold(peer.Address, peer_.Address) && peer.Port == peer_.Port && peer.AddressVersion == peer_.AddressVersion {
+func (peer Peer) Equal(_peer Peer) bool {
+	if strings.EqualFold(peer.PeerId, _peer.PeerId) && strings.EqualFold(peer.Address, _peer.Address) && peer.Port == _peer.Port && peer.AddressVersion == _peer.AddressVersion {
 		return true
 	}
 	return false
