@@ -17,36 +17,36 @@ import (
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/event"
-	"github.com/EducationEKT/EKT/i_consensus"
 	"github.com/EducationEKT/EKT/log"
+	"github.com/EducationEKT/EKT/round"
 )
 
 var currentBlock *Block = nil
 
 type Block struct {
-	Height       int64              `json:"height"`
-	Timestamp    int64              `json:"timestamp"`
-	Nonce        int64              `json:"nonce"`
-	Fee          int64              `json:"fee"`
-	TotalFee     int64              `json:"totalFee"`
-	PreviousHash common.HexBytes    `json:"previousHash"`
-	CurrentHash  common.HexBytes    `json:"currentHash"`
-	Signature    string             `json:"signature"`
-	BlockBody    *BlockBody         `json:"-"`
-	Body         common.HexBytes    `json:"body"`
-	Round        *i_consensus.Round `json:"round"`
-	Locker       sync.RWMutex       `json:"-"`
-	StatTree     *MPTPlus.MTP       `json:"-"`
-	StatRoot     common.HexBytes    `json:"statRoot"`
-	TxTree       *MPTPlus.MTP       `json:"-"`
-	TxRoot       common.HexBytes    `json:"txRoot"`
-	EventTree    *MPTPlus.MTP       `json:"-"`
-	EventRoot    common.HexBytes    `json:"eventRoot"`
-	TokenTree    *MPTPlus.MTP       `json:"-"`
-	TokenRoot    common.HexBytes    `json:"tokenRoot"`
+	Height       int64           `json:"height"`
+	Timestamp    int64           `json:"timestamp"`
+	Nonce        int64           `json:"nonce"`
+	Fee          int64           `json:"fee"`
+	TotalFee     int64           `json:"totalFee"`
+	PreviousHash common.HexBytes `json:"previousHash"`
+	CurrentHash  common.HexBytes `json:"currentHash"`
+	Signature    string          `json:"signature"`
+	BlockBody    *BlockBody      `json:"-"`
+	Body         common.HexBytes `json:"body"`
+	Round        *round.Round    `json:"round"`
+	Locker       sync.RWMutex    `json:"-"`
+	StatTree     *MPTPlus.MTP    `json:"-"`
+	StatRoot     common.HexBytes `json:"statRoot"`
+	TxTree       *MPTPlus.MTP    `json:"-"`
+	TxRoot       common.HexBytes `json:"txRoot"`
+	EventTree    *MPTPlus.MTP    `json:"-"`
+	EventRoot    common.HexBytes `json:"eventRoot"`
+	TokenTree    *MPTPlus.MTP    `json:"-"`
+	TokenRoot    common.HexBytes `json:"tokenRoot"`
 }
 
-func (block Block) GetRound() *i_consensus.Round {
+func (block Block) GetRound() *round.Round {
 	return block.Round.Clone()
 }
 
