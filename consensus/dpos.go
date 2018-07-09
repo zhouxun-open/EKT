@@ -210,34 +210,34 @@ func (dpos DPOSConsensus) PeerTurn(ctxlog *ctxlog.ContextLog, packTime, lastBloc
 	//		return false
 	//	}
 	//} else {
-		// n表示距离上次打包的间隔
-		n := int(intervalInFact) / int(interval)
-		remainder := int(intervalInFact) % int(interval)
-		if remainder > int(interval)/2 {
-			n++
-		}
-
-		// 如果距离上次打包在一个interval之内，返回false
-		if n == 0 {
-			return false
-		}
-
-		// 超过n个interval则需要第n+1个节点进行打包
+	// n表示距离上次打包的间隔
+	n := int(intervalInFact) / int(interval)
+	remainder := int(intervalInFact) % int(interval)
+	if remainder > int(interval)/2 {
 		n++
+	}
 
-		// 如果超过了当前round，则重新计算当前round
-		if round.CurrentIndex+n >= round.Len() {
-			round = round.NewRandom(dpos.Blockchain.GetLastBlock().CurrentHash)
-			sort.Sort(round)
-		}
+	// 如果距离上次打包在一个interval之内，返回false
+	if n == 0 {
+		return false
+	}
 
-		// 判断peer是否拥有打包权限
-		round.CurrentIndex = (round.CurrentIndex + n) % round.Len()
-		if round.Peers[round.CurrentIndex].Equal(peer) {
-			return true
-		} else {
-			return false
-		}
+	// 超过n个interval则需要第n+1个节点进行打包
+	n++
+
+	// 如果超过了当前round，则重新计算当前round
+	if round.CurrentIndex+n >= round.Len() {
+		round = round.NewRandom(dpos.Blockchain.GetLastBlock().CurrentHash)
+		sort.Sort(round)
+	}
+
+	// 判断peer是否拥有打包权限
+	round.CurrentIndex = (round.CurrentIndex + n) % round.Len()
+	if round.Peers[round.CurrentIndex].Equal(peer) {
+		return true
+	} else {
+		return false
+	}
 	//}
 	//return false
 }

@@ -14,6 +14,8 @@ import (
 	"github.com/EducationEKT/EKT/param"
 	"github.com/EducationEKT/EKT/util"
 
+	"encoding/hex"
+	"github.com/EducationEKT/EKT/blockchain_manager"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -22,6 +24,41 @@ import (
 
 func init() {
 	x_router.Post("/transaction/api/newTransaction", broadcastTx, newTransaction)
+	x_router.Get("/transaction/api/status", txStatus)
+}
+
+func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	ctxlog := ctxlog.NewContextLog("get transaction status")
+	defer ctxlog.Finish()
+
+	// get transaction by transactionId
+	transactionId := req.MustGetString("txId")
+	txId, err := hex.DecodeString(transactionId)
+	if err != nil {
+		return x_resp.Return(nil, err)
+	}
+	if tx := common.GetTransaction(txId); tx == nil {
+		synchronizeTransaction(txId)
+	}
+	tx := common.GetTransaction(txId)
+	if tx == nil {
+		return x_resp.Return("error transaction not found", nil)
+	}
+
+	// get account by address
+	from, _ := hex.DecodeString(tx.From)
+	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(ctxlog, from)
+	if err != nil {
+		return x_resp.Return(nil, err)
+	}
+
+	// transaction has been processed
+	if account.Nonce >= tx.Nonce {
+		// 200 = processed
+		return x_resp.Return(200, nil)
+	}
+	// 100 = pending
+	return x_resp.Return(100, nil)
 }
 
 func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -63,4 +100,12 @@ func broadcastTx(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		}
 	}
 	return nil, nil
+}
+
+func synchronizeTransaction(txId []byte) {
+	for _, peer := range param.MainChainDPosNode {
+		if value, err := peer.GetDBValue(txId); err != nil {
+			db.GetDBInst().Set(txId, value)
+		}
+	}
 }
