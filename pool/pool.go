@@ -44,6 +44,29 @@ func NewPool() *Pool {
 	}
 }
 
+// 根据address获取该地址pending/queue的交易信息
+func (pool Pool) GetTxs(address string) UserTransactions {
+	txs, exist := pool.txBlock[address]
+	if !exist {
+		txs = make([]*common.Transaction, 0)
+	}
+	if tx, exist := pool.txReady[address]; exist {
+		txs = append(txs, tx)
+	}
+	return txs
+}
+
+func (pool Pool) GetEvents(address string) UserEvents {
+	events, exist := pool.eventBlock[address]
+	if !exist {
+		events = make([]event.Event, 0)
+	}
+	if event, exist := pool.eventReady[address]; exist {
+		events = append(events, event)
+	}
+	return events
+}
+
 func (pool Pool) ParkEvent(evt event.Event, reason int) {
 	if Ready == reason {
 		pool.eventReady[evt.EventParam.Id()] = evt
