@@ -9,6 +9,9 @@ func BytesToInt(b []byte) int {
 	bytesBuffer := bytes.NewBuffer(b)
 	var tmp int32
 	binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+	if tmp < 0 {
+		tmp = -tmp
+	}
 	return int(tmp)
 }
 
