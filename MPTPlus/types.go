@@ -15,8 +15,8 @@ import (
 *如果当前节点不是叶子节点,则Sons的长度大于等于1,存储的是子节点的Hash值和PathValue
  */
 type TrieSonInfo struct {
-	Hash      string
-	PathValue string
+	Hash      string `json:"hash"`
+	PathValue string `json:"pathValue"`
 }
 
 /*
@@ -24,10 +24,10 @@ type TrieSonInfo struct {
 *strings.Join(pathValue,"")就是用户要存储的key
  */
 type TrieNode struct {
-	Sons      SortedSon
-	Leaf      bool
-	Root      bool
-	PathValue string
+	Sons      SortedSon `json:"sons"`
+	Leaf      bool      `json:"leaf"`
+	Root      bool      `json:"root"`
+	PathValue string    `json:"pathValue"`
 }
 
 type MTP struct {

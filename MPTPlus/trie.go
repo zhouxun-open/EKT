@@ -84,9 +84,6 @@ func (this *MTP) ContainsKey(key []byte) bool {
 }
 
 func (this *MTP) Update(key, value []byte) error {
-	if !this.ContainsKey(key) {
-		return errors.New("Not Exist")
-	}
 	parentHashes, _, err := this.FindParents(key)
 	if err != nil {
 		return nil
