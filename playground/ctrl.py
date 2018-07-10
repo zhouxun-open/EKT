@@ -50,6 +50,12 @@ def date():
     for name in cs:
         os.system('docker exec %s date' % name)
 
+def exec_cmd(cmd):
+    cs = get_containers()
+    for name in cs:
+        os.system('docker exec %s %s' % (name, cmd))
+
+
 if __name__ == '__main__':
     import sys
     import inspect

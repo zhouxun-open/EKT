@@ -11,8 +11,8 @@ import (
 )
 
 func init() {
-	x_router.Get("/user/api/info", userInfo)
-	x_router.Get("/user/api/lastTxNonce", userNonce)
+	x_router.Get("/account/api/info", userInfo)
+	x_router.Get("/account/api/nonce", userNonce)
 }
 
 func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
