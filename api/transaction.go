@@ -94,7 +94,7 @@ func broadcastTx(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if !broadcasted {
 		for _, peer := range param.MainChainDPosNode {
 			if !peer.Equal(conf.EKTConfig.Node) {
-				url := fmt.Sprint(`http://%s:%d/transaction/api/newTransaction`, peer.Address, peer.Port)
+				url := fmt.Sprintf(`http://%s:%d/transaction/api/newTransaction`, peer.Address, peer.Port)
 				util.HttpPost(url, req.Body)
 			}
 		}

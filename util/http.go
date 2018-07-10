@@ -25,10 +25,10 @@ func HttpPost(url string, body []byte) ([]byte, error) {
 	client := &http.Client{}
 	client.Timeout = 2 * time.Second
 	request, err := http.NewRequest("POST", url, bytes.NewReader(body))
-	request.Header["Content-Type"] = []string{"application/json"}
 	if err != nil {
 		return nil, err
 	}
+	request.Header["Content-Type"] = []string{"application/json"}
 	resp, err := client.Do(request)
 	if err != nil {
 		return nil, err
