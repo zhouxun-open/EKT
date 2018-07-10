@@ -1,7 +1,6 @@
 package blockchain
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 
 	"errors"
 
-	"github.com/EducationEKT/EKT/core/common"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
@@ -19,15 +17,7 @@ import (
 	"github.com/EducationEKT/EKT/pool"
 )
 
-var BackboneChainId []byte
-var BackboneChainDifficulty []byte
-var EKTTokenId []byte
-
-func init() {
-	BackboneChainId, _ = hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000001")
-	BackboneChainDifficulty = []byte("F")
-	EKTTokenId, _ = hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000001")
-}
+var BackboneChainId int64 = 1
 
 const (
 	BackboneConsensus     = i_consensus.DPOS
@@ -36,13 +26,12 @@ const (
 )
 
 const (
-	CurrentBlockKey = "CurrentBlockKey"
 	InitStatus      = 0
 	StartPackStatus = 100
 )
 
 type BlockChain struct {
-	ChainId       common.HexBytes
+	ChainId       int64
 	Consensus     i_consensus.ConsensusType
 	currentLocker sync.RWMutex
 	currentBlock  *Block
@@ -59,7 +48,7 @@ type BlockChain struct {
 	PackLock      sync.RWMutex
 }
 
-func NewBlockChain(chainId []byte, consensusType i_consensus.ConsensusType, fee int64, difficulty []byte, interval time.Duration) *BlockChain {
+func NewBlockChain(chainId int64, consensusType i_consensus.ConsensusType, fee int64, difficulty []byte, interval time.Duration) *BlockChain {
 	return &BlockChain{
 		ChainId:       chainId,
 		Consensus:     consensusType,
@@ -152,7 +141,7 @@ func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
 }
 
 func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockByHeight: _%s_%d`, hex.EncodeToString(blockchain.ChainId), height))
+	return []byte(fmt.Sprint(`GetBlockByHeight: _%d_%d`, blockchain.ChainId, height))
 }
 
 func (blockchain *BlockChain) SaveBlock(block *Block) {
@@ -189,10 +178,7 @@ func (blockchain *BlockChain) LastBlock() (*Block, error) {
 }
 
 func (blockchain *BlockChain) CurrentBlockKey() []byte {
-	buffer := bytes.Buffer{}
-	buffer.WriteString(CurrentBlockKey)
-	buffer.Write(blockchain.ChainId)
-	return buffer.Bytes()
+	return []byte(fmt.Sprintf("CurrentBlockKey_%d", blockchain.ChainId))
 }
 
 func (blockchain *BlockChain) PackTime() time.Duration {
