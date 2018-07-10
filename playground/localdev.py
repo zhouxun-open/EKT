@@ -5,20 +5,11 @@ import os
 import json
 import glob
 
-from fabric import Connection, SerialGroup
-
+DOCKER0_ADDR = '172.17.0.1'
 EKTCLI = './ecli'
 assert os.path.exists(EKTCLI), 'ecli not found'
-
-HOST_ADDR = [
-    '192.168.6.54',
-    '192.168.6.55',
-    '192.168.6.56',
-    '192.168.6.57',
-    '192.168.6.58',
-    '192.168.6.59'
-]
 NODE_NUM = 3
+LOCALDEV_PORT = 19993
 PORT_RANGE = [19990, 19991, 19992]
 assert len(PORT_RANGE) >= NODE_NUM, "port not enough"
 
@@ -39,7 +30,7 @@ def debug(msg):
 def _gen_peers(num):
     cmd = '%s node init' % EKTCLI
     ret = [] 
-    for _ in range(num):
+    for _ in range(num+1):
         data = os.popen(cmd).read().strip()
         lines = data.split('\n')
         if len(lines) != 2:
@@ -56,90 +47,66 @@ def _gen_peers(num):
     return ret
 
 def gen_conf():
-    num = len(HOST_ADDR) * NODE_NUM
+    num = NODE_NUM
     peers = _gen_peers(num)
     genesis_tpl = open('genesis.tpl').read()
     genesis_tpl = genesis_tpl.replace('{{.env}}', ENV)
     nets = []
     meta = open('peer_info.txt', 'wb')
-    for addr in HOST_ADDR:
-        for i in range(NODE_NUM):
-            peer = peers.pop(0)
-            pk, peerId = peer
-            port = PORT_RANGE[i]
-            my_conf = genesis_tpl
-            my_conf = my_conf.replace('{{.addr}}', addr)
-            my_conf = my_conf.replace('{{.port}}', str(port))
-            my_conf = my_conf.replace('{{.privateKey}}', pk)
-            my_conf = my_conf.replace('{{.peerId}}', peerId)
-            my_conf = my_conf.replace('{{.addrVer}}', str(ADDR_VERSION))
+    addr = DOCKER0_ADDR
+    PORT_RANGE.append(LOCALDEV_PORT)
+    for i in range(NODE_NUM+1):
+        peer = peers.pop(0)
+        pk, peerId = peer
+        port = PORT_RANGE[i]
+        my_conf = genesis_tpl
+        my_conf = my_conf.replace('{{.addr}}', addr)
+        my_conf = my_conf.replace('{{.port}}', str(port))
+        my_conf = my_conf.replace('{{.privateKey}}', pk)
+        my_conf = my_conf.replace('{{.peerId}}', peerId)
+        my_conf = my_conf.replace('{{.addrVer}}', str(ADDR_VERSION))
+        if i == NODE_NUM:
+            name = 'genesis.localdev.json'
+        else:
             name = '%s_%s.genesis.json' % (addr, port)
-            save_path = os.path.join(LOCAL_CONF_DIR, name)
-            open(save_path, 'wb').write(my_conf)
-            debug('gen %s' % save_path)
-            nets.append([peerId, addr, port, ADDR_VERSION, ''])
-            meta.write('%s %s %s %s\n' % (addr, port, pk, peerId))
-            meta.flush()
+        save_path = os.path.join(LOCAL_CONF_DIR, name)
+        open(save_path, 'wb').write(my_conf)
+        debug('gen %s' % save_path)
+        nets.append([peerId, addr, port, ADDR_VERSION, ''])
+        meta.write('%s %s %s %s\n' % (addr, port, pk, peerId))
+        meta.flush()
     save_path = os.path.join(LOCAL_CONF_DIR, '%s.json' % ENV)
     open(save_path, 'wb').write(json.dumps(nets, indent=2))
     meta.close()
     debug('gen %s' % save_path)
     debug('gen conf done.')
 
-def publish_conf():
-    netenv_conf = 'conf/%s.json' % ENV
-    for addr in HOST_ADDR:
-        with Connection(addr) as conn:
-            conn.run('mkdir -p %s' % REMOTE_CONF_DIR)
-            conn.put(netenv_conf, os.path.join(REMOTE_CONF_DIR, os.path.basename(netenv_conf)))
-            conn.put('ctrl.py', os.path.join(REMOTE_CONF_DIR, 'ctrl.py'))
-            genesis_confs = glob.glob('conf/%s_*.genesis.json' % addr)
-            for conf in genesis_confs:
-                conn.put(conf, os.path.join(REMOTE_CONF_DIR, os.path.basename(conf)))
-    debug('publish conf done.')
-        
 def deploy():
-    publish_conf()
-    SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py pull %s' % (REMOTE_CONF_DIR, IMAGE_URL))
+    os.system('cp ctrl.py %s' % LOCAL_CONF_DIR)
+    os.system('cd %s && python ctrl.py pull %s' % (LOCAL_CONF_DIR, IMAGE_URL))
     debug('pull image done.')
-    SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py run %s' % (REMOTE_CONF_DIR, IMAGE_URL))
+    os.system('cd %s && python ctrl.py run %s' % (LOCAL_CONF_DIR, IMAGE_URL))
     debug('run container done.')
 
 # stop ekt8 container
 def stop():
-    SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py stop' % REMOTE_CONF_DIR)
+    os.system('cd %s && python ctrl.py stop' % LOCAL_CONF_DIR)
 
 # start ekt8 container
 def start():
-    SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py start' % REMOTE_CONF_DIR)
+    os.system('cd %s && python ctrl.py start' % LOCAL_CONF_DIR)
 
 # restart ekt8 container
 def restart():
-    SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py restart' % REMOTE_CONF_DIR)
+    os.system('cd %s && python ctrl.py restart' % LOCAL_CONF_DIR)
 
 # clean ekt8 container
 def clean():
-    SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py clean' % REMOTE_CONF_DIR)
+    os.system('cd %s && python ctrl.py clean' % LOCAL_CONF_DIR)
 
 # show ekt8 container date
 def date():
-    SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py date' % REMOTE_CONF_DIR)
-
-# exec cmd in ekt8 container
-def exec_cmd(cmd):
-    SerialGroup(*HOST_ADDR).run('cd %s && python ctrl.py exec_cmd "%s"' % (REMOTE_CONF_DIR, cmd))
-
-def upload(src, dst):
-    for addr in HOST_ADDR:
-        with Connection(addr) as conn:
-            conn.put(src, dst)
-
-def run_cmd(cmd):
-    for addr in HOST_ADDR:
-        with Connection(addr) as conn:
-            conn.run(cmd)
-
-
+    os.system('cd %s && python ctrl.py date' % LOCAL_CONF_DIR)
 
 
 if __name__ == '__main__':
