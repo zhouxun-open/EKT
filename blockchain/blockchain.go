@@ -32,7 +32,7 @@ func init() {
 const (
 	BackboneConsensus     = i_consensus.DPOS
 	BackboneBlockInterval = 3 * time.Second
-	BackboneChainFee      = 210000
+	BackboneChainFee      = 510000
 )
 
 const (
@@ -207,6 +207,9 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 	// 打包10500个交易大概需要0.95秒
 	eventTimeout := time.After(blockchain.PackTime())
 	block := NewBlock(blockchain.GetLastBlock())
+	if block.Fee <= 0 {
+		block.Fee = blockchain.Fee
+	}
 	log.Info("Packing transaction and other events.")
 	for {
 		flag := false
