@@ -1,10 +1,10 @@
 package cmd
 
 import (
+	"bufio"
 	"encoding/hex"
 	"fmt"
 	"os"
-	"bufio"
 	"time"
 
 	"encoding/json"
@@ -12,8 +12,8 @@ import (
 	"github.com/EducationEKT/EKT/core/common"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/util"
+	"github.com/EducationEKT/xserver/x_http/x_resp"
 	"github.com/spf13/cobra"
-	"xserver-go/x_http/x_resp"
 )
 
 var TransactionCmd *cobra.Command
@@ -62,9 +62,9 @@ func SendTransaction(cmd *cobra.Command, args []string) {
 		input.Scan()
 		to := input.Text()*/
 	fmt.Print("Input your private key: ")
-        input := bufio.NewScanner(os.Stdin)
-        input.Scan()
-        privKey := input.Text()
+	input := bufio.NewScanner(os.Stdin)
+	input.Scan()
+	privKey := input.Text()
 	to := "ae0ec97c589ff55b856cbad8ba54586453ce2cd17cc202ee7fec30524f33d407"
 	tokenAddress := ""
 	priv, _ := hex.DecodeString(privKey)
@@ -105,7 +105,6 @@ func getAccountNonce(address string) int64 {
 	for _, node := range param.GetPeers() {
 		url := fmt.Sprintf(`http://%s:%d/account/api/nonce?address=%s`, node.Address, node.Port, address)
 		respBody, err := util.HttpGet(url)
-		fmt.Println(string(respBody))
 		if err != nil {
 			continue
 		} else {
