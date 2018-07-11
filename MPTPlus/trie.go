@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"encoding/hex"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
 )
@@ -29,10 +28,10 @@ func (this *MTP) GetInterfaceValue(key []byte, v interface{}) error {
 }
 
 func (this *MTP) GetValue(key []byte) (value []byte, err error) {
-	return this.GetValueByKey(hex.EncodeToString(key))
+	return this.GetValueByKey(key)
 }
 
-func (this *MTP) GetValueByKey(key string) (value []byte, err error) {
+func (this *MTP) GetValueByKey(key []byte) (value []byte, err error) {
 	this.Lock.RLock()
 	defer this.Lock.RUnlock()
 	hash := this.Root
@@ -50,13 +49,13 @@ func (this *MTP) GetValueByKey(key string) (value []byte, err error) {
 		}
 		if len(left) == 0 {
 			find = true
-			vHash, _ = hex.DecodeString(node.Sons[0].Hash)
+			vHash = node.Sons[0].Hash
 			break
 		}
 		exist := false
 		for _, son := range node.Sons {
 			if PrefixLength(son.PathValue, left) > 0 {
-				hash, _ = hex.DecodeString(son.Hash)
+				hash = son.Hash
 				exist = true
 				break
 			}
@@ -93,20 +92,20 @@ func (this *MTP) Update(key, value []byte) error {
 	if err != nil {
 		return err
 	}
-	leafNode.DeleteSon("")
-	leafNode.AddSon(hex.EncodeToString(valueHash), "")
+	leafNode.DeleteSon(nil)
+	leafNode.AddSon(valueHash, nil)
 	newHash, err := this.SaveNode(*leafNode)
 	pathValue := leafNode.PathValue
 	for i := len(parentHashes) - 2; i >= 0; i-- {
 		node, _ := this.GetNode(parentHashes[i])
 		node.DeleteSon(pathValue)
-		node.AddSon(hex.EncodeToString(newHash), pathValue)
+		node.AddSon(newHash, pathValue)
 		newHash, _ = this.SaveNode(*node)
 		pathValue = node.PathValue
 	}
 	rootNode, _ := this.GetNode(this.Root)
 	rootNode.DeleteSon(pathValue)
-	rootNode.AddSon(hex.EncodeToString(newHash), pathValue)
+	rootNode.AddSon(newHash, pathValue)
 	this.Root, err = this.SaveNode(*rootNode)
 	return err
 }
@@ -136,10 +135,10 @@ func (this *MTP) TryInsert(key, value []byte) error {
 	}
 	prefix := bytes.Join(prefixs, nil)
 	leafNode := TrieNode{
-		Sons:      []TrieSonInfo{TrieSonInfo{Hash: hex.EncodeToString(hash)}},
+		Sons:      []TrieSonInfo{TrieSonInfo{Hash: hash}},
 		Leaf:      true,
 		Root:      false,
-		PathValue: hex.EncodeToString(key[len(prefix):]),
+		PathValue: key[len(prefix):],
 	}
 	leafNodeHash, err := this.SaveNode(leafNode)
 	if err != nil {
@@ -152,16 +151,16 @@ func (this *MTP) TryInsert(key, value []byte) error {
 		currentNode, _ := this.GetNode(currentHash)
 		if len(currentNode.PathValue) > len(prefixs[i]) {
 			oldPrefix_ = currentNode.PathValue
-			newNode := TrieNode{Root: false, Leaf: false, PathValue: hex.EncodeToString(prefixs[i])}
+			newNode := TrieNode{Root: false, Leaf: false, PathValue: prefixs[i]}
 			currentNode.PathValue = currentNode.PathValue[len(prefixs[i]):]
 			newCHash, _ := this.SaveNode(*currentNode)
-			newNode.AddSon(hex.EncodeToString(newCHash), currentNode.PathValue)
-			newNode.AddSon(hex.EncodeToString(newHash_), newPrefix_)
+			newNode.AddSon(newCHash, currentNode.PathValue)
+			newNode.AddSon(newHash_, newPrefix_)
 			newHash_, _ = this.SaveNode(newNode)
 			newPrefix_ = newNode.PathValue
 		} else {
 			currentNode.DeleteSon(oldPrefix_)
-			currentNode.AddSon(hex.EncodeToString(newHash_), newPrefix_)
+			currentNode.AddSon(newHash_, newPrefix_)
 			newHash_, _ = this.SaveNode(*currentNode)
 			oldPrefix_, newPrefix_ = currentNode.PathValue, currentNode.PathValue
 		}
@@ -169,7 +168,7 @@ func (this *MTP) TryInsert(key, value []byte) error {
 
 	rootNode, _ := this.GetNode(this.Root)
 	rootNode.DeleteSon(oldPrefix_)
-	rootNode.AddSon(hex.EncodeToString(newHash_), newPrefix_)
+	rootNode.AddSon(newHash_, newPrefix_)
 	this.Root, _ = this.SaveNode(*rootNode)
 
 	return nil
@@ -185,16 +184,13 @@ func (this *MTP) FindParents(key []byte) (parentHashes [][]byte, prefixs [][]byt
 		}
 		exist := false
 		for _, son := range node.Sons {
-			if length := PrefixLength(hex.EncodeToString(left), son.PathValue); length > 0 {
-				hash, _ := hex.DecodeString(son.Hash)
+			if length := PrefixLength(left, son.PathValue); length > 0 {
+				hash := son.Hash
 				parentHashes = append(parentHashes, hash)
 				prefixs = append(prefixs, left[:length])
 				left = left[length:]
 				currentHash = hash
 				exist = true
-				if length < len(son.PathValue) {
-					return
-				}
 				break
 			}
 		}
@@ -230,7 +226,7 @@ func (this *MTP) SaveValue(value []byte) ([]byte, error) {
 }
 
 //返回公共前缀的长度
-func PrefixLength(a, b string) int {
+func PrefixLength(a, b []byte) int {
 	length := len(a)
 	if len(b) < length {
 		length = len(b)

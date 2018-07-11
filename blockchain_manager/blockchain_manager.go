@@ -55,10 +55,6 @@ func Init() {
 	}
 }
 
-func GetManagerInst() *BlockchainManager {
-	return blockchainManager
-}
-
 func GetMainChain() *blockchain.BlockChain {
 	return MainBlockChain
 }
