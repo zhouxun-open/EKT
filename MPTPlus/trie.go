@@ -192,9 +192,6 @@ func (this *MTP) FindParents(key []byte) (parentHashes [][]byte, prefixs [][]byt
 				left = left[length:]
 				currentHash = hash
 				exist = true
-				if length < len(son.PathValue) {
-					return
-				}
 				break
 			}
 		}
