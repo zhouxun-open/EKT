@@ -19,5 +19,5 @@ func GetPeers() []p2p.Peer {
 	} else if Mainnet {
 		return param.MainNet
 	}
-	panic("Env is needed.")
+	return param.LocalNet
 }
