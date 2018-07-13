@@ -95,7 +95,7 @@ func (node *TrieNode) DeleteSon(pathValue []byte) {
 		return
 	}
 	for i, son := range node.Sons {
-		if bytes.EqualFold(son.PathValue, pathValue) {
+		if bytes.EqualFold(son.PathValue[:], pathValue) {
 			node.Sons = append(node.Sons[:i], node.Sons[i+1:]...)
 		}
 	}
