@@ -153,7 +153,8 @@ func (block *Block) NewTransaction(log *ctxlog.ContextLog, tx *common.Transactio
 		if account.GetAmount() < tx.Amount+fee {
 			txResult = common.NewTransactionResult(tx, fee, false, "no enough gas")
 		} else {
-			account.ReduceAmount(tx.Amount)
+			log.Log("success", true)
+			account.ReduceAmount(tx.Amount + fee)
 			recieverAccount.AddAmount(tx.Amount)
 			block.StatTree.MustInsert(fromAddress, account.ToBytes())
 			block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())

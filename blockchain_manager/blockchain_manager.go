@@ -1,7 +1,6 @@
 package blockchain_manager
 
 import (
-	"encoding/hex"
 	"encoding/json"
 
 	"github.com/EducationEKT/EKT/blockchain"
@@ -20,16 +19,16 @@ var MainBlockChainConsensus *consensus.DPOSConsensus
 var blockchainManager *BlockchainManager
 
 type BlockchainManager struct {
-	Blockchains map[string]*blockchain.BlockChain
-	Consensuses map[string]i_consensus.Consensus
+	Blockchains map[int64]*blockchain.BlockChain
+	Consensuses map[int64]i_consensus.Consensus
 }
 
 func Init() {
 	blockchainManager = &BlockchainManager{
-		Blockchains: make(map[string]*blockchain.BlockChain),
-		Consensuses: make(map[string]i_consensus.Consensus),
+		Blockchains: make(map[int64]*blockchain.BlockChain),
+		Consensuses: make(map[int64]i_consensus.Consensus),
 	}
-	MainBlockChain = blockchain.NewBlockChain(blockchain.BackboneChainId, blockchain.BackboneConsensus, blockchain.BackboneChainFee, blockchain.BackboneChainDifficulty, blockchain.BackboneBlockInterval)
+	MainBlockChain = blockchain.NewBlockChain(blockchain.BackboneChainId, blockchain.BackboneConsensus, blockchain.BackboneChainFee, nil, blockchain.BackboneBlockInterval)
 	MainBlockChainConsensus = consensus.NewDPoSConsensus(MainBlockChain)
 	go MainBlockChainConsensus.StableRun()
 	value, err := db.GetDBInst().Get([]byte(BlockchainManagerDBKey))
@@ -41,24 +40,19 @@ func Init() {
 	if err != nil {
 		return
 	}
-	for _, blockchain := range blockchains {
-		chainId := hex.EncodeToString(blockchain.ChainId)
-		blockchainManager.Blockchains[chainId] = blockchain
-		switch blockchain.Consensus {
+	for _, bc := range blockchains {
+		blockchainManager.Blockchains[bc.ChainId] = bc
+		switch bc.Consensus {
 		case i_consensus.DPOS:
-			consensus := consensus.NewDPoSConsensus(blockchain)
-			blockchainManager.Consensuses[chainId] = consensus
+			consensus := consensus.NewDPoSConsensus(bc)
+			blockchainManager.Consensuses[bc.ChainId] = consensus
 			go consensus.StableRun()
 		default:
-			consensus := consensus.NewDPoSConsensus(blockchain)
-			blockchainManager.Consensuses[chainId] = consensus
+			consensus := consensus.NewDPoSConsensus(bc)
+			blockchainManager.Consensuses[bc.ChainId] = consensus
 			go consensus.StableRun()
 		}
 	}
-}
-
-func GetManagerInst() *BlockchainManager {
-	return blockchainManager
 }
 
 func GetMainChain() *blockchain.BlockChain {

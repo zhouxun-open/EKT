@@ -21,7 +21,7 @@ func init() {
 }
 
 type BlockVote struct {
-	BlockchainId []byte   `json:"blockchainId"`
+	BlockchainId int64    `json:"blockchainId"`
 	BlockHash    []byte   `json:"blockHash"`
 	BlockHeight  int64    `json:"blockHeight"`
 	VoteResult   bool     `json:"voteResult"`

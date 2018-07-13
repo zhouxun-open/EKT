@@ -7,7 +7,6 @@ import (
 
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/p2p"
 )
 
 var DB db.LevelDB
@@ -29,6 +28,10 @@ func (this *MTP) GetInterfaceValue(key []byte, v interface{}) error {
 }
 
 func (this *MTP) GetValue(key []byte) (value []byte, err error) {
+	return this.GetValueByKey(key)
+}
+
+func (this *MTP) GetValueByKey(key []byte) (value []byte, err error) {
 	this.Lock.RLock()
 	defer this.Lock.RUnlock()
 	hash := this.Root
@@ -80,9 +83,6 @@ func (this *MTP) ContainsKey(key []byte) bool {
 }
 
 func (this *MTP) Update(key, value []byte) error {
-	if !this.ContainsKey(key) {
-		return errors.New("Not Exist")
-	}
 	parentHashes, _, err := this.FindParents(key)
 	if err != nil {
 		return nil
@@ -92,8 +92,8 @@ func (this *MTP) Update(key, value []byte) error {
 	if err != nil {
 		return err
 	}
-	leafNode.DeleteSon([]byte(""))
-	leafNode.AddSon(valueHash, []byte(""))
+	leafNode.DeleteSon(nil)
+	leafNode.AddSon(valueHash, nil)
 	newHash, err := this.SaveNode(*leafNode)
 	pathValue := leafNode.PathValue
 	for i := len(parentHashes) - 2; i >= 0; i-- {
@@ -108,34 +108,6 @@ func (this *MTP) Update(key, value []byte) error {
 	rootNode.AddSon(newHash, pathValue)
 	this.Root, err = this.SaveNode(*rootNode)
 	return err
-}
-
-func SyncDB(key []byte, peers p2p.Peers, leaf bool) {
-	if _, err := db.GetDBInst().Get(key); err != nil {
-		for _, peer := range peers {
-			value, err := peer.GetDBValue(key)
-			if err != nil {
-				continue
-			}
-			if crypto.Validate(value, key) != nil {
-				continue
-			}
-			db.GetDBInst().Set(key, value)
-			if !leaf {
-				var node TrieNode
-				err = json.Unmarshal(value, &node)
-				if err != nil {
-					continue
-				}
-				if len(node.Sons) > 0 {
-					for _, son := range node.Sons {
-						go SyncDB(son.Hash, peers, node.Leaf)
-					}
-				}
-			}
-			break
-		}
-	}
 }
 
 /**
@@ -213,14 +185,12 @@ func (this *MTP) FindParents(key []byte) (parentHashes [][]byte, prefixs [][]byt
 		exist := false
 		for _, son := range node.Sons {
 			if length := PrefixLength(left, son.PathValue); length > 0 {
-				parentHashes = append(parentHashes, son.Hash)
+				hash := son.Hash
+				parentHashes = append(parentHashes, hash)
 				prefixs = append(prefixs, left[:length])
 				left = left[length:]
-				currentHash = son.Hash
+				currentHash = hash
 				exist = true
-				if length < len(son.PathValue) {
-					return
-				}
 				break
 			}
 		}

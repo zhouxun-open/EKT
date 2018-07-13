@@ -1,10 +1,10 @@
 package MPTPlus
 
 import (
-	"bytes"
 	"sort"
 	"sync"
 
+	"bytes"
 	"github.com/EducationEKT/EKT/core/common"
 	"github.com/EducationEKT/EKT/db"
 )
@@ -15,8 +15,8 @@ import (
 *如果当前节点不是叶子节点,则Sons的长度大于等于1,存储的是子节点的Hash值和PathValue
  */
 type TrieSonInfo struct {
-	Hash      common.HexBytes
-	PathValue common.HexBytes
+	Hash      common.HexBytes `json:"hash"`
+	PathValue common.HexBytes `json:"pathValue"`
 }
 
 /*
@@ -24,10 +24,10 @@ type TrieSonInfo struct {
 *strings.Join(pathValue,"")就是用户要存储的key
  */
 type TrieNode struct {
-	Sons      SortedSon
-	Leaf      bool
-	Root      bool
-	PathValue common.HexBytes
+	Sons      SortedSon       `json:"sons"`
+	Leaf      bool            `json:"leaf"`
+	Root      bool            `json:"root"`
+	PathValue common.HexBytes `json:"pathValue"`
 }
 
 type MTP struct {
@@ -82,7 +82,7 @@ func (node *TrieNode) AddSon(hash, pathValue []byte) {
 		node.Sons = *new(SortedSon)
 	}
 	for _, son := range node.Sons {
-		if bytes.Equal(son.PathValue, pathValue) {
+		if bytes.EqualFold(son.PathValue, pathValue) {
 			node.DeleteSon(pathValue)
 		}
 	}
@@ -95,7 +95,7 @@ func (node *TrieNode) DeleteSon(pathValue []byte) {
 		return
 	}
 	for i, son := range node.Sons {
-		if bytes.Equal(son.PathValue, pathValue) {
+		if bytes.EqualFold(son.PathValue, pathValue) {
 			node.Sons = append(node.Sons[:i], node.Sons[i+1:]...)
 		}
 	}
