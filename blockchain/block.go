@@ -153,6 +153,7 @@ func (block *Block) NewTransaction(log *ctxlog.ContextLog, tx *common.Transactio
 		if account.GetAmount() < tx.Amount+fee {
 			txResult = common.NewTransactionResult(tx, fee, false, "no enough gas")
 		} else {
+			block.TotalFee++
 			log.Log("success", true)
 			account.ReduceAmount(tx.Amount + fee)
 			recieverAccount.AddAmount(tx.Amount)
