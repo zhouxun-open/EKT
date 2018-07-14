@@ -21,7 +21,7 @@ var BackboneChainId int64 = 1
 
 const (
 	BackboneConsensus     = i_consensus.DPOS
-	BackboneBlockInterval = 3 * time.Second
+	BackboneBlockInterval = 10 * time.Second
 	BackboneChainFee      = 510000
 )
 
@@ -207,6 +207,7 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			// 因为要进行以太坊ERC20的映射和冷钱包，因此一期不支持地址的申请和加密算法的替换，只能打包转账交易 和 token发行
 			tx := blockchain.Pool.FetchTx()
 			if tx != nil {
+				go blockchain.Pool.Notify(tx.TransactionId())
 				log := ctxlog.NewContextLog("BlockFromTxPool")
 				defer log.Finish()
 				log.Log("tx", tx)
@@ -219,7 +220,6 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 				log.Log("fee", fee)
 				log.Log("txResult", txResult)
 				log.Log("block.StatRoot_a", block.StatTree.Root)
-				blockchain.Pool.Notify(tx.TransactionId())
 				block.BlockBody.AddTxResult(*txResult)
 			}
 		}
