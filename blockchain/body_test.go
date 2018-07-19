@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/EducationEKT/EKT/event"
+	"github.com/EducationEKT/EKT/userevent"
 )
 
 func TestBlockBody_AddEventResult(t *testing.T) {
 	body := NewBlockBody(1)
-	eventResult := event.EventResult{
+	eventResult := userevent.EventResult{
 		EventId: "123",
 		Success: true,
 		Reason:  "",
 	}
 	body.AddEventResult(eventResult)
-	eventResult2 := event.EventResult{
+	eventResult2 := userevent.EventResult{
 		EventId: "122",
 		Success: false,
 		Reason:  "err sign",

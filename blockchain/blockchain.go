@@ -9,6 +9,7 @@ import (
 
 	"errors"
 
+	"github.com/EducationEKT/EKT/core/common"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
@@ -68,64 +69,64 @@ func NewBlockChain(chainId int64, consensusType i_consensus.ConsensusType, fee i
 	}
 }
 
-func (blockchain *BlockChain) GetLastBlock() *Block {
-	blockchain.currentLocker.RLock()
-	defer blockchain.currentLocker.RUnlock()
-	return blockchain.currentBlock
+func (chain *BlockChain) GetLastBlock() *Block {
+	chain.currentLocker.RLock()
+	defer chain.currentLocker.RUnlock()
+	return chain.currentBlock
 }
 
-func (blockchain *BlockChain) SetLastBlock(block *Block) {
-	blockchain.currentLocker.Lock()
-	defer blockchain.currentLocker.Unlock()
-	blockchain.currentBlock = block
-	blockchain.currentHeight = block.Height
+func (chain *BlockChain) SetLastBlock(block *Block) {
+	chain.currentLocker.Lock()
+	defer chain.currentLocker.Unlock()
+	chain.currentBlock = block
+	chain.currentHeight = block.Height
 }
 
-func (blockchain *BlockChain) GetLastHeight() int64 {
-	blockchain.currentLocker.RLock()
-	defer blockchain.currentLocker.RUnlock()
-	return blockchain.currentHeight
+func (chain *BlockChain) GetLastHeight() int64 {
+	chain.currentLocker.RLock()
+	defer chain.currentLocker.RUnlock()
+	return chain.currentHeight
 }
 
-func (blockchain *BlockChain) PackSignal(height int64) *Block {
-	blockchain.PackLock.Lock()
-	defer blockchain.PackLock.Unlock()
-	if blockchain.Status != StartPackStatus {
+func (chain *BlockChain) PackSignal(height int64) *Block {
+	chain.PackLock.Lock()
+	defer chain.PackLock.Unlock()
+	if chain.Status != StartPackStatus {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Crit("Panic while pack. %v", r)
 			}
-			blockchain.Status = InitStatus
+			chain.Status = InitStatus
 		}()
-		if !blockchain.PackHeightValidate(height) {
+		if !chain.PackHeightValidate(height) {
 			log.Info("This height is packed within an interval, return nil.")
 			return nil
 		}
-		log.Info("Start pack block at height %d .\n", blockchain.GetLastHeight()+1)
-		log.Debug("Start pack block at height %d .\n", blockchain.GetLastHeight()+1)
-		block := blockchain.WaitAndPack()
-		log.Info("Packed a block at height %d, block info: %s .\n", blockchain.GetLastHeight()+1, string(block.Bytes()))
-		log.Debug("Packed a block at height %d, block info: %s .\n", blockchain.GetLastHeight()+1, string(block.Bytes()))
+		log.Info("Start pack block at height %d .\n", chain.GetLastHeight()+1)
+		log.Debug("Start pack block at height %d .\n", chain.GetLastHeight()+1)
+		block := chain.WaitAndPack()
+		log.Info("Packed a block at height %d, block info: %s .\n", chain.GetLastHeight()+1, string(block.Bytes()))
+		log.Debug("Packed a block at height %d, block info: %s .\n", chain.GetLastHeight()+1, string(block.Bytes()))
 		return block
 	}
 	return nil
 }
 
-func (blockchain *BlockChain) PackHeightValidate(height int64) bool {
-	if blockchain.GetLastHeight()+1 != height {
+func (chain *BlockChain) PackHeightValidate(height int64) bool {
+	if chain.GetLastHeight()+1 != height {
 		return false
 	}
-	if !blockchain.BlockManager.GetBlockStatusByHeight(height, int64(blockchain.BlockInterval)) {
+	if !chain.BlockManager.GetBlockStatusByHeight(height, int64(chain.BlockInterval)) {
 		return false
 	}
 	return true
 }
 
-func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
-	if height > blockchain.GetLastHeight() {
+func (chain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
+	if height > chain.GetLastHeight() {
 		return nil, errors.New("Invalid height")
 	}
-	key := blockchain.GetBlockByHeightKey(height)
+	key := chain.GetBlockByHeightKey(height)
 	data, err := db.GetDBInst().Get(key)
 	if err != nil {
 		return nil, err
@@ -140,29 +141,29 @@ func (blockchain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
 	return block, err
 }
 
-func (blockchain *BlockChain) GetBlockByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockByHeight: _%d_%d`, blockchain.ChainId, height))
+func (chain *BlockChain) GetBlockByHeightKey(height int64) []byte {
+	return []byte(fmt.Sprint(`GetBlockByHeight: _%d_%d`, chain.ChainId, height))
 }
 
-func (blockchain *BlockChain) SaveBlock(block *Block) {
-	blockchain.Locker.Lock()
-	defer blockchain.Locker.Unlock()
-	if blockchain.GetLastHeight()+1 == block.Height {
+func (chain *BlockChain) SaveBlock(block *Block) {
+	chain.Locker.Lock()
+	defer chain.Locker.Unlock()
+	if chain.GetLastHeight()+1 == block.Height {
 		log.Info("Saving block to database.")
 		db.GetDBInst().Set(block.Hash(), block.Data())
 		data, _ := json.Marshal(block)
-		db.GetDBInst().Set(blockchain.GetBlockByHeightKey(block.Height), data)
-		db.GetDBInst().Set(blockchain.CurrentBlockKey(), data)
-		blockchain.SetLastBlock(block)
+		db.GetDBInst().Set(chain.GetBlockByHeightKey(block.Height), data)
+		db.GetDBInst().Set(chain.CurrentBlockKey(), data)
+		chain.SetLastBlock(block)
 		log.Info("Saved block to database.")
 	}
 }
 
-func (blockchain *BlockChain) LastBlock() (*Block, error) {
+func (chain *BlockChain) LastBlock() (*Block, error) {
 	var err error = nil
 	var block *Block
 	if currentBlock == nil {
-		key := blockchain.CurrentBlockKey()
+		key := chain.CurrentBlockKey()
 		data, err := db.GetDBInst().Get(key)
 		if err != nil {
 			return nil, err
@@ -177,24 +178,24 @@ func (blockchain *BlockChain) LastBlock() (*Block, error) {
 	return currentBlock, err
 }
 
-func (blockchain *BlockChain) CurrentBlockKey() []byte {
-	return []byte(fmt.Sprintf("CurrentBlockKey_%d", blockchain.ChainId))
+func (chain *BlockChain) CurrentBlockKey() []byte {
+	return []byte(fmt.Sprintf("CurrentBlockKey_%d", chain.ChainId))
 }
 
-func (blockchain *BlockChain) PackTime() time.Duration {
-	d := blockchain.BlockInterval / 3
-	if blockchain.BlockInterval > 3*time.Second {
-		d = blockchain.BlockInterval - 2*time.Second
+func (chain *BlockChain) PackTime() time.Duration {
+	d := chain.BlockInterval / 3
+	if chain.BlockInterval > 3*time.Second {
+		d = chain.BlockInterval - 2*time.Second
 	}
 	return d
 }
 
-func (blockchain *BlockChain) WaitAndPack() *Block {
+func (chain *BlockChain) WaitAndPack() *Block {
 	// 打包10500个交易大概需要0.95秒
-	eventTimeout := time.After(blockchain.PackTime())
-	block := NewBlock(blockchain.GetLastBlock())
+	eventTimeout := time.After(chain.PackTime())
+	block := NewBlock(chain.GetLastBlock())
 	if block.Fee <= 0 {
-		block.Fee = blockchain.Fee
+		block.Fee = chain.Fee
 	}
 	log.Info("Packing transaction and other events.")
 	for {
@@ -204,23 +205,15 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 			flag = true
 			break
 		default:
-			// 因为要进行以太坊ERC20的映射和冷钱包，因此一期不支持地址的申请和加密算法的替换，只能打包转账交易 和 token发行
-			tx := blockchain.Pool.FetchTx()
-			if tx != nil {
-				go blockchain.Pool.Notify(tx.TransactionId())
-				log := ctxlog.NewContextLog("BlockFromTxPool")
-				defer log.Finish()
-				log.Log("tx", tx)
-				log.Log("block.StatRoot_p", block.StatTree.Root)
-				fee := tx.Fee
-				if fee < block.Fee {
-					fee = block.Fee
+			events := chain.Pool.Fetch()
+			if len(events) > 0 {
+				for _, event := range events {
+					tx, ok := event.(common.Transaction)
+					if ok {
+						block.NewTransaction(tx, tx.Fee)
+						block.BlockBody.AddEvent(event)
+					}
 				}
-				txResult := block.NewTransaction(log, tx, fee)
-				log.Log("fee", fee)
-				log.Log("txResult", txResult)
-				log.Log("block.StatRoot_a", block.StatTree.Root)
-				block.BlockBody.AddTxResult(*txResult)
 			}
 		}
 		if flag {
@@ -235,25 +228,41 @@ func (blockchain *BlockChain) WaitAndPack() *Block {
 }
 
 // 当区块写入区块时，notify交易池，一些nonce比较大的交易可以进行打包
-func (blockchain *BlockChain) NotifyPool(block *Block) {
+func (chain *BlockChain) NotifyPool(block *Block) {
 	if block.BlockBody == nil {
 		return
 	}
-	// Notify transaction
-	if block.BlockBody.TxResults != nil && len(block.BlockBody.TxResults) > 0 {
-		for _, txResult := range block.BlockBody.TxResults {
-			blockchain.Pool.Notify(txResult.TxId)
+	block.BlockBody.Events.Range(func(key, value interface{}) bool {
+		address, ok1 := key.(string)
+		list, ok2 := value.([]string)
+		if ok1 && ok2 && len(list) > 0 {
+			for _, eventId := range list {
+				chain.Pool.Notify(address, eventId)
+			}
 		}
-	}
-	// Notify event
-	if block.BlockBody.EventResults != nil && len(block.BlockBody.EventResults) > 0 {
-		for _, eventResult := range block.BlockBody.EventResults {
-			blockchain.Pool.NotifyEvent(eventResult.EventId)
-		}
-	}
+		return true
+	})
 }
 
-func (blockchain *BlockChain) BlockFromPeer(ctxlog *ctxlog.ContextLog, block Block) bool {
+func (chain *BlockChain) NewTransaction(tx common.Transaction) bool {
+	block := chain.GetLastBlock()
+	account, err := block.GetAccount(tx.GetFrom())
+	if err != nil {
+		return false
+	}
+	if account.GetNonce() >= tx.GetNonce() {
+		return false
+	}
+	result := true
+	if account.GetNonce()+1 == tx.GetNonce() {
+		result = chain.Pool.Park(tx, pool.Ready)
+	} else {
+		result = chain.Pool.Park(tx, pool.Block)
+	}
+	return result
+}
+
+func (chain *BlockChain) BlockFromPeer(ctxlog *ctxlog.ContextLog, block Block) bool {
 	log.Info("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
 	if err := block.Validate(ctxlog); err != nil {
 		ctxlog.Log("InvalidReason", err.Error())
@@ -261,14 +270,14 @@ func (blockchain *BlockChain) BlockFromPeer(ctxlog *ctxlog.ContextLog, block Blo
 	}
 
 	// 1500是毫秒和纳秒的单位乘以2/3计算得来的
-	if time.Now().UnixNano()/1e6-block.Timestamp > int64(blockchain.BlockInterval/1500) {
+	if time.Now().UnixNano()/1e6-block.Timestamp > int64(chain.BlockInterval/1500) {
 		ctxlog.Log("Invalid timestamp", true)
-		log.Info("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(blockchain.BlockInterval/1500))
+		log.Info("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(chain.BlockInterval/1500))
 		log.Info("Block timestamp is more than 2/3 block interval, abort vote.")
 		return false
 	}
 
-	if !blockchain.GetLastBlock().ValidateNextBlock(block, blockchain.BlockInterval) {
+	if !chain.GetLastBlock().ValidateNextBlock(block, chain.BlockInterval) {
 		log.Info("This block from peer can not recover by last block, abort.")
 		return false
 	}
