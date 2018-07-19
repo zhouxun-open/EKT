@@ -23,7 +23,7 @@ func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
-	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(log, hexAddress)
+	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(hexAddress)
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
@@ -42,19 +42,15 @@ func userNonce(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	ctxLog.Log("address", hexAddress)
 
 	// get user nonce by user stat tree
-	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(ctxLog, address)
+	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(address)
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
 	nonce := account.GetNonce()
 
-	txs := blockchain_manager.GetMainChain().Pool.GetTxs(hexAddress)
-	if txs != nil && len(txs) > 0 {
-		for _, tx := range txs {
-			if tx.Nonce > nonce {
-				nonce = tx.Nonce
-			}
-		}
+	txs := blockchain_manager.GetMainChain().Pool.GetReadyEvents(hexAddress)
+	if len(txs) > 0 {
+		nonce = txs[len(txs)-1].GetNonce()
 	}
 
 	return x_resp.Return(nonce, nil)

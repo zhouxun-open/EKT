@@ -16,7 +16,6 @@ import (
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/event"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/round"
 )
@@ -40,8 +39,6 @@ type Block struct {
 	StatRoot     common.HexBytes `json:"statRoot"`
 	TxTree       *MPTPlus.MTP    `json:"-"`
 	TxRoot       common.HexBytes `json:"txRoot"`
-	EventTree    *MPTPlus.MTP    `json:"-"`
-	EventRoot    common.HexBytes `json:"eventRoot"`
 	TokenTree    *MPTPlus.MTP    `json:"-"`
 	TokenRoot    common.HexBytes `json:"tokenRoot"`
 }
@@ -64,8 +61,7 @@ func (block *Block) Data() []byte {
 	return []byte(fmt.Sprintf(
 		`{"height": %d, "timestamp": %d, "nonce": %d, "fee": %d, "totalFee": %d, "previousHash": "%s", "body": "%s", "round": %s, "statRoot": "%s", "txRoot": "%s", "eventRoot": "%s", "tokenRoot": "%s"}`,
 		block.Height, block.Timestamp, block.Nonce, block.Fee, block.TotalFee, hex.EncodeToString(block.PreviousHash), hex.EncodeToString(block.Body),
-		round, hex.EncodeToString(block.StatRoot), hex.EncodeToString(block.TxRoot),
-		hex.EncodeToString(block.EventRoot), hex.EncodeToString(block.TokenRoot),
+		round, hex.EncodeToString(block.StatRoot), hex.EncodeToString(block.TxRoot), hex.EncodeToString(block.TokenRoot),
 	))
 }
 
@@ -82,7 +78,7 @@ func (block *Block) NewNonce() {
 	block.Nonce++
 }
 
-func (block *Block) GetAccount(log *ctxlog.ContextLog, address []byte) (*common.Account, error) {
+func (block *Block) GetAccount(address []byte) (*common.Account, error) {
 	if block.StatTree == nil {
 		block.StatTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.StatRoot)
 	}
@@ -131,22 +127,19 @@ func (block *Block) newAccount(address []byte, pubKey []byte) {
 	block.UpdateMPTPlusRoot()
 }
 
-func (block *Block) NewTransaction(log *ctxlog.ContextLog, tx *common.Transaction, fee int64) *common.TxResult {
-	fromAddress, _ := hex.DecodeString(tx.From)
-	toAddress, _ := hex.DecodeString(tx.To)
-	account, _ := block.GetAccount(log, fromAddress)
-	recieverAccount, err := block.GetAccount(log, toAddress)
+func (block *Block) NewTransaction(tx common.Transaction, fee int64) *common.TxResult {
+	account, _ := block.GetAccount(tx.GetFrom())
+	recieverAccount, err := block.GetAccount(tx.GetTo())
 	if err != nil || nil == recieverAccount {
-		account_ := common.CreateAccount(hex.EncodeToString(toAddress), 0)
-		recieverAccount = &account_
+		*recieverAccount = common.CreateAccount(hex.EncodeToString(tx.GetTo()), 0)
 	}
-	log.Log("from", account)
-	log.Log("to", recieverAccount)
 	var txResult *common.TxResult
+
+	// 如果fee太少，默认使用系统最少值
 	if fee < block.Fee {
-		log.Log("fee<block.Fee", true)
-		return common.NewTransactionResult(tx, fee, false, "fee is too less")
+		fee = block.Fee
 	}
+
 	if tx.Nonce != account.Nonce+1 {
 		txResult = common.NewTransactionResult(tx, fee, false, "invalid nonce")
 	} else if tx.TokenAddress == "" {
@@ -154,11 +147,10 @@ func (block *Block) NewTransaction(log *ctxlog.ContextLog, tx *common.Transactio
 			txResult = common.NewTransactionResult(tx, fee, false, "no enough gas")
 		} else {
 			block.TotalFee++
-			log.Log("success", true)
 			account.ReduceAmount(tx.Amount + fee)
 			recieverAccount.AddAmount(tx.Amount)
-			block.StatTree.MustInsert(fromAddress, account.ToBytes())
-			block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+			block.StatTree.MustInsert(tx.GetFrom(), account.ToBytes())
+			block.StatTree.MustInsert(tx.GetTo(), recieverAccount.ToBytes())
 			txResult = common.NewTransactionResult(tx, fee, true, "")
 		}
 	} else {
@@ -174,14 +166,13 @@ func (block *Block) NewTransaction(log *ctxlog.ContextLog, tx *common.Transactio
 				recieverAccount.Balances[tx.TokenAddress] = 0
 			}
 			recieverAccount.Balances[tx.TokenAddress] += tx.Amount
-			block.StatTree.MustInsert(fromAddress, account.ToBytes())
-			block.StatTree.MustInsert(toAddress, recieverAccount.ToBytes())
+			block.StatTree.MustInsert(tx.GetFrom(), account.ToBytes())
+			block.StatTree.MustInsert(tx.GetTo(), recieverAccount.ToBytes())
 			txResult = common.NewTransactionResult(tx, fee, true, "")
 		}
 	}
-	log.Log("txId", tx.TransactionId())
-	log.Log("txResult", txResult)
 	txId, _ := hex.DecodeString(tx.TransactionId())
+
 	block.TxTree.MustInsert(txId, txResult.ToBytes())
 	block.UpdateMPTPlusRoot()
 	return txResult
@@ -198,11 +189,6 @@ func (block *Block) UpdateMPTPlusRoot() {
 		block.TxRoot = block.TxTree.Root
 		block.TxTree.Lock.RUnlock()
 	}
-	if block.EventTree != nil {
-		block.EventTree.Lock.RLock()
-		block.EventRoot = block.EventTree.Root
-		block.EventTree.Lock.RUnlock()
-	}
 	if block.TokenTree != nil {
 		block.TokenTree.Lock.RLock()
 		block.TokenRoot = block.TokenTree.Root
@@ -216,7 +202,6 @@ func FromBytes2Block(data []byte) (*Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	block.EventTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.EventRoot)
 	block.StatTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.StatRoot)
 	block.TxTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.TxRoot)
 	block.Locker = sync.RWMutex{}
@@ -237,7 +222,6 @@ func NewBlock(last *Block) *Block {
 		Locker:       sync.RWMutex{},
 		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), last.StatRoot),
 		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
-		EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
 		TokenTree:    MPTPlus.MTP_Tree(db.GetDBInst(), last.TokenRoot),
 	}
 	return block
@@ -280,48 +264,31 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 	}
 	//根据上一个区块头生成一个新的区块
 	_next := NewBlock(block)
-	//让新生成的区块执行peer传过来的body中的events进行计算
-	for _, eventResult := range next.BlockBody.EventResults {
-		evtId, _ := hex.DecodeString(eventResult.EventId)
-		evt := event.GetEvent(evtId)
-		if evt == nil {
-			data, err := next.GetRound().Peers[next.GetRound().CurrentIndex].GetDBValue(evtId)
-			if err != nil {
-				log.Info("Can not get this event, validate false.")
-				return false
+
+	//让新生成的区块执行peer传过来的body中的user events进行计算
+	if block.BlockBody != nil {
+		block.BlockBody.Events.Range(func(key, value interface{}) bool {
+			_, ok1 := key.(string)
+			list, ok2 := value.([]string)
+			if ok1 && ok2 && len(list) > 0 {
+				for _, eventId := range list {
+					txId, err := hex.DecodeString(eventId)
+					if err != nil {
+						return false
+					}
+					tx := common.GetTransaction(txId)
+					_next.NewTransaction(*tx, tx.Fee)
+				}
 			}
-			evt = event.FromBytes(data)
-			if evt == nil {
-				log.Info("Can not get this event, validate false.")
-				return false
-			}
-		}
-		_next.HandlerEvent(evt)
+			return true
+		})
 	}
 
-	//让新生成的区块执行peer传过来的body中的transactions进行计算
-	cLog := ctxlog.NewContextLog("block recover txs")
-	defer cLog.Finish()
-	for _, txResult := range next.BlockBody.TxResults {
-		txId, _ := hex.DecodeString(txResult.TxId)
-		tx := common.GetTransaction(txId)
-		if tx == nil {
-			data, err := next.GetRound().Peers[next.GetRound().CurrentIndex].GetDBValue(txId)
-			if err != nil {
-				log.Info("Can not get this transaction, validate false.")
-				return false
-			}
-			tx = common.FromBytes(data)
-			if tx == nil {
-				log.Info("Can not get this transaction, validate false.")
-				return false
-			}
-		}
-		_next.NewTransaction(cLog, tx, block.Fee)
-	}
+	// 更新默克尔树根
 	_next.UpdateMPTPlusRoot()
+
+	// 判断默克尔根是否相同
 	if !bytes.Equal(next.TxRoot, _next.TxRoot) ||
-		!bytes.Equal(next.EventRoot, _next.EventRoot) ||
 		!bytes.Equal(next.StatRoot, _next.StatRoot) ||
 		!bytes.Equal(next.TokenRoot, _next.TokenRoot) {
 		log.Info("next.Data  = %s, \n_next.Data = %s", next.Data(), block.Data())
@@ -331,27 +298,6 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 
 	BlockRecorder.SetStatus(hex.EncodeToString(next.CurrentHash), 100)
 	return true
-}
-
-func (block *Block) HandlerEvent(evt *event.Event) event.EventResult {
-	evtResult := event.EventResult{
-		EventId: hex.EncodeToString(evt.EventId()),
-		Success: false,
-		Reason:  "",
-	}
-	if evt.EventType == event.NewAccountEvent {
-		param := evt.EventParam.(event.NewAccountParam)
-		address, _ := hex.DecodeString(param.Address)
-		pubKey, _ := hex.DecodeString(param.PubKey)
-		if !block.ExistAddress(address) {
-			block.newAccount(address, pubKey)
-			evtResult.Success = true
-		} else {
-			evtResult.Reason = "AddressExist"
-		}
-	}
-	block.EventTree.MustInsert(evt.EventId(), evtResult.Bytes())
-	return evtResult
 }
 
 func (block *Block) Sign(ctxlog *ctxlog.ContextLog) error {

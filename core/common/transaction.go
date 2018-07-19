@@ -13,15 +13,15 @@ import (
 type Transactions []*Transaction
 
 type Transaction struct {
-	From         string `json:"from"`
-	To           string `json:"to"`
-	TimeStamp    int64  `json:"time"` // UnixTimeStamp
-	Amount       int64  `json:"amount"`
-	Fee          int64  `json:"fee"`
-	Nonce        int64  `json:"nonce"`
-	Data         string `json:"data"`
-	TokenAddress string `json:"tokenAddress"`
-	Sign         string `json:"sign"`
+	From         HexBytes `json:"from"`
+	To           HexBytes `json:"to"`
+	TimeStamp    int64    `json:"time"` // UnixTimeStamp
+	Amount       int64    `json:"amount"`
+	Fee          int64    `json:"fee"`
+	Nonce        int64    `json:"nonce"`
+	Data         string   `json:"data"`
+	TokenAddress string   `json:"tokenAddress"`
+	Sign         HexBytes `json:"sign"`
 }
 
 type TxResult struct {
@@ -31,13 +31,60 @@ type TxResult struct {
 	FailMsg string `json:"failMsg"`
 }
 
-func NewTransactionResult(tx *Transaction, fee int64, success bool, failMessage string) *TxResult {
+func NewTransaction(from, to []byte, timestamp, amount, fee, nonce int64, data, tokenAddress string) *Transaction {
+	return &Transaction{
+		From:         from,
+		To:           to,
+		TimeStamp:    timestamp,
+		Amount:       amount,
+		Fee:          fee,
+		Nonce:        nonce,
+		Data:         data,
+		TokenAddress: tokenAddress,
+	}
+}
+
+func NewTransactionResult(tx Transaction, fee int64, success bool, failMessage string) *TxResult {
 	return &TxResult{
 		TxId:    tx.TransactionId(),
 		Fee:     fee,
 		Success: success,
 		FailMsg: failMessage,
 	}
+}
+
+func (tx Transaction) GetNonce() int64 {
+	return tx.Nonce
+}
+
+func (tx *Transaction) Signature(priv []byte) error {
+	sign, err := crypto.Crypto(tx.Msg(), priv)
+	tx.Sign = sign
+	return err
+}
+
+func (tx Transaction) GetSign() []byte {
+	return tx.Sign
+}
+
+func (tx Transaction) Msg() []byte {
+	return crypto.Sha3_256([]byte(tx.String()))
+}
+
+func (tx Transaction) GetFrom() []byte {
+	return tx.From
+}
+
+func (tx Transaction) GetTo() []byte {
+	return tx.To
+}
+
+func (tx Transaction) SetFrom(from []byte) {
+	tx.From = from
+}
+
+func (tx Transaction) EventId() string {
+	return tx.TransactionId()
 }
 
 func GetTransaction(txId []byte) *Transaction {
@@ -85,35 +132,10 @@ func (tx *Transaction) TransactionId() string {
 
 func (tx *Transaction) String() string {
 	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "fee": %d, "nonce": %d, "data": "%s", "tokenAddress": "%s"}`,
-		tx.From, tx.To, tx.TimeStamp, tx.Amount, tx.Fee, tx.Nonce, tx.Data, tx.TokenAddress)
+		hex.EncodeToString(tx.From), hex.EncodeToString(tx.To), tx.TimeStamp, tx.Amount, tx.Fee, tx.Nonce, tx.Data, tx.TokenAddress)
 }
 
 func (tx Transaction) Bytes() []byte {
 	data, _ := json.Marshal(tx)
 	return data
-}
-
-func (tx *Transaction) Validate() bool {
-	sign, err := hex.DecodeString(tx.Sign)
-	if err != nil {
-		return false
-	}
-	_, err = hex.DecodeString(tx.From)
-	if err != nil {
-		return false
-	}
-	_, err = hex.DecodeString(tx.To)
-	if err != nil {
-		return false
-	}
-	data := crypto.Sha3_256([]byte(tx.String()))
-	if pubKey, err := crypto.RecoverPubKey(data, sign); err != nil {
-		return false
-	} else {
-		address, err := hex.DecodeString(tx.From)
-		if err != nil || !ValidatePubKey(pubKey, address) {
-			return false
-		}
-	}
-	return true
 }

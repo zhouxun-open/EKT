@@ -8,7 +8,6 @@ import (
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/common"
 	"github.com/EducationEKT/EKT/crypto"
-	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/dispatcher"
 	"github.com/EducationEKT/EKT/param"
@@ -28,9 +27,6 @@ func init() {
 }
 
 func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	ctxlog := ctxlog.NewContextLog("get transaction status")
-	defer ctxlog.Finish()
-
 	// get transaction by transactionId
 	transactionId := req.MustGetString("txId")
 	txId, err := hex.DecodeString(transactionId)
@@ -46,8 +42,7 @@ func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	}
 
 	// get account by address
-	from, _ := hex.DecodeString(tx.From)
-	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(ctxlog, from)
+	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(tx.GetFrom())
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
@@ -62,19 +57,15 @@ func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	log := ctxlog.NewContextLog("NewTransaction")
-	defer log.Finish()
-	log.Log("body", req.Body)
 	var tx common.Transaction
 	err := json.Unmarshal(req.Body, &tx)
-	log.Log("tx", tx)
 	if err != nil {
 		return nil, x_err.New(-1, err.Error())
 	}
 	if tx.Amount <= 0 {
 		return nil, x_err.New(-100, "error amount")
 	}
-	err = dispatcher.NewTransaction(log, &tx)
+	err = dispatcher.NewTransaction(tx)
 	if err == nil {
 		txId := crypto.Sha3_256(tx.Bytes())
 		db.GetDBInst().Set(txId, tx.Bytes())
