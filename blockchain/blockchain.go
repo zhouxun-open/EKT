@@ -207,6 +207,8 @@ func (chain *BlockChain) WaitAndPack() *Block {
 		default:
 			events := chain.Pool.Fetch()
 			if len(events) > 0 {
+				fmt.Println("start pack transaction, tx amount: ", events.Len())
+				start := time.Now().UnixNano()
 				for _, event := range events {
 					tx, ok := event.(common.Transaction)
 					if ok {
@@ -214,6 +216,9 @@ func (chain *BlockChain) WaitAndPack() *Block {
 						block.BlockBody.AddEvent(event)
 					}
 				}
+				end := time.Now().UnixNano()
+				fmt.Printf("Total tx: %d, startTime: %d, endTime: %d, Total time: %d, tps: %d, txAvgTime=%d . \n",
+					len(events), start, end, end-start, int64(len(events))/((end-start)/1e9), (end-start)/int64(len(events)))
 			}
 		}
 		if flag {
