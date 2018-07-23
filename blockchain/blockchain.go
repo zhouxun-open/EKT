@@ -198,6 +198,9 @@ func (chain *BlockChain) WaitAndPack() *Block {
 		block.Fee = chain.Fee
 	}
 	log.Info("Packing transaction and other events.")
+	start := time.Now().UnixNano()
+	started := false
+	numTx := 0
 	for {
 		flag := false
 		select {
@@ -205,26 +208,26 @@ func (chain *BlockChain) WaitAndPack() *Block {
 			flag = true
 			break
 		default:
-			events := chain.Pool.Fetch()
-			if len(events) > 0 {
-				fmt.Println("start pack transaction, tx amount: ", events.Len())
-				start := time.Now().UnixNano()
-				for _, event := range events {
-					tx, ok := event.(common.Transaction)
-					if ok {
-						block.NewTransaction(tx, tx.Fee)
-						block.BlockBody.AddEvent(event)
-					}
+			event := chain.Pool.Fetch()
+			if event != nil {
+				if !started {
+					started = true
+					start = time.Now().UnixNano()
 				}
-				end := time.Now().UnixNano()
-				fmt.Printf("Total tx: %d, startTime: %d, endTime: %d, Total time: %d, tps: %d, txAvgTime=%d . \n",
-					len(events), start, end, end-start, int64(len(events))/((end-start)/1e9), (end-start)/int64(len(events)))
+				tx, ok := event.(common.Transaction)
+				if ok {
+					numTx++
+					block.NewTransaction(tx, tx.Fee)
+					block.BlockBody.AddEvent(event)
+				}
 			}
 		}
 		if flag {
 			break
 		}
 	}
+	end := time.Now().UnixNano()
+	fmt.Printf("Total tx: %d, startTime: %d, endTime: %d, Total time: %d ns. \n", numTx, start/1e6, end/1e6, end-start)
 	bodyData := block.BlockBody.Bytes()
 	block.Body = crypto.Sha3_256(bodyData)
 	db.GetDBInst().Set(block.Body, bodyData)

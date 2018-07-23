@@ -153,7 +153,7 @@ func (pool *Pool) Notify(from, eventId string) {
 	}
 }
 
-func (pool *Pool) Fetch() userevent.SortedUserEvent {
+func (pool *Pool) Fetch() userevent.IUserEvent {
 	var events userevent.SortedUserEvent = nil
 	var from string
 	pool.ready.Range(func(key, value interface{}) bool {
@@ -170,6 +170,12 @@ func (pool *Pool) Fetch() userevent.SortedUserEvent {
 		}
 		return true
 	})
-	pool.ready.Delete(from)
-	return events
+	if events.Len() > 0 {
+		event := events[0]
+		events = events[1:]
+		pool.ready.Store(hex.EncodeToString(event.GetFrom()), events)
+		return event
+	} else {
+		return nil
+	}
 }
