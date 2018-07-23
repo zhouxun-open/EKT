@@ -3,17 +3,17 @@ package cmd
 import (
 	"bufio"
 	"encoding/hex"
-	"fmt"
-	"os"
-	"time"
-
 	"encoding/json"
+	"fmt"
 	"github.com/EducationEKT/EKT/cmd/ecli/param"
 	"github.com/EducationEKT/EKT/core/common"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/util"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
 	"github.com/spf13/cobra"
+	"os"
+	"strconv"
+	"time"
 )
 
 var TransactionCmd *cobra.Command
@@ -29,65 +29,101 @@ func init() {
 			Short: "Send transaction to nodes.",
 			Run:   SendTransaction,
 		},
+		&cobra.Command{
+			Use:   "benchtest",
+			Short: "Bench test TPS",
+			Run:   BenchTest,
+		},
 	}...)
 }
 
 func SendTransaction(cmd *cobra.Command, args []string) {
-	/*	fmt.Print("Input your private key: ")
-		input := bufio.NewScanner(os.Stdin)
-		input.Scan()
-		privateKey := input.Text()
-		privKey, err := hex.DecodeString(privateKey)
-		if err != nil {
-			fmt.Println("Your private key is not right, exit.")
-			os.Exit(-1)
-		}
-		pubKey, err := crypto.PubKey(privKey)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(-1)
-		}
-		from := common.FromPubKeyToAddress(pubKey)
-		fmt.Print("Input token address (Press ENTER if you need send EKT): ")
-		input.Scan()
-		tokenAddress := input.Text()
-		fmt.Print("Amount you want tranfer: ")
-		input.Scan()
-		amount, err := strconv.Atoi(input.Text())
-		if err != nil {
-			fmt.Println("You can only input int64 only, exit.")
-			os.Exit(-1)
-		}
-		fmt.Print("Input the address who recieve this token:")
-		input.Scan()
-		to := input.Text()*/
 	fmt.Print("Input your private key: ")
 	input := bufio.NewScanner(os.Stdin)
 	input.Scan()
-	privKey := input.Text()
-	to := "ae0ec97c589ff55b856cbad8ba54586453ce2cd17cc202ee7fec30524f33d407"
-	tokenAddress := ""
-	priv, _ := hex.DecodeString(privKey)
-	pub, _ := crypto.PubKey(priv)
-	from := common.FromPubKeyToAddress(pub)
-	amount := 100000000
+	privateKey := input.Text()
+	privKey, err := hex.DecodeString(privateKey)
+	if err != nil {
+		fmt.Println("Your private key is not right, exit.")
+		os.Exit(-1)
+	}
+	pubKey, err := crypto.PubKey(privKey)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+	from := common.FromPubKeyToAddress(pubKey)
+	fmt.Print("Input token address (Press ENTER if you need send EKT): ")
+	input.Scan()
+	tokenAddress := input.Text()
+	fmt.Print("Amount you want tranfer: ")
+	input.Scan()
+	amount, err := strconv.Atoi(input.Text())
+	if err != nil {
+		fmt.Println("You can only input int64 only, exit.")
+		os.Exit(-1)
+	}
+	fmt.Print("Input the address who receive this token:")
+	input.Scan()
+	receive := input.Text()
+	to, err := hex.DecodeString(receive)
+	if err != nil {
+		fmt.Println("Error address")
+		os.Exit(-1)
+	}
+	nonce := getAccountNonce(hex.EncodeToString(from))
+	tx := common.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 510000, nonce, "", tokenAddress)
+	tx.Signature(privKey)
+	sendTransaction(*tx)
+}
+
+func BenchTest(cmd *cobra.Command, args []string) {
+	fmt.Print("Input your private key: ")
+	input := bufio.NewScanner(os.Stdin)
+	input.Scan()
+	privateKey := input.Text()
+	privKey, err := hex.DecodeString(privateKey)
+	if err != nil {
+		fmt.Println("Your private key is not right, exit.")
+		os.Exit(-1)
+	}
+	pubKey, err := crypto.PubKey(privKey)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+	from := common.FromPubKeyToAddress(pubKey)
+	fmt.Print("Input the address who receive this token:")
+	input.Scan()
+	receive := input.Text()
+	to, err := hex.DecodeString(receive)
+	if err != nil {
+		fmt.Println("Error address")
+		os.Exit(-1)
+	}
+	amount := 1000000
 	nonce := getAccountNonce(hex.EncodeToString(from))
 	tx := common.Transaction{
-		From:         hex.EncodeToString(from),
+		From:         from,
 		To:           to,
 		TimeStamp:    time.Now().UnixNano() / 1e6,
 		Amount:       int64(amount),
 		Nonce:        nonce,
 		Data:         "",
-		TokenAddress: tokenAddress,
+		TokenAddress: "",
 	}
-	sign, err := crypto.Crypto(crypto.Sha3_256([]byte(tx.String())), priv)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
+	testTPS(tx, privKey)
+}
+
+func testTPS(tx common.Transaction, priv []byte) {
+	max, min := tx.Nonce+20000, tx.Nonce
+	for nonce := max; nonce >= min; nonce-- {
+		tx.Nonce = int64(nonce)
+		tx.Signature(priv)
+		sendTransaction(tx)
+		fmt.Println(tx.String())
 	}
-	tx.Sign = hex.EncodeToString(sign)
-	sendTransaction(tx)
+	fmt.Println("finish")
 }
 
 func sendTransaction(tx common.Transaction) {
