@@ -3,6 +3,7 @@ package pool
 import (
 	"encoding/hex"
 	"github.com/EducationEKT/EKT/userevent"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -45,7 +46,8 @@ func (pool *Pool) Park(event userevent.IUserEvent, reason int) bool {
 }
 
 func (pool *Pool) parkReady(event userevent.IUserEvent) bool {
-	readyEvents, exist := pool.ready.Load(hex.EncodeToString(event.GetFrom()))
+	address := hex.EncodeToString(event.GetFrom())
+	readyEvents, exist := pool.ready.Load(address)
 
 	var list userevent.SortedUserEvent
 
@@ -61,46 +63,49 @@ func (pool *Pool) parkReady(event userevent.IUserEvent) bool {
 	}
 	list = append(list, event)
 
-	pool.ready.Store(hex.EncodeToString(event.GetFrom()), list)
+	blockEvents, exist := pool.block.Load(address)
+	var block userevent.SortedUserEvent
+	if exist {
+		block = blockEvents.(userevent.SortedUserEvent)
+	}
 
-	pool.MergeReadyAndBlock(event.GetFrom())
+	pool.MergeReadyAndBlock(event.GetFrom(), list, block)
 
 	return true
 }
 
 func (pool *Pool) parkBlock(event userevent.IUserEvent) bool {
-	blockEvents, exist := pool.block.Load(hex.EncodeToString(event.GetFrom()))
+	address := hex.EncodeToString(event.GetFrom())
+	blockEvents, exist := pool.block.Load(address)
+	var list userevent.SortedUserEvent
 	if exist {
-		list := blockEvents.(userevent.SortedUserEvent)
+		list = blockEvents.(userevent.SortedUserEvent)
 		if list == nil {
 			list = make(userevent.SortedUserEvent, 0)
 		}
 		list = append(list, event)
-		pool.block.Store(hex.EncodeToString(event.GetFrom()), list)
 	} else {
-		list := make(userevent.SortedUserEvent, 0)
+		list = make(userevent.SortedUserEvent, 0)
 		list = append(list, event)
-		pool.block.Store(hex.EncodeToString(event.GetFrom()), list)
 	}
-	pool.MergeReadyAndBlock(event.GetFrom())
+	sort.Sort(list)
+
+	readyEvents, exist := pool.ready.Load(address)
+	var ready userevent.SortedUserEvent
+	if exist {
+		ready = readyEvents.(userevent.SortedUserEvent)
+	}
+
+	pool.MergeReadyAndBlock(event.GetFrom(), ready, list)
+
 	return true
 }
 
-func (pool *Pool) MergeReadyAndBlock(from []byte) {
-	address := hex.EncodeToString(from)
-	readyEvents, exist := pool.ready.Load(address)
-	if !exist {
-		return
-	}
-	blockEvents, exist := pool.block.Load(address)
-	if !exist {
-		return
-	}
-	readyList := readyEvents.(userevent.SortedUserEvent)
-	blockList := blockEvents.(userevent.SortedUserEvent)
-	if len(readyList) > 0 && len(blockList) > 0 {
+func (pool *Pool) MergeReadyAndBlock(from []byte, ready userevent.SortedUserEvent, block userevent.SortedUserEvent) {
+	readyList, blockList := ready, block
+	numMerged := 0
+	if len(ready) > 0 && len(block) > 0 {
 		lastNonce := readyList[readyList.Len()-1].GetNonce()
-		numMerged := 0
 		for i, event := range blockList {
 			if event.GetNonce() == lastNonce+1 {
 				lastNonce++
@@ -109,9 +114,12 @@ func (pool *Pool) MergeReadyAndBlock(from []byte) {
 			}
 		}
 		blockList = blockList[numMerged:]
-		pool.ready.Store(address, readyList)
-		pool.block.Store(address, blockList)
 	}
+
+	address := hex.EncodeToString(from)
+
+	pool.ready.Store(address, readyList)
+	pool.block.Store(address, blockList)
 }
 
 /*
@@ -145,7 +153,7 @@ func (pool *Pool) Notify(from, eventId string) {
 	}
 }
 
-func (pool *Pool) Fetch() userevent.SortedUserEvent {
+func (pool *Pool) Fetch() userevent.IUserEvent {
 	var events userevent.SortedUserEvent = nil
 	var from string
 	pool.ready.Range(func(key, value interface{}) bool {
@@ -154,12 +162,20 @@ func (pool *Pool) Fetch() userevent.SortedUserEvent {
 			return true
 		}
 		if len(list) > 0 {
-			from = key.(string)
-			events = list
-			return false
+			from, ok = key.(string)
+			if ok {
+				events = list
+				return false
+			}
 		}
 		return true
 	})
-	pool.ready.Delete(from)
-	return events
+	if events.Len() > 0 {
+		event := events[0]
+		events = events[1:]
+		pool.ready.Store(hex.EncodeToString(event.GetFrom()), events)
+		return event
+	} else {
+		return nil
+	}
 }
