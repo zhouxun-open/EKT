@@ -101,37 +101,20 @@ func (block *Block) ExistAddress(address []byte) bool {
 	return block.StatTree.ContainsKey(address)
 }
 
-func (block *Block) CreateAccount(address, pubKey []byte) {
-	if !block.ExistAddress(address) {
-		block.newAccount(address, pubKey)
+func (block *Block) CreateGenesisAccount(account common.Account) bool {
+	err := block.StatTree.MustInsert(account.Address, account.ToBytes())
+	if err != nil {
+		return false
 	}
-}
-
-func (block *Block) InsertAccount(account common.Account) bool {
-	if !block.ExistAddress(account.Address()) {
-		value, _ := json.Marshal(account)
-		err := block.StatTree.MustInsert(account.Address(), value)
-		if err != nil {
-			return false
-		}
-		block.UpdateMPTPlusRoot()
-		return true
-	}
-	return false
-}
-
-func (block *Block) newAccount(address []byte, pubKey []byte) {
-	account := common.NewAccount(address, pubKey)
-	value, _ := json.Marshal(account)
-	block.StatTree.MustInsert(address, value)
 	block.UpdateMPTPlusRoot()
+	return true
 }
 
 func (block *Block) NewTransaction(tx common.Transaction, fee int64) *common.TxResult {
 	account, _ := block.GetAccount(tx.GetFrom())
 	recieverAccount, err := block.GetAccount(tx.GetTo())
 	if err != nil || nil == recieverAccount {
-		*recieverAccount = common.CreateAccount(hex.EncodeToString(tx.GetTo()), 0)
+		*recieverAccount = common.CreateAccount(tx.GetTo(), 0)
 	}
 	var txResult *common.TxResult
 
@@ -217,7 +200,7 @@ func NewBlock(last *Block) *Block {
 		PreviousHash: last.Hash(),
 		Timestamp:    time.Now().UnixNano() / 1e6,
 		CurrentHash:  nil,
-		BlockBody:    NewBlockBody(last.Height + 1),
+		BlockBody:    NewBlockBody(),
 		Body:         nil,
 		Locker:       sync.RWMutex{},
 		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), last.StatRoot),

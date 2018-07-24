@@ -33,14 +33,14 @@ type TrieNode struct {
 type MTP struct {
 	Lock *sync.RWMutex
 	Root common.HexBytes
-	DB   *db.LevelDB
+	DB   db.IKVDatabase
 }
 
-func MTP_Tree(db *db.LevelDB, root []byte) *MTP {
+func MTP_Tree(db db.IKVDatabase, root []byte) *MTP {
 	return &MTP{DB: db, Root: root, Lock: &sync.RWMutex{}}
 }
 
-func NewMTP(db *db.LevelDB) *MTP {
+func NewMTP(db db.IKVDatabase) *MTP {
 	node := TrieNode{
 		Root:      true,
 		Leaf:      false,
