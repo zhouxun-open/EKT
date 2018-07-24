@@ -15,6 +15,7 @@ import (
 	"github.com/EducationEKT/EKT/param"
 
 	"github.com/EducationEKT/xserver/x_http"
+	"runtime"
 )
 
 const (
@@ -22,6 +23,7 @@ const (
 )
 
 func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU() - 1)
 	var (
 		help bool
 		ver  bool
@@ -75,10 +77,7 @@ func InitService(confPath string) error {
 
 	// init database service
 	// 初始化levelDB服务
-	err = initDB()
-	if err != nil {
-		return err
-	}
+	initDB()
 
 	// 初始化节点信息，包括私钥和peerId
 	err = initPeerId()
@@ -109,8 +108,8 @@ func initConfig(confPath string) error {
 	return conf.InitConfig(confPath)
 }
 
-func initDB() error {
-	return db.InitEKTDB(conf.EKTConfig.DBPath)
+func initDB() {
+	db.InitEKTDB(conf.EKTConfig.DBPath)
 }
 
 func initLog() error {
