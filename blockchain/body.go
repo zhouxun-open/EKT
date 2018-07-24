@@ -11,7 +11,7 @@ type BlockBody struct {
 	Events sync.Map
 }
 
-func NewBlockBody(height int64) *BlockBody {
+func NewBlockBody() *BlockBody {
 	return &BlockBody{
 		Events: sync.Map{},
 	}
