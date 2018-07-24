@@ -6,10 +6,7 @@ import (
 	"errors"
 
 	"github.com/EducationEKT/EKT/crypto"
-	"github.com/EducationEKT/EKT/db"
 )
-
-var DB db.LevelDB
 
 // Merkle Trie Plus树是一个安全的自校验的字典树的升级,每个节点都带有自己的路径值,叶子节点的
 // 儿子节点存储的是Value的Hash值,根据Hash可以在levelDB上获取自己的Value
