@@ -2,7 +2,6 @@ package common
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 
 	"github.com/EducationEKT/EKT/crypto"
@@ -13,25 +12,25 @@ const (
 )
 
 type Account struct {
-	HexAddress string           `json:"address"`
-	Amount     int64            `json:"amount"`
-	Nonce      int64            `json:"nonce"`
-	Balances   map[string]int64 `json:"balances"`
+	Address  HexBytes         `json:"address"`
+	Amount   int64            `json:"amount"`
+	Nonce    int64            `json:"nonce"`
+	Balances map[string]int64 `json:"balances"`
 }
 
-func CreateAccount(address string, Amount int64) Account {
+func CreateAccount(address []byte, Amount int64) Account {
 	return Account{
-		HexAddress: address,
-		Amount:     Amount,
-		Nonce:      0,
+		Address: address,
+		Amount:  Amount,
+		Nonce:   0,
 	}
 }
 
-func NewAccount(address, pubKey []byte) *Account {
+func NewAccount(address []byte) *Account {
 	return &Account{
-		HexAddress: hex.EncodeToString(address),
-		Nonce:      0,
-		Amount:     0,
+		Address: address,
+		Nonce:   0,
+		Amount:  0,
 	}
 }
 
@@ -42,11 +41,6 @@ func (account Account) ToBytes() []byte {
 
 func (account Account) GetNonce() int64 {
 	return account.Nonce
-}
-
-func (account Account) Address() []byte {
-	address, _ := hex.DecodeString(account.HexAddress)
-	return address
 }
 
 func (account Account) GetAmount() int64 {
