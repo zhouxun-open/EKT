@@ -26,8 +26,6 @@ func NewTransaction(transaction common.Transaction) error {
 	if !userevent.Validate(transaction) {
 		return errors.New("error signature")
 	}
-	if !blockchain_manager.GetMainChain().NewTransaction(transaction) {
-		return errors.New("error transaction")
-	}
+	go blockchain_manager.GetMainChain().NewTransaction(transaction)
 	return nil
 }
