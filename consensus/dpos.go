@@ -413,7 +413,7 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 			TotalFee:     0,
 			PreviousHash: nil,
 			CurrentHash:  nil,
-			BlockBody:    blockchain.NewBlockBody(0),
+			BlockBody:    blockchain.NewBlockBody(),
 			Body:         nil,
 			Timestamp:    0,
 			Locker:       sync.RWMutex{},
@@ -424,11 +424,15 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 			TokenTree:    MPTPlus.NewMTP(db.GetDBInst()),
 			TokenRoot:    nil,
 		}
+
 		for _, account := range accounts {
-			block.InsertAccount(account)
+			block.CreateGenesisAccount(account)
 		}
+
 		block.UpdateMPTPlusRoot()
+
 		block.CaculateHash()
+
 		dpos.Blockchain.SaveBlock(block)
 	}
 	dpos.Blockchain.SetLastBlock(block)
