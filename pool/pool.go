@@ -1,11 +1,11 @@
 package pool
 
 import (
+	"encoding/hex"
+	"github.com/EducationEKT/EKT/userevent"
 	"sort"
-
-	"github.com/EducationEKT/EKT/core/common"
-	"github.com/EducationEKT/EKT/event"
 	"strings"
+	"sync"
 )
 
 const (
@@ -13,251 +13,169 @@ const (
 	Ready = 1
 )
 
-//等待依赖队列 k:user address v:transactions of user
-type BlockTxQueue map[string]UserTransactions
-
-//就绪队列 k:transaction id v:transaction
-type ReadyTxQueue map[string]*common.Transaction
-
-type ReadyEventQueue map[string]event.Event
-
-type BlockEventQueue map[string]UserEvents
-
-//wrapper for sort
-type UserTransactions []*common.Transaction
-
-type UserEvents []event.Event
-
 type Pool struct {
-	txReady    ReadyTxQueue
-	txBlock    BlockTxQueue
-	eventReady ReadyEventQueue
-	eventBlock BlockEventQueue
+	ready sync.Map
+	block sync.Map
 }
 
 func NewPool() *Pool {
 	return &Pool{
-		txReady:    make(map[string]*common.Transaction),
-		txBlock:    make(map[string]UserTransactions),
-		eventBlock: make(map[string]UserEvents),
-		eventReady: make(map[string]event.Event),
+		ready: sync.Map{},
+		block: sync.Map{},
 	}
 }
 
 // 根据address获取该地址pending/queue的交易信息
-func (pool Pool) GetTxs(address string) UserTransactions {
-	txs, exist := pool.txBlock[address]
-	if !exist {
-		txs = make([]*common.Transaction, 0)
+func (pool Pool) GetReadyEvents(address string) userevent.SortedUserEvent {
+	events, exist := pool.ready.Load(address)
+	if exist {
+		return events.(userevent.SortedUserEvent)
 	}
-	if tx, exist := pool.txReady[address]; exist {
-		txs = append(txs, tx)
-	}
-	return txs
-}
-
-func (pool Pool) GetEvents(address string) UserEvents {
-	events, exist := pool.eventBlock[address]
-	if !exist {
-		events = make([]event.Event, 0)
-	}
-	if event, exist := pool.eventReady[address]; exist {
-		events = append(events, event)
-	}
-	return events
-}
-
-func (pool Pool) ParkEvent(evt event.Event, reason int) {
-	if Ready == reason {
-		pool.eventReady[evt.EventParam.Id()] = evt
-	} else if Block == reason {
-		if strings.EqualFold(event.UpdatePublicKeyEvent, evt.EventType) {
-			evtParam := evt.EventParam.(event.UpdatePublicKeyParam)
-			events := pool.eventBlock[evtParam.Address]
-			events = append(events, evt)
-			sort.Sort(events)
-			pool.eventBlock[evtParam.Address] = events
-		}
-	}
-}
-
-func (pool Pool) NotifyEvent(evtId string) *event.Event {
-	evt, exist := pool.eventReady[evtId]
-	if !exist {
-		return nil
-	}
-	delete(pool.eventReady, evt.EventParam.Id())
-	if strings.EqualFold(evt.EventType, event.UpdatePublicKeyEvent) {
-		param := evt.EventParam.(event.UpdatePublicKeyParam)
-		address := param.Address
-		nonce := param.Nonce
-		txs := pool.txBlock[address]
-		if txs != nil && len(txs) > 0 {
-			for i, _tx := range txs {
-				if _tx.Nonce == nonce+1 {
-					txs = append(txs[:i], txs[i+1:]...)
-					pool.txReady[_tx.TransactionId()] = _tx
-					pool.txBlock[address] = txs
-					break
-				}
-			}
-		}
-		events := pool.eventBlock[address]
-		if events != nil && len(events) > 0 {
-			for i, _evt := range events {
-				if _evt.EventParam.(event.UpdatePublicKeyParam).Nonce == nonce+1 {
-					events = append(events[:i], events[i+1:]...)
-					pool.eventReady[_evt.EventParam.Id()] = _evt
-					pool.eventBlock[address] = events
-					break
-				}
-			}
-		}
-	}
-	return &evt
+	return nil
 }
 
 /*
-把交易放在 pool 里等待打包
-*/
-func (pool Pool) ParkTx(tx *common.Transaction, reason int) {
+ * 把交易放在 pool 里等待打包
+ */
+func (pool *Pool) Park(event userevent.IUserEvent, reason int) bool {
 	if reason == Ready {
-		pool.txReady[tx.TransactionId()] = tx
-	} else if reason == Block {
-		txs_slice := pool.txBlock[tx.From]
-		for _, _tx := range txs_slice {
-			if _tx.String() == tx.String() {
-				return
+		return pool.parkReady(event)
+	}
+
+	return pool.parkBlock(event)
+}
+
+func (pool *Pool) parkReady(event userevent.IUserEvent) bool {
+	address := hex.EncodeToString(event.GetFrom())
+	readyEvents, exist := pool.ready.Load(address)
+
+	var list userevent.SortedUserEvent
+
+	if exist {
+		list = readyEvents.(userevent.SortedUserEvent)
+		if len(list) == 0 {
+			list = make(userevent.SortedUserEvent, 0)
+		} else if list[list.Len()-1].GetNonce()+1 != event.GetNonce() {
+			return false
+		}
+	} else {
+		list = make(userevent.SortedUserEvent, 0)
+	}
+	list = append(list, event)
+
+	blockEvents, exist := pool.block.Load(address)
+	var block userevent.SortedUserEvent
+	if exist {
+		block = blockEvents.(userevent.SortedUserEvent)
+	}
+
+	pool.MergeReadyAndBlock(event.GetFrom(), list, block)
+
+	return true
+}
+
+func (pool *Pool) parkBlock(event userevent.IUserEvent) bool {
+	address := hex.EncodeToString(event.GetFrom())
+	blockEvents, exist := pool.block.Load(address)
+	var list userevent.SortedUserEvent
+	if exist {
+		list = blockEvents.(userevent.SortedUserEvent)
+		if list == nil {
+			list = make(userevent.SortedUserEvent, 0)
+		}
+		list = append(list, event)
+	} else {
+		list = make(userevent.SortedUserEvent, 0)
+		list = append(list, event)
+	}
+	sort.Sort(list)
+
+	readyEvents, exist := pool.ready.Load(address)
+	var ready userevent.SortedUserEvent
+	if exist {
+		ready = readyEvents.(userevent.SortedUserEvent)
+	}
+
+	pool.MergeReadyAndBlock(event.GetFrom(), ready, list)
+
+	return true
+}
+
+func (pool *Pool) MergeReadyAndBlock(from []byte, ready userevent.SortedUserEvent, block userevent.SortedUserEvent) {
+	readyList, blockList := ready, block
+	numMerged := 0
+	if len(ready) > 0 && len(block) > 0 {
+		lastNonce := readyList[readyList.Len()-1].GetNonce()
+		for i, event := range blockList {
+			if event.GetNonce() == lastNonce+1 {
+				lastNonce++
+				readyList = append(readyList, blockList[i])
+				numMerged++
 			}
 		}
-		txs_slice = append(txs_slice, tx)
-		sort.Sort(txs_slice)
-		pool.txBlock[tx.From] = txs_slice
+		blockList = blockList[numMerged:]
 	}
+
+	address := hex.EncodeToString(from)
+
+	pool.ready.Store(address, readyList)
+	pool.block.Store(address, blockList)
 }
 
 /*
 当交易被区块打包后,将交易移出pool
-如果当前用户有Nonce比当前大一的tx在Block队列，则移动至ready队列
 */
-func (pool Pool) Notify(txId string) *common.Transaction {
-	tx, exist := pool.txReady[txId]
-	if !exist {
+func (pool *Pool) Notify(from, eventId string) {
+	// notify ready queue
+	readyList, exist := pool.ready.Load(from)
+	if exist {
+		list := readyList.(userevent.SortedUserEvent)
+		newList := make(userevent.SortedUserEvent, len(list))
+		for _, event := range list {
+			if !strings.EqualFold(event.EventId(), eventId) {
+				newList = append(newList, event)
+			}
+		}
+		pool.ready.Store(from, newList)
+	}
+
+	// notify block
+	blockList, exist := pool.block.Load(from)
+	if exist {
+		list := blockList.(userevent.SortedUserEvent)
+		newList := make(userevent.SortedUserEvent, len(list))
+		for _, event := range list {
+			if !strings.EqualFold(event.EventId(), eventId) {
+				newList = append(newList, event)
+			}
+		}
+		pool.block.Store(from, newList)
+	}
+}
+
+func (pool *Pool) Fetch() userevent.IUserEvent {
+	var events userevent.SortedUserEvent = nil
+	var from string
+	pool.ready.Range(func(key, value interface{}) bool {
+		list, ok := value.(userevent.SortedUserEvent)
+		if !ok {
+			return true
+		}
+		if len(list) > 0 {
+			from, ok = key.(string)
+			if ok {
+				events = list
+				return false
+			}
+		}
+		return true
+	})
+	if events.Len() > 0 {
+		event := events[0]
+		events = events[1:]
+		pool.ready.Store(hex.EncodeToString(event.GetFrom()), events)
+		return event
+	} else {
 		return nil
 	}
-	delete(pool.txReady, tx.TransactionId())
-
-	address := tx.From
-	nonce := tx.Nonce
-
-	txs := pool.txBlock[address]
-	if txs != nil && len(txs) > 0 {
-		for i, _tx := range txs {
-			if _tx.Nonce == nonce+1 {
-				txs = append(txs[:i], txs[i+1:]...)
-				pool.txReady[_tx.TransactionId()] = _tx
-				pool.txBlock[address] = txs
-				break
-			}
-		}
-	}
-
-	events := pool.eventBlock[address]
-	if events != nil && len(events) > 0 {
-		for i, _evt := range events {
-			if _evt.EventParam.(event.UpdatePublicKeyParam).Nonce == nonce+1 {
-				events = append(events[:i], events[i+1:]...)
-				pool.eventReady[_evt.EventParam.Id()] = _evt
-				pool.eventBlock[address] = events
-				break
-			}
-		}
-	}
-	return tx
-}
-
-/*当交易被区块打包后,将交易批量移出pool
-
- */
-func (pool Pool) BatchNotify(txs []*common.Transaction) {
-	for _, tx := range txs {
-		pool.Notify(tx.TransactionId())
-	}
-}
-
-func (pool Pool) FetchEvent() *event.Event {
-	if len(pool.eventReady) > 0 {
-		for _, evt := range pool.eventReady {
-			delete(pool.eventReady, evt.EventParam.Id())
-			return &evt
-		}
-	}
-	return nil
-}
-
-func (pool Pool) FetchTx() *common.Transaction {
-	if len(pool.txReady) > 0 {
-		for _, tx := range pool.txReady {
-			delete(pool.txReady, tx.TransactionId())
-			return tx
-		}
-	}
-	return nil
-}
-
-/*
-返回能够打包的指定数量的交易
-如果size小于等于0，返回全部
-*/
-func (pool Pool) Fetch(size int) (result []*common.Transaction) {
-	result = []*common.Transaction{}
-	record := []*common.Transaction{}
-	var count int = 0
-	if size < 0 {
-		size = ^(size << 31)
-	}
-	for {
-		for txId, transaction := range pool.txReady {
-			delete(pool.txReady, txId)
-			result = append(result, transaction)
-			count++
-			record = append(record, transaction)
-			if count >= size { //watch
-				pool.BatchNotify(record)
-				return
-			}
-			if len(pool.txReady) == 0 {
-				pool.BatchNotify(record)
-				record = []*common.Transaction{}
-			}
-			if len(pool.txReady) == 0 {
-				return
-			}
-		}
-	}
-	return
-}
-
-func (u UserTransactions) Len() int {
-	return len(u)
-}
-
-func (u UserTransactions) Swap(i, j int) {
-	u[i], u[j] = u[j], u[i]
-}
-
-func (u UserTransactions) Less(i, j int) bool {
-	return u[i].Nonce < u[j].Nonce
-}
-
-func (events UserEvents) Len() int {
-	return len(events)
-}
-
-func (events UserEvents) Swap(i, j int) {
-	events[i], events[j] = events[j], events[i]
-}
-
-func (events UserEvents) Less(i, j int) bool {
-	return events[i].EventParam.(event.UpdatePublicKeyParam).Nonce < events[j].EventParam.(event.UpdatePublicKeyParam).Nonce
 }

@@ -421,8 +421,6 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 			StatRoot:     nil,
 			TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
 			TxRoot:       nil,
-			EventTree:    MPTPlus.NewMTP(db.GetDBInst()),
-			EventRoot:    nil,
 			TokenTree:    MPTPlus.NewMTP(db.GetDBInst()),
 			TokenRoot:    nil,
 		}

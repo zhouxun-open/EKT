@@ -13,12 +13,10 @@ const (
 )
 
 type Account struct {
-	HexAddress    string           `json:"address"`
-	HexPublickKey string           `json:"-"`
-	CryptoMethod  string           `json:"-"`
-	Amount        int64            `json:"amount"`
-	Nonce         int64            `json:"nonce"`
-	Balances      map[string]int64 `json:"balances"`
+	HexAddress string           `json:"address"`
+	Amount     int64            `json:"amount"`
+	Nonce      int64            `json:"nonce"`
+	Balances   map[string]int64 `json:"balances"`
 }
 
 func CreateAccount(address string, Amount int64) Account {
@@ -31,10 +29,9 @@ func CreateAccount(address string, Amount int64) Account {
 
 func NewAccount(address, pubKey []byte) *Account {
 	return &Account{
-		HexAddress:    hex.EncodeToString(address),
-		HexPublickKey: hex.EncodeToString(pubKey),
-		Nonce:         0,
-		Amount:        0,
+		HexAddress: hex.EncodeToString(address),
+		Nonce:      0,
+		Amount:     0,
 	}
 }
 
@@ -52,26 +49,16 @@ func (account Account) Address() []byte {
 	return address
 }
 
-func (account Account) PublicKey() []byte {
-	publicKey, _ := hex.DecodeString(account.HexPublickKey)
-	return publicKey
-}
-
 func (account Account) GetAmount() int64 {
 	return account.Amount
 }
 
-func (account Account) AddAmount(amount int64) {
-	account.Amount += amount
+func (account *Account) AddAmount(amount int64) {
+	account.Amount = account.Amount + amount
 }
 
-func (account Account) ReduceAmount(amount int64) {
-	account.Amount -= amount
-	account.Nonce++
-}
-
-func (account Account) AlterPublicKey(newPublicKey []byte) {
-	account.HexPublickKey = hex.EncodeToString(newPublicKey)
+func (account *Account) ReduceAmount(amount int64) {
+	account.Amount = account.Amount - amount
 	account.Nonce++
 }
 
