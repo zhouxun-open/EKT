@@ -183,15 +183,13 @@ func (chain *BlockChain) CurrentBlockKey() []byte {
 }
 
 func (chain *BlockChain) PackTime() time.Duration {
-	d := chain.BlockInterval / 3
-	if chain.BlockInterval > 3*time.Second {
-		d = chain.BlockInterval - 2*time.Second
-	}
-	return d
+	return chain.BlockInterval
+	//lastBlock := chain.GetLastBlock()
+	//d := time.Now().UnixNano() - lastBlock.Timestamp*1e6
+	//return time.Duration(int64(chain.BlockInterval)-d) / 2
 }
 
 func (chain *BlockChain) WaitAndPack() *Block {
-	// 打包10500个交易大概需要0.95秒
 	eventTimeout := time.After(chain.PackTime())
 	block := NewBlock(chain.GetLastBlock())
 	if block.Fee <= 0 {
@@ -226,13 +224,21 @@ func (chain *BlockChain) WaitAndPack() *Block {
 			break
 		}
 	}
+
 	end := time.Now().UnixNano()
 	fmt.Printf("Total tx: %d, startTime: %d, endTime: %d, Total time: %d ns. \n", numTx, start/1e6, end/1e6, end-start)
+
+	chain.UpdateBody(block)
+
+	block.UpdateMPTPlusRoot()
+
+	return block
+}
+
+func (chain *BlockChain) UpdateBody(block *Block) {
 	bodyData := block.BlockBody.Bytes()
 	block.Body = crypto.Sha3_256(bodyData)
 	db.GetDBInst().Set(block.Body, bodyData)
-	block.UpdateMPTPlusRoot()
-	return block
 }
 
 // 当区块写入区块时，notify交易池，一些nonce比较大的交易可以进行打包
