@@ -55,13 +55,39 @@ def _gen_peers(num):
         ret.append((pk, peerId))
     return ret
 
+def _get_account(num):
+    cmd = '%s account new' % EKTCLI
+    ret = []
+    for _ in range(num):
+        data = os.popen(cmd).read().strip()
+        lines = data.split('\n')
+        if len(lines) != 2:
+            continue
+        items = lines[0].split(':')
+        if len(items) != 2 or 'Private Key' not in items[0]:
+            continue
+        pk = items[1].strip()
+        items = lines[1].split(':')
+        if len(items) != 2 or 'Your address is' not in items[0]:
+            continue
+        addr = items[1].strip()
+        ret.append((pk, addr))
+    return ret
+
 def gen_conf():
+    meta = open('peer_info.txt', 'wb')
+
     num = len(HOST_ADDR) * NODE_NUM
     peers = _gen_peers(num)
     genesis_tpl = open('genesis.tpl').read()
     genesis_tpl = genesis_tpl.replace('{{.env}}', ENV)
+    genesis_act = _get_account(3)
+    for i, act in enumerate(genesis_act):
+        genesis_tpl = genesis_tpl.replace('{{.genesisAddr' + str(i) + '}}', act[1])
+        meta.write('pk:%s addr:%s\n' % (act[0], act[1]))
+        meta.flush()
+
     nets = []
-    meta = open('peer_info.txt', 'wb')
     for addr in HOST_ADDR:
         for i in range(NODE_NUM):
             peer = peers.pop(0)
