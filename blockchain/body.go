@@ -1,35 +1,22 @@
 package blockchain
 
 import (
-	"encoding/hex"
 	"encoding/json"
-	"github.com/EducationEKT/EKT/userevent"
-	"sync"
+	"github.com/EducationEKT/EKT/core/userevent"
 )
 
 type BlockBody struct {
-	Events sync.Map
+	Events []string
 }
 
 func NewBlockBody() *BlockBody {
 	return &BlockBody{
-		Events: sync.Map{},
+		Events: make([]string, 0),
 	}
 }
 
 func (body *BlockBody) AddEvent(event userevent.IUserEvent) {
-	value, exist := body.Events.Load(hex.EncodeToString(event.GetFrom()))
-	var list []string
-	if !exist {
-		list = make([]string, 1)
-	} else {
-		list = value.([]string)
-		if list == nil {
-			list = make([]string, 1)
-		}
-	}
-	list = append(list, event.EventId())
-	body.Events.Store(hex.EncodeToString(event.GetFrom()), list)
+	body.Events = append(body.Events, event.EventId())
 }
 
 func FromBytes(data []byte) (*BlockBody, error) {

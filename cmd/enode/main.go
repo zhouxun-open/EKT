@@ -3,16 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
-	"os"
-	"strings"
-
 	_ "github.com/EducationEKT/EKT/api"
 	"github.com/EducationEKT/EKT/blockchain_manager"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/param"
+	"net/http"
+	"os"
 
 	"github.com/EducationEKT/xserver/x_http"
 	"runtime"
@@ -95,7 +93,7 @@ func InitService(confPath string) error {
 }
 
 func initPeerId() error {
-	if !strings.EqualFold(conf.EKTConfig.PrivateKey, "") {
+	if len(conf.EKTConfig.PrivateKey) > 0 {
 		log.Info("Peer private key is: %s ", conf.EKTConfig.PrivateKey)
 		log.Info("Current peerId is: %s ", conf.EKTConfig.Node.PeerId)
 	} else {

@@ -31,7 +31,7 @@ func voteBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		log.Info("Invalid vote, abort.")
 		return x_resp.Return(false, nil)
 	}
-	blockchain_manager.GetMainChainConsensus().VoteFromPeer(vote)
+	go blockchain_manager.GetMainChainConsensus().VoteFromPeer(vote)
 	return nil, nil
 }
 
@@ -42,7 +42,7 @@ func voteResult(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		log.Info("Invalid vote, unmarshal fail, abort.")
 		return x_resp.Return(nil, err)
 	}
-	blockchain_manager.GetMainChainConsensus().RecieveVoteResult(votes)
+	go blockchain_manager.GetMainChainConsensus().RecieveVoteResult(votes)
 	return x_resp.Success(make(map[string]interface{})), nil
 }
 
