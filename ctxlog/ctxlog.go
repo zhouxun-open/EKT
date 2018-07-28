@@ -30,8 +30,11 @@ func (log *ContextLog) LogTiming(key string, value int64) {
 }
 
 func (cLog *ContextLog) Finish() {
+	log.Debug(cLog.String())
+}
+
+func (cLog *ContextLog) String() string {
 	sticker, _ := json.Marshal(cLog.Sticker)
 	timings, _ := json.Marshal(cLog.Timings)
-	result := fmt.Sprintf(`%s : {"sticker": %s, "timings": %s}`, cLog.ContextInfo, string(sticker), string(timings))
-	log.Debug(result)
+	return fmt.Sprintf(`%s : {"sticker": %s, "timings": %s}`, cLog.ContextInfo, string(sticker), string(timings))
 }

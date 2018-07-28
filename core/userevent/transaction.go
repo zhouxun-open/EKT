@@ -1,4 +1,4 @@
-package common
+package userevent
 
 import (
 	"encoding/hex"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
 )
@@ -13,15 +14,16 @@ import (
 type Transactions []*Transaction
 
 type Transaction struct {
-	From         HexBytes `json:"from"`
-	To           HexBytes `json:"to"`
-	TimeStamp    int64    `json:"time"` // UnixTimeStamp
-	Amount       int64    `json:"amount"`
-	Fee          int64    `json:"fee"`
-	Nonce        int64    `json:"nonce"`
-	Data         string   `json:"data"`
-	TokenAddress string   `json:"tokenAddress"`
-	Sign         HexBytes `json:"sign"`
+	EventType    string
+	From         types.HexBytes `json:"from"`
+	To           types.HexBytes `json:"to"`
+	TimeStamp    int64          `json:"time"` // UnixTimeStamp
+	Amount       int64          `json:"amount"`
+	Fee          int64          `json:"fee"`
+	Nonce        int64          `json:"nonce"`
+	Data         string         `json:"data"`
+	TokenAddress string         `json:"tokenAddress"`
+	Sign         types.HexBytes `json:"sign"`
 }
 
 type TxResult struct {
@@ -33,6 +35,7 @@ type TxResult struct {
 
 func NewTransaction(from, to []byte, timestamp, amount, fee, nonce int64, data, tokenAddress string) *Transaction {
 	return &Transaction{
+		EventType:    TYPE_USEREVENT_TRANSACTION,
 		From:         from,
 		To:           to,
 		TimeStamp:    timestamp,
@@ -51,6 +54,10 @@ func NewTransactionResult(tx Transaction, fee int64, success bool, failMessage s
 		Success: success,
 		FailMsg: failMessage,
 	}
+}
+
+func (tx Transaction) Type() string {
+	return TYPE_USEREVENT_TRANSACTION
 }
 
 func (tx Transaction) GetNonce() int64 {

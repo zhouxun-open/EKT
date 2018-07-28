@@ -9,7 +9,7 @@ import (
 
 	"errors"
 
-	"github.com/EducationEKT/EKT/core/common"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
@@ -22,7 +22,7 @@ var BackboneChainId int64 = 1
 
 const (
 	BackboneConsensus     = i_consensus.DPOS
-	BackboneBlockInterval = 10 * time.Second
+	BackboneBlockInterval = 3 * time.Second
 	BackboneChainFee      = 510000
 )
 
@@ -35,14 +35,13 @@ type BlockChain struct {
 	ChainId       int64
 	Consensus     i_consensus.ConsensusType
 	currentLocker sync.RWMutex
-	currentBlock  *Block
+	currentBlock  Block
 	currentHeight int64
 	Locker        sync.RWMutex
 	Status        int
 	Fee           int64
 	Difficulty    []byte
-	Pool          *pool.Pool
-	Validator     *BlockValidator
+	Pool          *pool.TxPool
 	BlockInterval time.Duration
 	Police        BlockPolice
 	BlockManager  *BlockManager
@@ -53,15 +52,13 @@ func NewBlockChain(chainId int64, consensusType i_consensus.ConsensusType, fee i
 	return &BlockChain{
 		ChainId:       chainId,
 		Consensus:     consensusType,
-		currentBlock:  nil,
 		Locker:        sync.RWMutex{},
 		currentLocker: sync.RWMutex{},
 		Status:        InitStatus, // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
 		Fee:           fee,
 		Difficulty:    difficulty,
-		Pool:          pool.NewPool(),
+		Pool:          pool.NewTxPool(),
 		currentHeight: 0,
-		Validator:     nil,
 		BlockInterval: interval,
 		Police:        NewBlockPolice(),
 		BlockManager:  NewBlockManager(),
@@ -69,13 +66,13 @@ func NewBlockChain(chainId int64, consensusType i_consensus.ConsensusType, fee i
 	}
 }
 
-func (chain *BlockChain) GetLastBlock() *Block {
+func (chain *BlockChain) GetLastBlock() Block {
 	chain.currentLocker.RLock()
 	defer chain.currentLocker.RUnlock()
 	return chain.currentBlock
 }
 
-func (chain *BlockChain) SetLastBlock(block *Block) {
+func (chain *BlockChain) SetLastBlock(block Block) {
 	chain.currentLocker.Lock()
 	defer chain.currentLocker.Unlock()
 	chain.currentBlock = block
@@ -88,7 +85,7 @@ func (chain *BlockChain) GetLastHeight() int64 {
 	return chain.currentHeight
 }
 
-func (chain *BlockChain) PackSignal(height int64) *Block {
+func (chain *BlockChain) PackSignal(ctxLog *ctxlog.ContextLog, height int64) *Block {
 	chain.PackLock.Lock()
 	defer chain.PackLock.Unlock()
 	if chain.Status != StartPackStatus {
@@ -98,13 +95,10 @@ func (chain *BlockChain) PackSignal(height int64) *Block {
 			}
 			chain.Status = InitStatus
 		}()
-		if !chain.PackHeightValidate(height) {
-			log.Info("This height is packed within an interval, return nil.")
-			return nil
-		}
 		log.Info("Start pack block at height %d .\n", chain.GetLastHeight()+1)
 		log.Debug("Start pack block at height %d .\n", chain.GetLastHeight()+1)
-		block := chain.WaitAndPack()
+		block := chain.WaitAndPack(ctxLog)
+		ctxLog.Log("block1", string(block.Bytes()))
 		log.Info("Packed a block at height %d, block info: %s .\n", chain.GetLastHeight()+1, string(block.Bytes()))
 		log.Debug("Packed a block at height %d, block info: %s .\n", chain.GetLastHeight()+1, string(block.Bytes()))
 		return block
@@ -145,7 +139,7 @@ func (chain *BlockChain) GetBlockByHeightKey(height int64) []byte {
 	return []byte(fmt.Sprint(`GetBlockByHeight: _%d_%d`, chain.ChainId, height))
 }
 
-func (chain *BlockChain) SaveBlock(block *Block) {
+func (chain *BlockChain) SaveBlock(block Block) {
 	chain.Locker.Lock()
 	defer chain.Locker.Unlock()
 	if chain.GetLastHeight()+1 == block.Height {
@@ -183,13 +177,12 @@ func (chain *BlockChain) CurrentBlockKey() []byte {
 }
 
 func (chain *BlockChain) PackTime() time.Duration {
-	return chain.BlockInterval
-	//lastBlock := chain.GetLastBlock()
-	//d := time.Now().UnixNano() - lastBlock.Timestamp*1e6
-	//return time.Duration(int64(chain.BlockInterval)-d) / 2
+	lastBlock := chain.GetLastBlock()
+	d := time.Now().UnixNano() - lastBlock.Timestamp*1e6
+	return time.Duration(int64(chain.BlockInterval)-d) / 2
 }
 
-func (chain *BlockChain) WaitAndPack() *Block {
+func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 	eventTimeout := time.After(chain.PackTime())
 	block := NewBlock(chain.GetLastBlock())
 	if block.Fee <= 0 {
@@ -206,16 +199,20 @@ func (chain *BlockChain) WaitAndPack() *Block {
 			flag = true
 			break
 		default:
-			event := chain.Pool.Fetch()
-			if event != nil {
+			multiFetcher := pool.NewMultiFatcher(10)
+			chain.Pool.MultiFetcher <- multiFetcher
+			events := <-multiFetcher.Chan
+			if len(events) > 0 {
 				if !started {
 					started = true
 					start = time.Now().UnixNano()
 				}
-				tx, ok := event.(common.Transaction)
-				if ok {
-					numTx++
-					block.NewTransaction(tx, tx.Fee)
+				for _, event := range events {
+					tx, ok := event.(*userevent.Transaction)
+					if ok {
+						numTx++
+						block.NewTransaction(*tx, tx.Fee)
+					}
 					block.BlockBody.AddEvent(event)
 				}
 			}
@@ -228,8 +225,11 @@ func (chain *BlockChain) WaitAndPack() *Block {
 	end := time.Now().UnixNano()
 	fmt.Printf("Total tx: %d, startTime: %d, endTime: %d, Total time: %d ns. \n", numTx, start/1e6, end/1e6, end-start)
 
-	chain.UpdateBody(block)
+	if numTx > 0 {
+		ctxLog.Log("block.Stat1", hex.EncodeToString(block.StatTree.Root))
+	}
 
+	chain.UpdateBody(block)
 	block.UpdateMPTPlusRoot()
 
 	return block
@@ -242,23 +242,24 @@ func (chain *BlockChain) UpdateBody(block *Block) {
 }
 
 // 当区块写入区块时，notify交易池，一些nonce比较大的交易可以进行打包
-func (chain *BlockChain) NotifyPool(block *Block) {
+func (chain *BlockChain) NotifyPool(block Block) {
 	if block.BlockBody == nil {
 		return
 	}
-	block.BlockBody.Events.Range(func(key, value interface{}) bool {
-		address, ok1 := key.(string)
-		list, ok2 := value.([]string)
-		if ok1 && ok2 && len(list) > 0 {
-			for _, eventId := range list {
-				chain.Pool.Notify(address, eventId)
-			}
-		}
-		return true
-	})
+
+	//block.BlockBody.Events.Range(func(key, value interface{}) bool {
+	//	address, ok1 := key.(string)
+	//	list, ok2 := value.([]string)
+	//	if ok1 && ok2 && len(list) > 0 {
+	//		for _, eventId := range list {
+	//			chain.Pool.Notify(address, eventId)
+	//		}
+	//	}
+	//	return true
+	//})
 }
 
-func (chain *BlockChain) NewTransaction(tx common.Transaction) bool {
+func (chain *BlockChain) NewTransaction(tx userevent.Transaction) bool {
 	block := chain.GetLastBlock()
 	account, err := block.GetAccount(tx.GetFrom())
 	if err != nil {
@@ -267,31 +268,16 @@ func (chain *BlockChain) NewTransaction(tx common.Transaction) bool {
 	if account.GetNonce() >= tx.GetNonce() {
 		return false
 	}
-	result := true
 	if account.GetNonce()+1 == tx.GetNonce() {
-		result = chain.Pool.Park(tx, pool.Ready)
+		chain.Pool.SingleReady <- tx
 	} else {
-		result = chain.Pool.Park(tx, pool.Block)
+		chain.Pool.SingleBlock <- tx
 	}
-	return result
+	return true
 }
 
-func (chain *BlockChain) BlockFromPeer(ctxlog *ctxlog.ContextLog, block Block) bool {
-	log.Info("Validating block from peer, block info: %s, block.Hash=%s \n", string(block.Bytes()), hex.EncodeToString(block.Hash()))
-	if err := block.Validate(ctxlog); err != nil {
-		ctxlog.Log("InvalidReason", err.Error())
-		return false
-	}
-
-	// 1500是毫秒和纳秒的单位乘以2/3计算得来的
-	if time.Now().UnixNano()/1e6-block.Timestamp > int64(chain.BlockInterval/1500) {
-		ctxlog.Log("Invalid timestamp", true)
-		log.Info("time.Now=%d, block.Time=%d, block.Interval=%d \n", time.Now().UnixNano()/1e6, block.Timestamp, int64(chain.BlockInterval/1500))
-		log.Info("Block timestamp is more than 2/3 block interval, abort vote.")
-		return false
-	}
-
-	if !chain.GetLastBlock().ValidateNextBlock(block, chain.BlockInterval) {
+func (chain *BlockChain) ValidateNextBlock(ctxlog *ctxlog.ContextLog, block Block, events []userevent.IUserEvent) bool {
+	if !chain.GetLastBlock().ValidateNextBlock(block, events) {
 		log.Info("This block from peer can not recover by last block, abort.")
 		return false
 	}

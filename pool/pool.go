@@ -2,15 +2,9 @@ package pool
 
 import (
 	"encoding/hex"
-	"github.com/EducationEKT/EKT/userevent"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"sort"
-	"strings"
 	"sync"
-)
-
-const (
-	Block = 0
-	Ready = 1
 )
 
 type Pool struct {
@@ -28,6 +22,14 @@ func NewPool() *Pool {
 // 根据address获取该地址pending/queue的交易信息
 func (pool Pool) GetReadyEvents(address string) userevent.SortedUserEvent {
 	events, exist := pool.ready.Load(address)
+	if exist {
+		return events.(userevent.SortedUserEvent)
+	}
+	return nil
+}
+
+func (pool Pool) GetBlockEvents(address string) userevent.SortedUserEvent {
+	events, exist := pool.block.Load(address)
 	if exist {
 		return events.(userevent.SortedUserEvent)
 	}
@@ -130,26 +132,24 @@ func (pool *Pool) Notify(from, eventId string) {
 	readyList, exist := pool.ready.Load(from)
 	if exist {
 		list := readyList.(userevent.SortedUserEvent)
-		newList := make(userevent.SortedUserEvent, len(list))
-		for _, event := range list {
-			if !strings.EqualFold(event.EventId(), eventId) {
-				newList = append(newList, event)
-			}
+		index := list.Index(eventId)
+		if index > 0 {
+			list = append(list[:index], list[index+1:]...)
+			pool.ready.Store(from, list)
+			return
 		}
-		pool.ready.Store(from, newList)
 	}
 
 	// notify block
 	blockList, exist := pool.block.Load(from)
 	if exist {
 		list := blockList.(userevent.SortedUserEvent)
-		newList := make(userevent.SortedUserEvent, len(list))
-		for _, event := range list {
-			if !strings.EqualFold(event.EventId(), eventId) {
-				newList = append(newList, event)
-			}
+		index := list.Index(eventId)
+		if index > 0 {
+			list = append(list[:index], list[index+1:]...)
+			pool.block.Store(from, list)
+			return
 		}
-		pool.block.Store(from, newList)
 	}
 }
 
@@ -170,10 +170,15 @@ func (pool *Pool) Fetch() userevent.IUserEvent {
 		}
 		return true
 	})
+
 	if events.Len() > 0 {
 		event := events[0]
 		events = events[1:]
-		pool.ready.Store(hex.EncodeToString(event.GetFrom()), events)
+		if len(events) > 0 {
+			pool.ready.Store(hex.EncodeToString(event.GetFrom()), events)
+		} else {
+			pool.ready.Delete(hex.EncodeToString(event.GetFrom()))
+		}
 		return event
 	} else {
 		return nil

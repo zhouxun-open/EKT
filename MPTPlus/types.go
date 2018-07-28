@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"bytes"
-	"github.com/EducationEKT/EKT/core/common"
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/db"
 )
 
@@ -15,8 +15,8 @@ import (
 *如果当前节点不是叶子节点,则Sons的长度大于等于1,存储的是子节点的Hash值和PathValue
  */
 type TrieSonInfo struct {
-	Hash      common.HexBytes `json:"hash"`
-	PathValue common.HexBytes `json:"pathValue"`
+	Hash      types.HexBytes `json:"hash"`
+	PathValue types.HexBytes `json:"pathValue"`
 }
 
 /*
@@ -24,15 +24,15 @@ type TrieSonInfo struct {
 *strings.Join(pathValue,"")就是用户要存储的key
  */
 type TrieNode struct {
-	Sons      SortedSon       `json:"sons"`
-	Leaf      bool            `json:"leaf"`
-	Root      bool            `json:"root"`
-	PathValue common.HexBytes `json:"pathValue"`
+	Sons      SortedSon      `json:"sons"`
+	Leaf      bool           `json:"leaf"`
+	Root      bool           `json:"root"`
+	PathValue types.HexBytes `json:"pathValue"`
 }
 
 type MTP struct {
 	Lock *sync.RWMutex
-	Root common.HexBytes
+	Root types.HexBytes
 	DB   db.IKVDatabase
 }
 
