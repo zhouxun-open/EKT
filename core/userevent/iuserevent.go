@@ -7,11 +7,17 @@ import (
 	"strings"
 )
 
+const (
+	TYPE_USEREVENT_TRANSACTION  = "transaction"
+	TYPE_USEREVENT_PUBLIC_TOKEN = "issuetoken"
+)
+
 type IUserEvent interface {
 	GetNonce() int64
 	Msg() []byte
 	GetSign() []byte
 	GetFrom() []byte
+	Type() string
 	EventId() string
 }
 
