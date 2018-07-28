@@ -1,24 +1,23 @@
 package conf
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/EducationEKT/EKT/core/common"
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/p2p"
 )
 
 type EKTConf struct {
-	Version              string           `json:"version"`
-	DBPath               string           `json:"dbPath"`
-	LogPath              string           `json:"logPath"`
-	Debug                bool             `json:"debug"`
-	Node                 p2p.Peer         `json:"node"`
-	BlockchainManagePwd  string           `json:"blockchainManagePwd"`
-	GenesisBlockAccounts []common.Account `json:"genesisBlock"`
-	PrivateKey           string           `json:"privateKey"`
-	Env                  string           `json:"env"`
+	Version              string          `json:"version"`
+	DBPath               string          `json:"dbPath"`
+	LogPath              string          `json:"logPath"`
+	Debug                bool            `json:"debug"`
+	Node                 p2p.Peer        `json:"node"`
+	BlockchainManagePwd  string          `json:"blockchainManagePwd"`
+	GenesisBlockAccounts []types.Account `json:"genesisBlock"`
+	PrivateKey           types.HexBytes  `json:"privateKey"`
+	Env                  string          `json:"env"`
 }
 
 var EKTConfig EKTConf
@@ -33,6 +32,5 @@ func InitConfig(filePath string) error {
 }
 
 func (conf EKTConf) GetPrivateKey() []byte {
-	priv, _ := hex.DecodeString(conf.PrivateKey)
-	return priv
+	return conf.PrivateKey
 }
