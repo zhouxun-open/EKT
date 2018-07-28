@@ -6,7 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/EducationEKT/EKT/cmd/ecli/param"
-	"github.com/EducationEKT/EKT/core/common"
+	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/util"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -52,7 +53,7 @@ func SendTransaction(cmd *cobra.Command, args []string) {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
-	from := common.FromPubKeyToAddress(pubKey)
+	from := types.FromPubKeyToAddress(pubKey)
 	fmt.Print("Input token address (Press ENTER if you need send EKT): ")
 	input.Scan()
 	tokenAddress := input.Text()
@@ -63,7 +64,7 @@ func SendTransaction(cmd *cobra.Command, args []string) {
 		fmt.Println("You can only input int64 only, exit.")
 		os.Exit(-1)
 	}
-	fmt.Print("Input the address who receive this token:")
+	fmt.Print("Input the address who receive this token: ")
 	input.Scan()
 	receive := input.Text()
 	to, err := hex.DecodeString(receive)
@@ -72,7 +73,7 @@ func SendTransaction(cmd *cobra.Command, args []string) {
 		os.Exit(-1)
 	}
 	nonce := getAccountNonce(hex.EncodeToString(from))
-	tx := common.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 510000, nonce, "", tokenAddress)
+	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 510000, nonce, "", tokenAddress)
 	tx.Signature(privKey)
 	sendTransaction(*tx)
 }
@@ -92,8 +93,8 @@ func BenchTest(cmd *cobra.Command, args []string) {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
-	from := common.FromPubKeyToAddress(pubKey)
-	fmt.Print("Input the address who receive this token:")
+	from := types.FromPubKeyToAddress(pubKey)
+	fmt.Print("Input the address who receive this token: ")
 	input.Scan()
 	receive := input.Text()
 	to, err := hex.DecodeString(receive)
@@ -103,30 +104,22 @@ func BenchTest(cmd *cobra.Command, args []string) {
 	}
 	amount := 1000000
 	nonce := getAccountNonce(hex.EncodeToString(from))
-	tx := common.Transaction{
-		From:         from,
-		To:           to,
-		TimeStamp:    time.Now().UnixNano() / 1e6,
-		Amount:       int64(amount),
-		Nonce:        nonce,
-		Data:         "",
-		TokenAddress: "",
-	}
+	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 510000, nonce, "", "")
 	testTPS(tx, privKey)
 }
 
-func testTPS(tx common.Transaction, priv []byte) {
-	max, min := tx.Nonce+20000, tx.Nonce
+func testTPS(tx *userevent.Transaction, priv []byte) {
+	max, min := tx.Nonce+2000, tx.Nonce
 	for nonce := max; nonce >= min; nonce-- {
 		tx.Nonce = int64(nonce)
 		tx.Signature(priv)
-		sendTransaction(tx)
+		sendTransaction(*tx)
 		fmt.Println(tx.String())
 	}
 	fmt.Println("finish")
 }
 
-func sendTransaction(tx common.Transaction) {
+func sendTransaction(tx userevent.Transaction) {
 	for _, node := range param.GetPeers() {
 		url := fmt.Sprintf(`http://%s:%d/transaction/api/newTransaction`, node.Address, node.Port)
 		resp, err := util.HttpPost(url, tx.Bytes())
