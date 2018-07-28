@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/EducationEKT/EKT/conf"
-	"github.com/EducationEKT/EKT/core/common"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/dispatcher"
@@ -15,6 +14,7 @@ import (
 
 	"encoding/hex"
 	"github.com/EducationEKT/EKT/blockchain_manager"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -23,7 +23,19 @@ import (
 
 func init() {
 	x_router.Post("/transaction/api/newTransaction", broadcastTx, newTransaction)
+	x_router.Get("/transaction/api/queueTxs", queueTxs)
+	x_router.Get("/transaction/api/blockTxs", blockTxs)
 	x_router.Get("/transaction/api/status", txStatus)
+}
+
+func queueTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	address := req.MustGetString("address")
+	return x_resp.Return(blockchain_manager.GetMainChain().Pool.GetReadyEvents(address), nil)
+}
+
+func blockTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	address := req.MustGetString("address")
+	return x_resp.Return(blockchain_manager.GetMainChain().Pool.GetBlockEvents(address), nil)
 }
 
 func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -33,10 +45,10 @@ func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
-	if tx := common.GetTransaction(txId); tx == nil {
+	if tx := userevent.GetTransaction(txId); tx == nil {
 		synchronizeTransaction(txId)
 	}
-	tx := common.GetTransaction(txId)
+	tx := userevent.GetTransaction(txId)
 	if tx == nil {
 		return x_resp.Return("error transaction not found", nil)
 	}
@@ -57,7 +69,7 @@ func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	var tx common.Transaction
+	var tx userevent.Transaction
 	err := json.Unmarshal(req.Body, &tx)
 	if err != nil {
 		return nil, x_err.New(-1, err.Error())
