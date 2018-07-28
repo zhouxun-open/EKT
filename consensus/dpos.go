@@ -9,33 +9,43 @@ import (
 	"sync"
 	"time"
 
+	"bytes"
+	"errors"
 	"github.com/EducationEKT/EKT/MPTPlus"
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
+	"github.com/EducationEKT/EKT/core/userevent"
+	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/p2p"
 	"github.com/EducationEKT/EKT/param"
+	"github.com/EducationEKT/EKT/pool"
 	"github.com/EducationEKT/EKT/round"
 	"github.com/EducationEKT/EKT/util"
+	"os"
+	"runtime"
+	"strings"
 )
 
 type DPOSConsensus struct {
-	Blockchain  *blockchain.BlockChain
-	Block       chan blockchain.Block
-	Vote        chan blockchain.BlockVote
-	VoteResults blockchain.VoteResults
-	Locker      sync.RWMutex
+	Blockchain   *blockchain.BlockChain
+	BlockManager *blockchain.BlockManager
+	Block        chan blockchain.Block
+	Vote         chan blockchain.BlockVote
+	VoteResults  blockchain.VoteResults
+	Locker       sync.RWMutex
 }
 
 func NewDPoSConsensus(Blockchain *blockchain.BlockChain) *DPOSConsensus {
 	return &DPOSConsensus{
-		Blockchain:  Blockchain,
-		Block:       make(chan blockchain.Block),
-		Vote:        make(chan blockchain.BlockVote),
-		VoteResults: blockchain.NewVoteResults(),
-		Locker:      sync.RWMutex{},
+		Blockchain:   Blockchain,
+		BlockManager: blockchain.NewBlockManager(),
+		Block:        make(chan blockchain.Block),
+		Vote:         make(chan blockchain.BlockVote),
+		VoteResults:  blockchain.NewVoteResults(),
+		Locker:       sync.RWMutex{},
 	}
 }
 
@@ -44,6 +54,23 @@ func (dpos DPOSConsensus) BlockFromPeer(ctxlog *ctxlog.ContextLog, block blockch
 	dpos.Locker.Lock()
 	defer dpos.Locker.Unlock()
 
+	dpos.BlockManager.Insert(block)
+
+	status := dpos.BlockManager.GetBlockStatus(block.CurrentHash)
+	if status == blockchain.BLOCK_SAVED ||
+		(status > blockchain.BLOCK_ERROR_START && status < blockchain.BLOCK_ERROR_END) ||
+		status == blockchain.BLOCK_VOTED {
+		//如果区块已经写入链中 or 是一个有问题的区块 or 已经投票成功 直接返回
+		return
+	}
+
+	if status == blockchain.BLOCK_VALID {
+		ctxlog.Log("SendVote", true)
+		dpos.SendVote(block)
+		dpos.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_VOTED)
+		return
+	}
+
 	// 判断此区块是否是一个interval之前打包的，如果是则放弃vote
 	// unit： ms    单位：ms
 	blockLatencyTime := int(time.Now().UnixNano()/1e6 - block.Timestamp) // 从节点打包到当前节点的延迟，单位ms
@@ -51,25 +78,121 @@ func (dpos DPOSConsensus) BlockFromPeer(ctxlog *ctxlog.ContextLog, block blockch
 	if blockLatencyTime > blockInterval {
 		log.Info("Recieved a block packed before an interval, return.")
 		ctxlog.Log("More than an interval", true)
+		dpos.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_BROADCAST_TIME)
 		return
 	}
 
 	// 校验打包节点在打包时是否有打包权限
 	log.Info("Validating is the right node.")
 	if result := dpos.PeerTurn(ctxlog, block.Timestamp, dpos.Blockchain.GetLastBlock().Timestamp, block.GetRound().Peers[block.GetRound().CurrentIndex]); !result {
-		ctxlog.Log("result", result)
+		ctxlog.Log("rightNode", result)
+		dpos.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_PACK_TIME)
 		return
 	} else {
-		ctxlog.Log("result", result)
+		ctxlog.Log("rightNode", result)
 	}
-	log.Info("This block has the right.")
+
+	// validate hash
+	if !block.ValidateHash() {
+		dpos.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_HASH)
+		return
+	}
+
+	// validate sign
+	if !dpos.ValidateSign(block) {
+		dpos.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_SIGN)
+		return
+	}
+
+	_block := block
+	if !dpos.syncBlockBody(&_block) {
+		return
+	}
+
+	events, err := dpos.getBlockEvents(&block)
+	if err != nil {
+		fmt.Println("Can't get events from local and peer, return false.", err)
+		return
+	}
 
 	// 对区块进行validate和recover，如果区块数据没问题，则发送投票给其他节点
-	if dpos.Blockchain.BlockFromPeer(ctxlog, block) {
-		log.Info("Block is is recovered, waiting send to other peers.")
+	if dpos.Blockchain.ValidateNextBlock(ctxlog, _block, events) {
+		ctxlog.Log("SendVote", true)
+		dpos.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_VOTED)
 		dpos.SendVote(block)
-		log.Info("Send vote to other peer succeed.")
+	} else {
+		dpos.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_BODY)
 	}
+}
+
+func (dpos DPOSConsensus) getBlockEvents(block *blockchain.Block) (list []userevent.IUserEvent, err error) {
+	dpos.syncBlockBody(block)
+	eventIds := block.BlockBody.Events
+	if len(eventIds) > 0 {
+		for _, eventId := range eventIds {
+			id, err := hex.DecodeString(eventId)
+			if err != nil {
+				return nil, err
+			}
+			eventGetter := pool.NewEventGetter(eventId)
+			dpos.Blockchain.Pool.EventGetter <- eventGetter
+			event := <-eventGetter.Chan
+			if event == nil {
+				data, err := block.Round.Peers[block.Round.CurrentIndex].GetDBValue(id)
+				if !bytes.EqualFold(crypto.Sha3_256(data), id) {
+					return nil, errors.New("Invalid Response")
+				}
+				if err != nil {
+					return nil, err
+				}
+				var tx userevent.Transaction
+				err = json.Unmarshal(data, &tx)
+				if err != nil {
+					return nil, err
+				}
+				db.GetDBInst().Set(id, data)
+				event = tx
+				dpos.Blockchain.Pool.EventPutter <- event
+			}
+			if event != nil {
+				list = append(list, event)
+			} else {
+				return nil, err
+			}
+		}
+	}
+	return list, nil
+}
+
+func (dpos DPOSConsensus) syncUserEvent(eventId string) bool {
+	// TODO
+	return true
+}
+
+func (dpos DPOSConsensus) syncBlockBody(block *blockchain.Block) bool {
+	// 从打包节点获取body
+	body, err := block.GetRound().Peers[block.GetRound().CurrentIndex].GetDBValue(block.Body)
+	if err != nil {
+		log.Info("Can not get body from mining node, return false.")
+		return false
+	}
+	block.BlockBody, err = blockchain.FromBytes(body)
+	if err != nil {
+		log.Info("Get an error body, return false.")
+		return false
+	}
+	return true
+}
+
+func (dpos DPOSConsensus) ValidateSign(block blockchain.Block) bool {
+	if pubkey, err := crypto.RecoverPubKey(crypto.Sha3_256(block.CurrentHash), block.Signature); err != nil {
+		return false
+	} else {
+		if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubkey)), block.GetRound().Peers[block.GetRound().CurrentIndex].PeerId) {
+			return false
+		}
+	}
+	return true
 }
 
 // 校验从其他委托人节点来的区块成功之后发送投票
@@ -119,6 +242,7 @@ func (dpos DPOSConsensus) SendVote(block blockchain.Block) {
 			go util.HttpPost(url, vote.Bytes())
 		}
 	}
+	log.Info("Send vote to other peer succeed.")
 }
 
 // for循环+recover保证DPoS线程的安全性
@@ -287,7 +411,9 @@ func (dpos *DPOSConsensus) startDelegateThread() {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						log.Crit("Panic occured at delegate thread, %v", r)
+						var buf [4096]byte
+						runtime.Stack(buf[:], false)
+						log.Crit("Panic occured at delegate thread, %s", string(buf[:]))
 					}
 				}()
 				dpos.DelegateRun()
@@ -302,7 +428,9 @@ func (dpos *DPOSConsensus) startDelegateThread() {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						log.Crit("Panic occured at delegate sync thread, %v", r)
+						var buf [4096]byte
+						runtime.Stack(buf[:], false)
+						log.Crit("Panic occured at delegate sync thread, %s", string(buf[:]))
 					}
 				}()
 				dpos.dposSync()
@@ -345,7 +473,11 @@ func (dpos *DPOSConsensus) dposSync() {
 func (dpos DPOSConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 	// 对下一个区块进行打包
 	lastBlock := dpos.Blockchain.GetLastBlock()
-	block := dpos.Blockchain.PackSignal(lastBlock.Height + 1)
+	if !dpos.BlockManager.GetBlockStatusByHeight(lastBlock.Height+1, int64(dpos.Blockchain.BlockInterval)) {
+		log.Debug("This height is packed within an interval, return nil.")
+		return
+	}
+	block := dpos.Blockchain.PackSignal(ctxlog, lastBlock.Height+1)
 
 	// 如果block不为空，说明打包成功，签名后转发给其他节点
 	if block != nil {
@@ -369,17 +501,14 @@ func (dpos DPOSConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 
 		// 计算hash
 		block.CaculateHash()
-		hash := hex.EncodeToString(block.CurrentHash)
 
 		// 增加打包信息
-		dpos.Blockchain.BlockManager.Lock()
-		dpos.Blockchain.BlockManager.Blocks[hash] = block
-		dpos.Blockchain.BlockManager.BlockStatus[hash] = blockchain.BODY_SAVED
-		dpos.Blockchain.BlockManager.HeightManager[block.Height] = block.Timestamp
-		dpos.Blockchain.BlockManager.Unlock()
+		dpos.BlockManager.Insert(*block)
+		dpos.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_VALID)
+		dpos.BlockManager.SetBlockStatusByHeight(block.Height, block.Timestamp)
 
 		// 签名
-		if err := block.Sign(ctxlog); err != nil {
+		if err := block.Sign(conf.EKTConfig.PrivateKey); err != nil {
 			log.Crit("Sign block failed. %v", err)
 		} else {
 			// 广播
@@ -433,9 +562,9 @@ func (dpos DPOSConsensus) RecoverFromDB() {
 
 		block.CaculateHash()
 
-		dpos.Blockchain.SaveBlock(block)
+		dpos.Blockchain.SaveBlock(*block)
 	}
-	dpos.Blockchain.SetLastBlock(block)
+	dpos.Blockchain.SetLastBlock(*block)
 }
 
 // 获取存活的DPOS节点数量
@@ -481,7 +610,11 @@ func (dpos DPOSConsensus) SyncHeight(height int64) bool {
 			continue
 		}
 		if votes.Validate() {
-			if dpos.Blockchain.GetLastBlock().ValidateNextBlock(*block, dpos.Blockchain.BlockInterval) {
+			events, err := dpos.getBlockEvents(block)
+			if err != nil {
+				continue
+			}
+			if dpos.Blockchain.GetLastBlock().ValidateNextBlock(*block, events) {
 				if dpos.RecieveVoteResult(votes) {
 					return true
 				} else {
@@ -517,7 +650,7 @@ func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 		for _, peer := range round.Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
 			resp, err := util.HttpPost(url, votes.Bytes())
-			log.Debug(`Resp: %s, err: %v`, string(resp), err)
+			fmt.Println("======", string(resp), err)
 		}
 	} else {
 		log.Info("Current vote results: %s", string(dpos.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash)).Bytes()))
@@ -532,33 +665,48 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 		return false
 	}
 
-	status := blockchain.BlockRecorder.GetStatus(hex.EncodeToString(votes[0].BlockHash))
-	// 未同步区块body
-	if status == -1 {
-		// 未同步区块体通过sync同步区块
-		return false
+	status := dpos.BlockManager.GetBlockStatus(votes[0].BlockHash)
+	fmt.Println("========status=", status)
+
+	// 已经写入到链中
+	if status == blockchain.BLOCK_SAVED {
+		fmt.Println("Already wrote to blockchain.")
+		return true
 	}
 
-	if block := blockchain.BlockRecorder.GetBlock(hex.EncodeToString(votes[0].BlockHash)); block != nil {
-		if status == 100 {
-			// 已同步区块body，但是未写入区块链中
-			log.Info("Recieve vote result and get this block, saving block.")
-			dpos.SaveVotes(votes)
-			dpos.Blockchain.NotifyPool(block)
-			dpos.Blockchain.SaveBlock(block)
-			blockchain.BlockRecorder.SetStatus(hex.EncodeToString(block.CurrentHash), 200)
-			ctxlog := ctxlog.NewContextLog("pack from vote result")
-			defer ctxlog.Finish()
-			if dpos.IsMyTurn(ctxlog) {
-				dpos.Pack(ctxlog)
-			}
-		} else if status == 200 {
-			// 已经写入区块链中
-			log.Info("This block is already wrote to blockchain.")
+	// 未同步区块body
+	if status > blockchain.BLOCK_ERROR_START && status < blockchain.BLOCK_ERROR_END {
+		// 未同步区块体通过sync同步区块
+		fmt.Printf("Invalid block and votes, block.hash = %s \n", hex.EncodeToString(votes[0].BlockHash))
+		log.Crit("Invalid block and votes, block.hash = %s", hex.EncodeToString(votes[0].BlockHash))
+		os.Exit(-1)
+	}
+
+	// 区块已经校验但未写入链中
+	if status == blockchain.BLOCK_VALID || status == blockchain.BLOCK_VOTED {
+		fmt.Println("saving votes")
+		dpos.SaveVotes(votes)
+		fmt.Println("geting block")
+		block, exist := dpos.BlockManager.GetBlock(votes[0].BlockHash)
+		if !exist {
+			fmt.Println("does not exist")
+			return false
+		}
+		fmt.Println("saving block")
+		dpos.Blockchain.SaveBlock(block)
+		fmt.Println("notify pool")
+		// TODO sync body
+		body, err := block.Round.Peers[block.Round.CurrentIndex].GetDBValue(block.Body)
+		if err != nil {
+
+		}
+		block.BlockBody, err = blockchain.FromBytes(body)
+		dpos.Blockchain.NotifyPool(block)
+		contextLog := ctxlog.NewContextLog("pack from vote result")
+		if dpos.IsMyTurn(contextLog) {
+			dpos.Pack(contextLog)
 		}
 		return true
-	} else {
-		log.Info("Haven't recieve this block,  abort.")
 	}
 
 	return false
