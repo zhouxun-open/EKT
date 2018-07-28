@@ -4,17 +4,14 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/EducationEKT/EKT/MPTPlus"
-	"github.com/EducationEKT/EKT/conf"
-	"github.com/EducationEKT/EKT/core/common"
+	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
-	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/round"
@@ -23,24 +20,24 @@ import (
 var currentBlock *Block = nil
 
 type Block struct {
-	Height       int64           `json:"height"`
-	Timestamp    int64           `json:"timestamp"`
-	Nonce        int64           `json:"nonce"`
-	Fee          int64           `json:"fee"`
-	TotalFee     int64           `json:"totalFee"`
-	PreviousHash common.HexBytes `json:"previousHash"`
-	CurrentHash  common.HexBytes `json:"currentHash"`
-	Signature    string          `json:"signature"`
-	BlockBody    *BlockBody      `json:"-"`
-	Body         common.HexBytes `json:"body"`
-	Round        *round.Round    `json:"round"`
-	Locker       sync.RWMutex    `json:"-"`
-	StatTree     *MPTPlus.MTP    `json:"-"`
-	StatRoot     common.HexBytes `json:"statRoot"`
-	TxTree       *MPTPlus.MTP    `json:"-"`
-	TxRoot       common.HexBytes `json:"txRoot"`
-	TokenTree    *MPTPlus.MTP    `json:"-"`
-	TokenRoot    common.HexBytes `json:"tokenRoot"`
+	Height       int64          `json:"height"`
+	Timestamp    int64          `json:"timestamp"`
+	Nonce        int64          `json:"nonce"`
+	Fee          int64          `json:"fee"`
+	TotalFee     int64          `json:"totalFee"`
+	PreviousHash types.HexBytes `json:"previousHash"`
+	CurrentHash  types.HexBytes `json:"currentHash"`
+	Signature    types.HexBytes `json:"signature"`
+	BlockBody    *BlockBody     `json:"-"`
+	Body         types.HexBytes `json:"body"`
+	Round        *round.Round   `json:"round"`
+	Locker       sync.RWMutex   `json:"-"`
+	StatTree     *MPTPlus.MTP   `json:"-"`
+	StatRoot     types.HexBytes `json:"statRoot"`
+	TxTree       *MPTPlus.MTP   `json:"-"`
+	TxRoot       types.HexBytes `json:"txRoot"`
+	TokenTree    *MPTPlus.MTP   `json:"-"`
+	TokenRoot    types.HexBytes `json:"tokenRoot"`
 }
 
 func (block Block) GetRound() *round.Round {
@@ -74,11 +71,15 @@ func (block *Block) CaculateHash() []byte {
 	return block.CurrentHash
 }
 
+func (block Block) ValidateHash() bool {
+	return bytes.EqualFold(block.CurrentHash, block.CaculateHash())
+}
+
 func (block *Block) NewNonce() {
 	block.Nonce++
 }
 
-func (block *Block) GetAccount(address []byte) (*common.Account, error) {
+func (block Block) GetAccount(address []byte) (*types.Account, error) {
 	if block.StatTree == nil {
 		block.StatTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.StatRoot)
 	}
@@ -86,7 +87,7 @@ func (block *Block) GetAccount(address []byte) (*common.Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	var account common.Account
+	var account types.Account
 	err = json.Unmarshal(value, &account)
 	if err != nil {
 		return nil, err
@@ -94,14 +95,14 @@ func (block *Block) GetAccount(address []byte) (*common.Account, error) {
 	return &account, nil
 }
 
-func (block *Block) ExistAddress(address []byte) bool {
+func (block Block) ExistAddress(address []byte) bool {
 	if block.StatTree == nil {
 		block.StatTree = MPTPlus.MTP_Tree(db.GetDBInst(), block.StatRoot)
 	}
 	return block.StatTree.ContainsKey(address)
 }
 
-func (block *Block) CreateGenesisAccount(account common.Account) bool {
+func (block *Block) CreateGenesisAccount(account types.Account) bool {
 	err := block.StatTree.MustInsert(account.Address, account.ToBytes())
 	if err != nil {
 		return false
@@ -110,13 +111,13 @@ func (block *Block) CreateGenesisAccount(account common.Account) bool {
 	return true
 }
 
-func (block *Block) NewTransaction(tx common.Transaction, fee int64) *common.TxResult {
+func (block *Block) NewTransaction(tx userevent.Transaction, fee int64) *userevent.TxResult {
 	account, _ := block.GetAccount(tx.GetFrom())
 	recieverAccount, err := block.GetAccount(tx.GetTo())
 	if err != nil || nil == recieverAccount {
-		*recieverAccount = common.CreateAccount(tx.GetTo(), 0)
+		*recieverAccount = types.CreateAccount(tx.GetTo(), 0)
 	}
-	var txResult *common.TxResult
+	var txResult *userevent.TxResult
 
 	// 如果fee太少，默认使用系统最少值
 	if fee < block.Fee {
@@ -124,24 +125,25 @@ func (block *Block) NewTransaction(tx common.Transaction, fee int64) *common.TxR
 	}
 
 	if tx.Nonce != account.Nonce+1 {
-		txResult = common.NewTransactionResult(tx, fee, false, "invalid nonce")
+		txResult = userevent.NewTransactionResult(tx, fee, false, "invalid nonce")
 	} else if tx.TokenAddress == "" {
 		if account.GetAmount() < tx.Amount+fee {
-			txResult = common.NewTransactionResult(tx, fee, false, "no enough gas")
+			txResult = userevent.NewTransactionResult(tx, fee, false, "no enough gas")
 		} else {
 			block.TotalFee++
 			account.ReduceAmount(tx.Amount + fee)
 			recieverAccount.AddAmount(tx.Amount)
 			block.StatTree.MustInsert(tx.GetFrom(), account.ToBytes())
 			block.StatTree.MustInsert(tx.GetTo(), recieverAccount.ToBytes())
-			txResult = common.NewTransactionResult(tx, fee, true, "")
+			txResult = userevent.NewTransactionResult(tx, fee, true, "")
 		}
 	} else {
 		if account.Balances[tx.TokenAddress] < tx.Amount {
-			txResult = common.NewTransactionResult(tx, fee, false, "no enough amount")
+			txResult = userevent.NewTransactionResult(tx, fee, false, "no enough amount")
 		} else if account.GetAmount() < fee {
-			txResult = common.NewTransactionResult(tx, fee, false, "no enough gas")
+			txResult = userevent.NewTransactionResult(tx, fee, false, "no enough gas")
 		} else {
+			block.TotalFee++
 			account.Balances[tx.TokenAddress] -= tx.Amount
 			account.ReduceAmount(fee)
 			if recieverAccount.Balances == nil {
@@ -151,13 +153,12 @@ func (block *Block) NewTransaction(tx common.Transaction, fee int64) *common.TxR
 			recieverAccount.Balances[tx.TokenAddress] += tx.Amount
 			block.StatTree.MustInsert(tx.GetFrom(), account.ToBytes())
 			block.StatTree.MustInsert(tx.GetTo(), recieverAccount.ToBytes())
-			txResult = common.NewTransactionResult(tx, fee, true, "")
+			txResult = userevent.NewTransactionResult(tx, fee, true, "")
 		}
 	}
 	txId, _ := hex.DecodeString(tx.TransactionId())
 
 	block.TxTree.MustInsert(txId, txResult.ToBytes())
-	block.UpdateMPTPlusRoot()
 	return txResult
 }
 
@@ -191,7 +192,7 @@ func FromBytes2Block(data []byte) (*Block, error) {
 	return &block, nil
 }
 
-func NewBlock(last *Block) *Block {
+func NewBlock(last Block) *Block {
 	block := &Block{
 		Height:       last.Height + 1,
 		Nonce:        0,
@@ -210,13 +211,12 @@ func NewBlock(last *Block) *Block {
 	return block
 }
 
-func (block *Block) ValidateNextBlock(next Block, interval time.Duration) bool {
+func (block Block) ValidateNextBlock(next Block, events []userevent.IUserEvent) bool {
 	// 如果不是当前的块的下一个区块，则返回false
 	if !bytes.Equal(next.PreviousHash, block.Hash()) || block.Height+1 != next.Height {
-		log.Info("This block's previous hash is unexpected, want %s, get %s. \n", hex.EncodeToString(block.Hash()), hex.EncodeToString(next.PreviousHash))
 		return false
 	}
-	return block.ValidateBlockStat(next)
+	return block.ValidateBlockStat(next, events)
 }
 
 // consensus 模块调用这个函数，获得一个block对象之后发送给其他节点，其他节点同意之后调用上面的NewBlock方法
@@ -231,41 +231,35 @@ func (block *Block) Pack(difficulty []byte) {
 	log.Info("Caculated block hash, cost %d ms. \n", (end-start+1e9)%1e9/1e6)
 }
 
-func (block *Block) ValidateBlockStat(next Block) bool {
+func (block Block) ValidateBlockStat(next Block, events []userevent.IUserEvent) bool {
 	BlockRecorder.SetBlock(&next)
 	log.Info("Validating block stat merkler proof.")
-	// 从打包节点获取body
-	body, err := next.GetRound().Peers[next.GetRound().CurrentIndex].GetDBValue(next.Body)
-	if err != nil {
-		log.Info("Can not get body from mining node, return false.")
-		return false
-	}
-	next.BlockBody, err = FromBytes(body)
-	if err != nil {
-		log.Info("Get an error body, return false.")
-		return false
-	}
+
 	//根据上一个区块头生成一个新的区块
 	_next := NewBlock(block)
 
 	//让新生成的区块执行peer传过来的body中的user events进行计算
-	if block.BlockBody != nil {
-		block.BlockBody.Events.Range(func(key, value interface{}) bool {
-			_, ok1 := key.(string)
-			list, ok2 := value.([]string)
-			if ok1 && ok2 && len(list) > 0 {
-				for _, eventId := range list {
-					txId, err := hex.DecodeString(eventId)
-					if err != nil {
-						return false
-					}
-					tx := common.GetTransaction(txId)
-					_next.NewTransaction(*tx, tx.Fee)
-				}
-			}
-			return true
-		})
+	if len(block.BlockBody.Events) > 0 {
+		//for _, eventId := range block.BlockBody.Events {
+		//}
 	}
+	//if block.BlockBody != nil {
+	//	block.BlockBody.Events.Range(func(key, value interface{}) bool {
+	//		_, ok1 := key.(string)
+	//		list, ok2 := value.([]string)
+	//		if ok1 && ok2 && len(list) > 0 {
+	//			for _, eventId := range list {
+	//				txId, err := hex.DecodeString(eventId)
+	//				if err != nil {
+	//					return false
+	//				}
+	//				tx := types.GetTransaction(txId)
+	//				_next.NewTransaction(*tx, tx.Fee)
+	//			}
+	//		}
+	//		return true
+	//	})
+	//}
 
 	// 更新默克尔树根
 	_next.UpdateMPTPlusRoot()
@@ -283,33 +277,8 @@ func (block *Block) ValidateBlockStat(next Block) bool {
 	return true
 }
 
-func (block *Block) Sign(ctxlog *ctxlog.ContextLog) error {
-	ctxlog.Log("node.PrivKey", hex.EncodeToString(conf.EKTConfig.GetPrivateKey()))
-	Signature, err := crypto.Crypto(crypto.Sha3_256(block.Hash()), conf.EKTConfig.GetPrivateKey())
-	block.Signature = hex.EncodeToString(Signature)
+func (block *Block) Sign(privKey []byte) error {
+	Signature, err := crypto.Crypto(crypto.Sha3_256(block.CurrentHash), privKey)
+	block.Signature = Signature
 	return err
-}
-
-// 校验区块头的hash值和其他字段是否匹配，以及签名是否正确
-func (block Block) Validate(ctxlog *ctxlog.ContextLog) error {
-	if !bytes.Equal(block.CurrentHash, block.CaculateHash()) {
-		return errors.New("Invalid Hash")
-	}
-
-	sign, err := hex.DecodeString(block.Signature)
-	if err != nil {
-		return err
-	}
-
-	if pubkey, err := crypto.RecoverPubKey(crypto.Sha3_256(block.CurrentHash), sign); err != nil {
-		ctxlog.Log("Recover pubKey failed", true)
-		return err
-	} else {
-		if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubkey)), block.GetRound().Peers[block.GetRound().CurrentIndex].PeerId) {
-			ctxlog.Log("peerId", block.GetRound().Peers[block.GetRound().CurrentIndex].PeerId)
-			ctxlog.Log("RecoverPeerId", hex.EncodeToString(crypto.Sha3_256(pubkey)))
-			return errors.New("Invalid signature")
-		}
-	}
-	return nil
 }
