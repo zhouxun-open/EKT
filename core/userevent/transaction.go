@@ -1,4 +1,4 @@
-package common
+package types
 
 import (
 	"encoding/hex"
@@ -12,7 +12,12 @@ import (
 
 type Transactions []*Transaction
 
+type UserEvent struct {
+	Type string
+}
+
 type Transaction struct {
+	UserEvent
 	From         HexBytes `json:"from"`
 	To           HexBytes `json:"to"`
 	TimeStamp    int64    `json:"time"` // UnixTimeStamp

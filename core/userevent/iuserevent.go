@@ -2,7 +2,7 @@ package userevent
 
 import (
 	"bytes"
-	"github.com/EducationEKT/EKT/core/common"
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
 	"strings"
 )
@@ -22,7 +22,18 @@ func Validate(userEvent IUserEvent) bool {
 	if err != nil {
 		return false
 	}
-	return bytes.EqualFold(common.FromPubKeyToAddress(pubKey), userEvent.GetFrom())
+	return bytes.EqualFold(types.FromPubKeyToAddress(pubKey), userEvent.GetFrom())
+}
+
+func (events SortedUserEvent) Delete(eventId string) SortedUserEvent {
+	if len(events) == 0 {
+		return events
+	}
+	index := events.Index(eventId)
+	if index == -1 {
+		return events
+	}
+	return append(events[:index], events[index+1:]...)
 }
 
 func (events SortedUserEvent) Index(eventId string) int {
