@@ -1,7 +1,6 @@
 package blockchain
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -188,6 +187,7 @@ func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 	if block.Fee <= 0 {
 		block.Fee = chain.Fee
 	}
+
 	log.Info("Packing transaction and other events.")
 	start := time.Now().UnixNano()
 	started := false
@@ -223,11 +223,7 @@ func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 	}
 
 	end := time.Now().UnixNano()
-	fmt.Printf("Total tx: %d, startTime: %d, endTime: %d, Total time: %d ns. \n", numTx, start/1e6, end/1e6, end-start)
-
-	if numTx > 0 {
-		ctxLog.Log("block.Stat1", hex.EncodeToString(block.StatTree.Root))
-	}
+	fmt.Printf("Total tx: %d, Total time: %d ns, TPS: %d. \n", numTx, end-start, numTx*1e9/int(end-start))
 
 	chain.UpdateBody(block)
 	block.UpdateMPTPlusRoot()
@@ -259,7 +255,7 @@ func (chain *BlockChain) NotifyPool(block Block) {
 	//})
 }
 
-func (chain *BlockChain) NewTransaction(tx userevent.Transaction) bool {
+func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 	block := chain.GetLastBlock()
 	account, err := block.GetAccount(tx.GetFrom())
 	if err != nil {
