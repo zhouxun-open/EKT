@@ -32,11 +32,11 @@ func TestSortedUserEvent_QuikInsert(t *testing.T) {
 
 	events := make(SortedUserEvent, 0)
 
-	events = events.QuikInsert(event1)
-	events = events.QuikInsert(event2)
-	events = events.QuikInsert(event3)
-	events = events.QuikInsert(event4)
-	events = events.QuikInsert(event5)
+	events = events.QuickInsert(event1)
+	events = events.QuickInsert(event2)
+	events = events.QuickInsert(event3)
+	events = events.QuickInsert(event4)
+	events = events.QuickInsert(event5)
 
 	fmt.Println(events)
 	for i := 0; i < len(events)-1; i++ {
@@ -52,6 +52,6 @@ func BenchmarkSortedUserEvent_QuikInsert(b *testing.B) {
 	events := make(SortedUserEvent, 0)
 	for i := b.N; i >= 0; i-- {
 		event := NewTransaction(from, to, 0, 0, 0, int64(i), "", "")
-		events.QuikInsert(event)
+		events.QuickInsert(event)
 	}
 }

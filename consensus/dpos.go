@@ -649,8 +649,7 @@ func (dpos DPOSConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 		votes := dpos.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash))
 		for _, peer := range round.Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
-			resp, err := util.HttpPost(url, votes.Bytes())
-			fmt.Println("======", string(resp), err)
+			go util.HttpPost(url, votes.Bytes())
 		}
 	} else {
 		log.Info("Current vote results: %s", string(dpos.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash)).Bytes()))
@@ -666,11 +665,9 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 	}
 
 	status := dpos.BlockManager.GetBlockStatus(votes[0].BlockHash)
-	fmt.Println("========status=", status)
 
 	// 已经写入到链中
 	if status == blockchain.BLOCK_SAVED {
-		fmt.Println("Already wrote to blockchain.")
 		return true
 	}
 
@@ -684,18 +681,12 @@ func (dpos DPOSConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 
 	// 区块已经校验但未写入链中
 	if status == blockchain.BLOCK_VALID || status == blockchain.BLOCK_VOTED {
-		fmt.Println("saving votes")
 		dpos.SaveVotes(votes)
-		fmt.Println("geting block")
 		block, exist := dpos.BlockManager.GetBlock(votes[0].BlockHash)
 		if !exist {
-			fmt.Println("does not exist")
 			return false
 		}
-		fmt.Println("saving block")
 		dpos.Blockchain.SaveBlock(block)
-		fmt.Println("notify pool")
-		// TODO sync body
 		body, err := block.Round.Peers[block.Round.CurrentIndex].GetDBValue(block.Body)
 		if err != nil {
 
