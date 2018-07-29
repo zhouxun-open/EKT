@@ -77,7 +77,7 @@ func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if tx.Amount <= 0 {
 		return nil, x_err.New(-100, "error amount")
 	}
-	err = dispatcher.NewTransaction(tx)
+	err = dispatcher.NewTransaction(&tx)
 	if err == nil {
 		txId := crypto.Sha3_256(tx.Bytes())
 		db.GetDBInst().Set(txId, tx.Bytes())

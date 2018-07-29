@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
+	"sort"
 	"strings"
 )
 
@@ -31,6 +32,15 @@ func Validate(userEvent IUserEvent) bool {
 	return bytes.EqualFold(types.FromPubKeyToAddress(pubKey), userEvent.GetFrom())
 }
 
+func (events SortedUserEvent) Assert() bool {
+	for i := 0; i < len(events)-1; i++ {
+		if events[i].GetNonce()+1 != events[i+1].GetNonce() {
+			return false
+		}
+	}
+	return true
+}
+
 func (events SortedUserEvent) Delete(eventId string) SortedUserEvent {
 	if len(events) == 0 {
 		return events
@@ -51,21 +61,35 @@ func (events SortedUserEvent) Index(eventId string) int {
 	return -1
 }
 
-func (events SortedUserEvent) QuikInsert(event IUserEvent) SortedUserEvent {
-	low, high := 0, len(events)
-	for high > low+1 {
-		m := (low + high) / 2
-		if events[m].GetNonce() > event.GetNonce() {
-			high = m
-		} else {
-			low = m
+func (events SortedUserEvent) QuickInsert(event IUserEvent) SortedUserEvent {
+	if len(events) == 0 {
+		return append(events, event)
+	}
+	if event.GetNonce() < events[0].GetNonce() {
+		list := make(SortedUserEvent, 0)
+		list = append(list, event)
+		list = append(list, events...)
+		return list
+	}
+	if event.GetNonce() > events[len(events)-1].GetNonce() {
+		return append(events, event)
+	}
+	for i := 0; i < len(events)-1; i++ {
+		if events[i].GetNonce() < event.GetNonce() && event.GetNonce() < events[i+1].GetNonce() {
+			list := make(SortedUserEvent, 0)
+			list = append(list, events[:i+1]...)
+			list = append(list, event)
+			list = append(list, events[i+1:]...)
+			return list
 		}
 	}
+	return events.quickSort(event)
+}
 
-	left := events[:high]
-	right := events[high:]
-	list := append(left, event)
-	return append(list, right...)
+func (events SortedUserEvent) quickSort(event IUserEvent) SortedUserEvent {
+	events = append(events, event)
+	sort.Sort(events)
+	return events
 }
 
 func (events SortedUserEvent) Len() int {

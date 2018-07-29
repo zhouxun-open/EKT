@@ -9,7 +9,7 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 )
 
-func NewTransaction(transaction userevent.Transaction) error {
+func NewTransaction(transaction *userevent.Transaction) error {
 	// 主币的tokenAddress为空
 	if transaction.TokenAddress != "" {
 		tokenAddress, err := hex.DecodeString(transaction.TokenAddress)
