@@ -191,7 +191,7 @@ func (pool *TxPool) MultiEvent(num int) userevent.SortedUserEvent {
 			var result userevent.SortedUserEvent
 			if len(list) > num {
 				result = list[:num]
-				list = list[num+1:]
+				list = list[num:]
 				pool.ready[address] = list
 			} else {
 				result = list
@@ -210,7 +210,7 @@ func (pool *TxPool) parkReady(event userevent.IUserEvent) {
 		events = make(userevent.SortedUserEvent, 0)
 	}
 	pool.all[event.EventId()] = event
-	events = events.QuikInsert(event)
+	events = events.QuickInsert(event)
 	pool.ready[address] = events
 	pool.mergeReadyAndBlock(address)
 }
@@ -222,7 +222,7 @@ func (pool *TxPool) parkBlock(event userevent.IUserEvent) {
 		events = make(userevent.SortedUserEvent, 0)
 	}
 	pool.all[event.EventId()] = event
-	events = events.QuikInsert(event)
+	events = events.QuickInsert(event)
 	pool.block[address] = events
 	pool.mergeReadyAndBlock(address)
 }
@@ -238,7 +238,7 @@ func (pool *TxPool) parkMultiReady(events userevent.SortedUserEvent) {
 	}
 	for i, _ := range events {
 		pool.all[events[i].EventId()] = events[i]
-		readyList.QuikInsert(events[i])
+		readyList.QuickInsert(events[i])
 	}
 	pool.mergeReadyAndBlock(address)
 }
@@ -254,7 +254,7 @@ func (pool *TxPool) parkMultiBlock(events userevent.SortedUserEvent) {
 	}
 	for i, _ := range events {
 		pool.all[events[i].EventId()] = events[i]
-		blockList.QuikInsert(events[i])
+		blockList.QuickInsert(events[i])
 	}
 	pool.mergeReadyAndBlock(address)
 }
@@ -277,7 +277,7 @@ func (pool *TxPool) mergeReadyAndBlock(address string) {
 			if event.GetNonce() == lastNonce+1 {
 				lastNonce++
 				numMerged++
-				readyList = readyList.QuikInsert(blockList[i])
+				readyList = readyList.QuickInsert(blockList[i])
 			} else {
 				break
 			}
